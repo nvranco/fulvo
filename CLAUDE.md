@@ -1,4 +1,4 @@
-# CLAUDE.md — fulbo
+# CLAUDE.md — fulvo
 
 Guía para Claude Code en este repositorio. Todo lo que está acá es de lectura obligatoria antes de tocar código.
 
@@ -6,10 +6,10 @@ Guía para Claude Code en este repositorio. Todo lo que está acá es de lectura
 
 ## 1. Proyecto
 
-- **Nombre:** fulbo
+- **Nombre:** fulvo
 - **Contexto:** trabajo práctico final de *Programación 2 (LCD)*, UNSAM. Entrega grupal.
 - **Idea general:** MVP para validar la hipótesis de si las personas están dispuestas a solicitar jugadores extra para completar partidos de fútbol. Los usuarios se registran y arman partidos; otros usuarios se postulan a los lugares libres; el organizador acepta y ambos se ven el WhatsApp para coordinar por fuera de la app. El alcance es chico a propósito: solo lo necesario para probar esa hipótesis.
-- **Repositorio:** https://github.com/nvranco/fulbo
+- **Repositorio:** https://github.com/nvranco/fulvo
 - **Compartir el repo con:** `matuk` y `santiagoblaslaguzza`.
 
 ### Prioridad del proyecto: explicabilidad
@@ -107,10 +107,10 @@ Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock`
 
 ## 5. Estructura del repositorio
 
-Se mantiene la estructura de la cátedra, cambiando el nombre del paquete `fast_zero` por `fulbo`.
+Se mantiene la estructura de la cátedra, cambiando el nombre del paquete `fast_zero` por `fulvo`.
 
 ```
-fulbo/
+fulvo/
 ├── CLAUDE.md
 ├── README.md                  # librerías, cómo desplegar y probar (entregable)
 ├── pyproject.toml
@@ -126,7 +126,7 @@ fulbo/
 │   ├── consigna.pdf
 │   └── ...                    # requerimientos, casos de uso, UML
 ├── migrations/                # excluido de ruff
-├── fulbo/
+├── fulvo/
 │   ├── app.py                 # instancia FastAPI y registro de routers
 │   ├── settings.py            # configuración desde variables de entorno
 │   ├── database.py            # engine y get_session
@@ -140,7 +140,7 @@ fulbo/
     └── test_*.py
 ```
 
-Si el patrón de diseño elegido necesita su propio módulo (por ejemplo `fulbo/servicios/`), se agrega y se documenta acá.
+Si el patrón de diseño elegido necesita su propio módulo (por ejemplo `fulvo/servicios/`), se agrega y se documenta acá.
 
 ## 6. Comandos
 
@@ -205,7 +205,7 @@ Se aplican dos patrones:
 
 Por qué: `Partido` solo avisa y no sabe quién reacciona, así que agregar una consecuencia nueva no lo modifica. La fábrica concentra los mensajes de notificación en un solo lugar.
 
-Pendiente: en qué módulos de `fulbo/` viven las clases del patrón. Se documenta acá cuando se creen.
+Pendiente: en qué módulos de `fulvo/` viven las clases del patrón. Se documenta acá cuando se creen.
 
 ## 9. Testing
 
