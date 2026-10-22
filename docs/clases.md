@@ -2,7 +2,7 @@
 
 Documento de trabajo del diagrama UML. Se arma clase por clase, y cada decisión queda anotada acá. El alcance sale de [`requerimientos.md`](requerimientos.md). Si algo no está en ese documento, no entra en las clases.
 
-Estado: **en construcción**. Lo marcado "pendiente" todavía no se decidió.
+Estado: diseño de clases cerrado. Queda una revisión de cardinalidades (sección 5).
 
 ## 1. Clases del MVP
 
@@ -38,6 +38,8 @@ Decisiones:
 - El no-show cuenta como un voto de 0 estrellas: `registrar_puntuacion(0)`. Anularlo usa `quitar_puntuacion(0)`.
 - La deuda se calcula en `Usuario`, no en un servicio aparte. `Partido.postular` solo pregunta `jugador.habilitado()`.
 - El bloqueo lo hace `Usuario.bloquear(...)`, que crea la `Sancion`. `Sancion.cerrar()` pone la fecha de fin.
+- El contacto del usuario se llama `whatsapp`.
+- El `apellido` no se muestra en el perfil público.
 
 **Rol**
 
@@ -109,7 +111,7 @@ Métodos:
 | `rechazar(postulacion)` | Marca la postulación rechazada. | `postulacion_rechazada` |
 | `revocar(postulacion)` | Suma 1 cupo y reabre el partido si estaba completo. | `revocacion` |
 | `retirar(postulacion)` | El jugador se baja. Si estaba aceptado, suma 1 cupo y reabre el partido. | `postulacion_retirada` |
-| `marcar_no_show(postulacion)` | Solo el organizador, sobre un aceptado. Marca `no_show` en la postulación. | `no_show_marcado` |
+| `marcar_no_show(postulacion)` | Solo el organizador, sobre un aceptado. Llama a `postulacion.marcar_no_show()`. | `no_show_marcado` |
 | `cancelar()` | Pasa a cancelado. | `partido_cancelado` |
 | `actualizar_estado(ahora)` | Si ya pasó `fin()`, pasa a jugado. Se llama al consultar el partido. | `partido_jugado` |
 | `agregar_observador(o)`, `quitar_observador(o)`, `notificar(evento)` | Mecánica del Observer. | — |
@@ -130,6 +132,8 @@ Métodos. `Postulacion` es dueña de sus propias transiciones de estado, y `Part
 | `rechazar()` | Pasa de en espera a rechazada y guarda `respondida_at`. |
 | `revocar()` | Pasa de aceptada a revocada y guarda `respondida_at`. |
 | `retirar()` | Pasa de en espera o aceptada a retirada. |
+| `marcar_no_show()` | Solo si está aceptada y no está marcada. Pone `no_show` en verdadero. |
+| `quitar_no_show()` | Solo si está marcada. Pone `no_show` en falso. |
 | `whatsapp_visible()` | Verdadero solo si el estado es aceptada. Es la regla de exposición del WhatsApp. |
 
 Una transición inválida levanta una excepción (por ejemplo, aceptar una postulación ya rechazada). La regla de estados queda en un solo lugar. `Postulacion` no emite eventos.
@@ -165,6 +169,7 @@ Métodos:
 
 | Método | Qué hace |
 |---|---|
+| `abrir(autor, tipo_objetivo, objetivo, motivo)` | Método de clase que crea el reclamo en estado abierto. Valida según el tipo: un no-show tiene que estar marcado y ser del autor, y una votación tiene que tener al autor como receptor. Rechaza denunciarse a uno mismo. Levanta una excepción si no se cumple. |
 | `resolver(admin, resolucion)` | Pasa a resuelto y aplica la medida según `tipo_objetivo`. |
 | `rechazar(admin, resolucion)` | Pasa a rechazado. No aplica ninguna medida. |
 
@@ -172,7 +177,7 @@ Medida al resolver:
 
 | `tipo_objetivo` | Qué es `objetivo_id` | Medida |
 |---|---|---|
-| no-show | Postulación marcada | Quita la marca, suma 1 partido jugado y quita el voto de 0 estrellas. |
+| no-show | Postulación marcada | Quita la marca con `Postulacion.quitar_no_show()`, suma 1 partido jugado y quita el voto de 0 estrellas. |
 | votación | Votación | La anula con `Votacion.anular()`. |
 | usuario | Usuario denunciado | El admin puede bloquearlo con `Usuario.bloquear()`. |
 | complejo | Complejo denunciado | Ninguna automática. El admin edita sus datos por el endpoint. |
@@ -180,7 +185,9 @@ Medida al resolver:
 Decisiones:
 
 - **Objetivo genérico.** `Reclamo` guarda `tipo_objetivo` y `objetivo_id`, sin clave foránea, igual que `Notificacion`. El diagrama queda más simple. El costo es que la base no verifica el id y el código decide dónde buscarlo según el tipo.
-- **Notificaciones de reclamos.** El reclamo nuevo (al admin) y el resuelto (al autor) se piden directamente a `FabricaNotificaciones` desde la lógica del reclamo. `Reclamo` no es sujeto del Observer, que queda solo para `Partido`.
+- **Validación al crear.** El endpoint busca el objetivo según `tipo_objetivo` y `objetivo_id`, y responde 404 si no existe. Después le pasa el objeto cargado a `Reclamo.abrir`, que valida que el no-show o la votación afecten al autor. La regla vive en la clase, se prueba con tests unitarios sin base de datos y no suma métodos a otras clases.
+- **Reclamo duplicado.** No se acepta un reclamo si el mismo autor ya tiene uno abierto sobre el mismo objetivo. Esta regla necesita consultar la base, que las clases de dominio no hacen, así que la comprueba el endpoint antes de llamar a `Reclamo.abrir`.
+- **Notificación de reclamos.** Solo se notifica el reclamo resuelto (al autor), y se pide directamente a `FabricaNotificaciones` desde la lógica del reclamo. El admin no recibe aviso por un reclamo nuevo: ve los abiertos en su listado. `Reclamo` no es sujeto del Observer, que queda solo para `Partido`.
 
 **Sancion**
 
@@ -248,7 +255,7 @@ Decisiones sobre la Factory:
 | `partido_jugado` | Participantes | votaciones pendientes |
 | `no_show_marcado` | — | No se notifica |
 
-- Las notificaciones de reclamos (nuevo y resuelto) las pide la lógica del reclamo a la misma fábrica, sin pasar por el Observer.
+- La notificación de reclamo resuelto la pide la lógica del reclamo a la misma fábrica, sin pasar por el Observer.
 
 ## 4. Decisiones ya tomadas que afectan a las clases
 
@@ -259,11 +266,7 @@ Decisiones sobre la Factory:
 
 ## 5. Pendiente
 
-- Dónde se valida que el objetivo de un reclamo afecte al autor (no-show o votación propios) y que exista.
 - Revisar las cardinalidades del diagrama. No tienen línea el dueño de `Complejo` ni los usos del `ProcesadorPostPartido` sobre `Usuario`. Esos se explican en las notas.
-- Quién cambia la marca de no-show en `Postulacion`. Hoy `Partido.marcar_no_show` y el reclamo resuelto la modifican directo, y `Postulacion` no tiene un método propio. Decidir si se agregan `marcar_no_show()` y `quitar_no_show()`, para que `Postulacion` siga siendo dueña de su estado.
-- Nombre del campo de contacto del usuario (`whatsapp` o `telefono`).
-- Si el apellido se muestra en el perfil público.
 
 ## 6. Diagrama
 
