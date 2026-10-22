@@ -24,6 +24,8 @@ Fulvo es un **MVP** cuyo proposito es validar la siguiente hipótesis:
 
 La coordinación final (horario exacto, llegada, pago de la cancha) se hace por WhatsApp. Fulvo solo conecta a las personas.
 
+Además, después del partido los participantes se votan entre sí y al complejo, el organizador puede marcar ausencias (no-show) y cualquier usuario puede presentar un reclamo que resuelve un administrador. El detalle completo está en la [documentación](docs/requerimientos.md).
+
 ## Créditos
 
 Proyecto realizado en el marco de la materia **Programación 2 (LCD) - UNSAM**. El stack y la estructura siguen el material de la cátedra: https://rmatuk.github.io/prog2
