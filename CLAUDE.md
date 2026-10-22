@@ -8,7 +8,7 @@ Guía para Claude Code en este repositorio. Todo lo que está acá es de lectura
 
 - **Nombre:** fulbo
 - **Contexto:** trabajo práctico final de *Programación 2 (LCD)*, UNSAM. Entrega grupal.
-- **Idea general:** `TODO(proyecto)` — descripción del dominio en 2 o 3 líneas.
+- **Idea general:** MVP para validar la hipótesis de si las personas están dispuestas a solicitar jugadores extra para completar partidos de fútbol. Los usuarios se registran y arman partidos; otros usuarios se postulan a los lugares libres; el organizador acepta y recibe el número de WhatsApp del aceptado para coordinar por fuera de la app. El alcance es chico a propósito: solo lo necesario para probar esa hipótesis.
 - **Repositorio:** https://github.com/nvranco/fulbo
 - **Compartir el repo con:** `matuk` y `santiagoblaslaguzza`.
 
@@ -61,15 +61,18 @@ El 40% de la nota es **exposición y defensa**. Cada decisión de código tiene 
 
 ## 3. Requerimientos del proyecto
 
-`TODO(proyecto)` — completar cuando el grupo describa lo planificado. Esta tabla es la fuente de verdad: todo endpoint debe poder rastrearse a un RQ.
+Borrador a partir de la descripción del grupo; se ajusta cuando pasen lo planificado. Esta tabla es la fuente de verdad: todo endpoint debe poder rastrearse a un RQ.
 
 | RQ | Descripción | Endpoint(s) | Tests | Estado |
 |---|---|---|---|---|
-| RQ1 | | | | pendiente |
-| RQ2 | | | | pendiente |
-| RQ3 | | | | pendiente |
-| RQ4 | | | | pendiente |
-| RQ5 | | | | pendiente |
+| RQ1 | Los usuarios podrán registrarse e iniciar sesión | `TODO` | | pendiente |
+| RQ2 | Los usuarios podrán crear partidos (fecha, lugar, lugares libres) | `TODO` | | pendiente |
+| RQ3 | Los usuarios podrán ver los partidos con lugares libres | `TODO` | | pendiente |
+| RQ4 | Los usuarios podrán postularse a un partido | `TODO` | | pendiente |
+| RQ5 | El organizador podrá aceptar o rechazar postulaciones | `TODO` | | pendiente |
+| RQ6 | Al aceptar, el organizador recibe el WhatsApp del aceptado | `TODO` | | pendiente |
+
+Dato sensible: el número de WhatsApp solo se expone al organizador cuando acepta la postulación. No debe aparecer en listados públicos ni en las respuestas de otros endpoints.
 
 ## 4. Stack técnico
 
