@@ -2,8 +2,6 @@
 
 Documento de trabajo del diagrama UML. Se arma clase por clase, y cada decisión queda anotada acá. El alcance sale de [`requerimientos.md`](requerimientos.md). Si algo no está en ese documento, no entra en las clases.
 
-Estado: diseño de clases cerrado. Queda una revisión de cardinalidades (sección 5).
-
 ## 1. Clases del MVP
 
 Los identificadores van en español sin tildes ni ñ, como indica `CLAUDE.md`.
@@ -266,7 +264,7 @@ Decisiones sobre la Factory:
 
 ## 5. Pendiente
 
-- Revisar las cardinalidades del diagrama. No tienen línea el dueño de `Complejo` ni los usos del `ProcesadorPostPartido` sobre `Usuario`. Esos se explican en las notas.
+Nada pendiente.
 
 ## 6. Diagrama
 
@@ -320,6 +318,6 @@ Se lee desde una clase hacia la otra. Ejemplo: entre `Partido` y `Postulacion`, 
 
 1. Leelo por zonas. A la izquierda, zonas y complejos. Al centro, `Partido` con el Observer arriba (observadores, interfaz y evento) y `Votacion` abajo. A la derecha, `Postulacion` y `Usuario`, con `Rol`, `Sancion` y `Reclamo` debajo, y la Factory con `Notificacion` arriba.
 2. Seguí un caso real. Por ejemplo: un partido pasa a jugado, `Partido` crea un `EventoPartido` y llama a `notificar`, los dos observadores reciben `actualizar(evento)`, el `NotificadorPartido` le pide la notificación a la fábrica y el `ProcesadorPostPartido` crea las votaciones.
-3. `Votacion`, `Sancion` y `Reclamo` se unen a `Usuario` con una sola línea que lleva los dos roles en el nombre (por ejemplo `emisor / receptor_usuario`). Son dos relaciones dibujadas como una para no llenar el diagrama. El dueño de `Complejo` no tiene línea: se ve solo como atributo reservado.
+3. `Votacion`, `Sancion` y `Reclamo` se unen a `Usuario` con una sola línea que lleva los dos roles en el nombre (por ejemplo `emisor / receptor_usuario`). Son dos relaciones dibujadas como una para no llenar el diagrama, y la multiplicidad que se ve es la del primer rol (`emisor`, `usuario`, `autor`, que son siempre uno). El segundo rol puede ser opcional: `receptor_usuario` y `resuelto_por` son `0..1`. El dueño de `Complejo` no tiene línea: se ve solo como atributo reservado.
 4. `Reclamo` no tiene línea hacia su objetivo. Guarda `tipo_objetivo` y `objetivo_id`, y la nota al lado explica qué clase corresponde a cada tipo.
 5. Los tipos que no son clases del diagrama (`EstadoPartido`, `TipoPartido`, `TipoNotificacion` y similares) son enumeraciones: listas fijas de valores, como los estados de la sección 4 de `requerimientos.md`.
