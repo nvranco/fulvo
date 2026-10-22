@@ -6,9 +6,7 @@
   <img src="docs/img/fulvo.png" alt="fulvo?" width="300">
 </p>
 
-Aplicación para armar partidos de fútbol y conseguir jugadores que completen los lugares que faltan.
-
-Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
+Aplicación completar equipos de fútbol. Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
 
 ## Secuencia
 
