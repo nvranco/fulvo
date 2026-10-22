@@ -268,7 +268,7 @@ Nada pendiente.
 
 ## 6. Diagrama
 
-[`diagramas/clases.drawio`](diagramas/clases.drawio). Tiene las 15 clases (10 del dominio y 5 de los patrones Observer y Factory). Se abre en https://app.diagrams.net (Open Existing Diagram) o con la extensión Draw.io Integration de VS Code.
+[`diagramas/clases.drawio`](diagramas/clases.drawio). Tiene las 15 clases (10 del dominio y 5 de los patrones Observer y Factory). Se abre en https://app.diagrams.net (Open Existing Diagram) o con la extensión Draw.io Integration de VS Code. Hay una copia en imagen, [`diagramas/clases.svg`](diagramas/clases.svg), para verlo directo en GitHub o usarlo en la presentación. Se exporta desde el `.drawio`: si se cambia uno, hay que regenerar el otro.
 
 ### Cómo leerlo
 
