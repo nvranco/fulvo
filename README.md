@@ -37,7 +37,7 @@ Integrantes:
 
 - [`docs/consigna.pdf`](docs/consigna.pdf): consigna del trabajo práctico.
 - [`docs/requerimientos.md`](docs/requerimientos.md): requerimientos del MVP e ideas post-MVP.
-- [`docs/diagramas/`](docs/diagramas/): diagramas de secuencia.
+- [`docs/diagramas/`](docs/diagramas/): diagramas de secuencia y diagrama de clases (draw.io).
 - [`docs/clases.md`](docs/clases.md): clases del dominio y patrones de diseño.
 - [`CLAUDE.md`](CLAUDE.md): convenciones y decisiones del proyecto.
 

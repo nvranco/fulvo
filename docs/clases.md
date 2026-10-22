@@ -261,12 +261,13 @@ Decisiones sobre la Factory:
 
 - Dónde se valida que el objetivo de un reclamo afecte al autor (no-show o votación propios) y que exista.
 - Revisar las cardinalidades del diagrama. No tienen línea el dueño de `Complejo` ni los usos del `ProcesadorPostPartido` sobre `Usuario`. Esos se explican en las notas.
+- Quién cambia la marca de no-show en `Postulacion`. Hoy `Partido.marcar_no_show` y el reclamo resuelto la modifican directo, y `Postulacion` no tiene un método propio. Decidir si se agregan `marcar_no_show()` y `quitar_no_show()`, para que `Postulacion` siga siendo dueña de su estado.
 - Nombre del campo de contacto del usuario (`whatsapp` o `telefono`).
 - Si el apellido se muestra en el perfil público.
 
 ## 6. Diagrama
 
-[`diagramas/clases.drawio`](diagramas/clases.drawio). Tiene las 14 clases de las cuatro zonas y los patrones Observer y Factory. Se abre en https://app.diagrams.net (Open Existing Diagram) o con la extensión Draw.io Integration de VS Code.
+[`diagramas/clases.drawio`](diagramas/clases.drawio). Tiene las 15 clases (10 del dominio y 5 de los patrones Observer y Factory). Se abre en https://app.diagrams.net (Open Existing Diagram) o con la extensión Draw.io Integration de VS Code.
 
 ### Cómo leerlo
 
