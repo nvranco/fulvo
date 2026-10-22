@@ -20,18 +20,7 @@ Proyecto final de la materia **Programación II** de la **Licenciatura en Cienci
 
 La coordinación final (horario exacto, llegada, pago de la cancha) se hace por WhatsApp. Fulvo solo conecta a las personas.
 
-Además, después del partido los participantes se votan entre sí y al complejo, el organizador puede marcar ausencias (no-show) y cualquier usuario puede presentar un reclamo que resuelve un administrador. El detalle completo está en la [documentación](docs/requerimientos.md).
-
-## Créditos
-
-Proyecto realizado en el marco de la materia **Programación 2 (LCD) - UNSAM**. El stack y la estructura siguen el material de la cátedra: https://rmatuk.github.io/prog2
-
-Integrantes:
-
-- Agustín Sigales ([@aseasigal](https://github.com/aseasigal))
-- Julián Rieznik ([@julianrieznik](https://github.com/julianrieznik))
-- Tomás Sirne ([@tomassirne](https://github.com/tomassirne))
-- Nicolás Vrancovich ([@nvranco](https://github.com/nvranco))
+Además, después del partido los participantes se votan entre sí y al complejo, el organizador puede marcar ausencias (no-show) y cualquier usuario puede presentar un reclamo que resuelve un administrador.
 
 ## Documentación
 
@@ -55,3 +44,16 @@ Se usa el stack de la cátedra:
 - **Docker** y **Docker Compose**
 - **GitHub Actions** para la integración continua
 - **Fly.io** para el deploy
+
+
+## Créditos
+
+El stack y la estructura siguen el material de la cátedra: https://rmatuk.github.io/prog2
+
+Integrantes:
+
+- Agustín Sigales ([@aseasigal](https://github.com/aseasigal))
+- Julián Rieznik ([@julianrieznik](https://github.com/julianrieznik))
+- Tomás Sirne ([@tomassirne](https://github.com/tomassirne))
+- Nicolás Vrancovich ([@nvranco](https://github.com/nvranco))
+
