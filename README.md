@@ -6,7 +6,8 @@
   <img src="docs/img/fulvo.png" alt="fulvo?" width="300">
 </p>
 
-Aplicación completar equipos de fútbol. Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
+Aplicación completar equipos de fútbol. 
+Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
 
 ## Secuencia
 
@@ -46,7 +47,7 @@ Se usa el stack de la cátedra:
 
 ## Créditos
 
-El stack y la estructura siguen el material de la cátedra: https://rmatuk.github.io/prog2
+El stack y la estructura siguen el material de la cátedra en el repositorio https://rmatuk.github.io/prog2.
 
 Integrantes:
 
