@@ -20,7 +20,7 @@ Fulvo es un **MVP** cuyo proposito es validar la siguiente hipótesis:
 2. Un usuario **organiza un partido** y define cuántos lugares (slots) le faltan.
 3. Otros usuarios **se postulan** para ocupar los lugares libres.
 4. El organizador **acepta** a los postulantes que quiera.
-5. Al aceptar, el organizador **recibe el número de WhatsApp** del jugador aceptado para coordinar con él por fuera de la aplicación.
+5. Al aceptar, organizador y jugador **se ven el número de WhatsApp** para coordinar por fuera de la aplicación.
 
 La coordinación final (horario exacto, llegada, pago de la cancha) se hace por WhatsApp. Fulvo solo conecta a las personas.
 
@@ -28,18 +28,23 @@ La coordinación final (horario exacto, llegada, pago de la cancha) se hace por 
 
 | RQ | Descripción |
 |---|---|
-| RQ1 | Los usuarios podrán registrarse e iniciar sesión. |
-| RQ2 | Los usuarios podrán crear partidos indicando fecha, lugar y cantidad de lugares libres. |
-| RQ3 | Los usuarios podrán ver los partidos que todavía tienen lugares libres. |
-| RQ4 | Los usuarios podrán postularse a un partido para ocupar un lugar. |
-| RQ5 | El organizador podrá aceptar o rechazar las postulaciones de su partido. |
-| RQ6 | Al aceptar una postulación, el organizador recibirá el número de WhatsApp del jugador aceptado. |
+| RQ1 | Registrarse e iniciar sesión (edad mínima 16). |
+| RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. |
+| RQ3 | Ver zonas y complejos. |
+| RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes. |
+| RQ5 | Listar partidos abiertos con filtros y postularse. |
+| RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. |
+| RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. |
+| RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. |
+| RQ9 | Notificaciones dentro de la app. |
+| RQ10 | Admin: bloquear usuarios y editar zonas y complejos. |
+| RQ11 | Reclamos por no-show o votación, resueltos por el admin. |
 
-El detalle de casos de uso y endpoints se irá completando en `docs/`.
+El detalle está en [`docs/requerimientos.md`](docs/requerimientos.md) y los diagramas de secuencia en [`docs/diagramas/`](docs/diagramas/).
 
 ## Estado
 
-En desarrollo. Todavía no hay código de la API: por ahora el repositorio contiene la consigna y la documentación base.
+En desarrollo. Todavía no hay código de la API: por ahora el repositorio contiene la consigna, los requerimientos y los diagramas de secuencia.
 
 ## Stack
 
@@ -79,6 +84,8 @@ La documentación interactiva de la API queda disponible en `/docs` (Swagger) y 
 ## Documentación
 
 - [`docs/consigna.pdf`](docs/consigna.pdf): consigna del trabajo práctico.
+- [`docs/requerimientos.md`](docs/requerimientos.md): requerimientos del MVP e ideas post-MVP.
+- [`docs/diagramas/`](docs/diagramas/): diagramas de secuencia.
 - [`CLAUDE.md`](CLAUDE.md): convenciones y decisiones del proyecto.
 
 ## Créditos

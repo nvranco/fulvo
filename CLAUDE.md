@@ -8,7 +8,7 @@ Guía para Claude Code en este repositorio. Todo lo que está acá es de lectura
 
 - **Nombre:** fulbo
 - **Contexto:** trabajo práctico final de *Programación 2 (LCD)*, UNSAM. Entrega grupal.
-- **Idea general:** MVP para validar la hipótesis de si las personas están dispuestas a solicitar jugadores extra para completar partidos de fútbol. Los usuarios se registran y arman partidos; otros usuarios se postulan a los lugares libres; el organizador acepta y recibe el número de WhatsApp del aceptado para coordinar por fuera de la app. El alcance es chico a propósito: solo lo necesario para probar esa hipótesis.
+- **Idea general:** MVP para validar la hipótesis de si las personas están dispuestas a solicitar jugadores extra para completar partidos de fútbol. Los usuarios se registran y arman partidos; otros usuarios se postulan a los lugares libres; el organizador acepta y ambos se ven el WhatsApp para coordinar por fuera de la app. El alcance es chico a propósito: solo lo necesario para probar esa hipótesis.
 - **Repositorio:** https://github.com/nvranco/fulbo
 - **Compartir el repo con:** `matuk` y `santiagoblaslaguzza`.
 
@@ -61,18 +61,23 @@ El 40% de la nota es **exposición y defensa**. Cada decisión de código tiene 
 
 ## 3. Requerimientos del proyecto
 
-Borrador a partir de la descripción del grupo; se ajusta cuando pasen lo planificado. Esta tabla es la fuente de verdad: todo endpoint debe poder rastrearse a un RQ.
+Detalle completo en `docs/requerimientos.md` y diagramas de secuencia en `docs/diagramas/`. Esa es la fuente de verdad del alcance del MVP: lo que está en su sección Post-MVP no se implementa. Todo endpoint debe poder rastrearse a un RQ.
 
 | RQ | Descripción | Endpoint(s) | Tests | Estado |
 |---|---|---|---|---|
-| RQ1 | Los usuarios podrán registrarse e iniciar sesión | `TODO` | | pendiente |
-| RQ2 | Los usuarios podrán crear partidos (fecha, lugar, lugares libres) | `TODO` | | pendiente |
-| RQ3 | Los usuarios podrán ver los partidos con lugares libres | `TODO` | | pendiente |
-| RQ4 | Los usuarios podrán postularse a un partido | `TODO` | | pendiente |
-| RQ5 | El organizador podrá aceptar o rechazar postulaciones | `TODO` | | pendiente |
-| RQ6 | Al aceptar, el organizador recibe el WhatsApp del aceptado | `TODO` | | pendiente |
+| RQ1 | Registrarse e iniciar sesión (edad mínima 16). | `TODO` | | pendiente |
+| RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. | `TODO` | | pendiente |
+| RQ3 | Ver zonas y complejos. | `TODO` | | pendiente |
+| RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes. | `TODO` | | pendiente |
+| RQ5 | Listar partidos abiertos con filtros y postularse. | `TODO` | | pendiente |
+| RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `TODO` | | pendiente |
+| RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `TODO` | | pendiente |
+| RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
+| RQ9 | Notificaciones dentro de la app. | `TODO` | | pendiente |
+| RQ10 | Admin: bloquear usuarios y editar zonas y complejos. | `TODO` | | pendiente |
+| RQ11 | Reclamos por no-show o votación, resueltos por el admin. | `TODO` | | pendiente |
 
-Dato sensible: el número de WhatsApp solo se expone al organizador cuando acepta la postulación. No debe aparecer en listados públicos ni en las respuestas de otros endpoints.
+Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints. Pagos, reservas, mapa, amigos, chat y torneos están fuera del MVP.
 
 ## 4. Stack técnico
 
@@ -244,7 +249,7 @@ Cuando se decida, documentar acá: patrón, módulos involucrados y diagrama UML
 
 ## 12. Entregables (checklist)
 
-- [ ] Requerimientos RQ1..RQ5 (o más) definidos y cubiertos por endpoints
+- [ ] Requerimientos RQ1..RQ11 definidos y cubiertos por endpoints
 - [ ] API FastAPI funcionando y RESTful
 - [ ] Registro y login con JWT
 - [ ] Base de datos con SQLAlchemy y migraciones Alembic
