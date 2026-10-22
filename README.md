@@ -1,18 +1,14 @@
 
 
-# Fulvo
+# fulvo
 
 <p align="center">
-  <img src="docs/img/fulvo.png" alt="fulvo?" width="200">
+  <img src="docs/img/fulvo.png" alt="fulvo?" width="300">
 </p>
 
-API RESTful para armar partidos de fútbol y conseguir jugadores que completen los lugares que faltan.
+Aplicación para armar partidos de fútbol y conseguir jugadores que completen los lugares que faltan.
 
-> Este trabajo es el proyecto final de **Programación 2** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
-
-Fulvo es un **MVP** cuyo proposito es validar la siguiente hipótesis:
-
-> ¿Las personas están dispuestas a solicitar jugadores extra para completar un partido a través de una plataforma?
+Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
 
 ## Secuencia
 
@@ -42,6 +38,7 @@ Integrantes:
 - [`docs/consigna.pdf`](docs/consigna.pdf): consigna del trabajo práctico.
 - [`docs/requerimientos.md`](docs/requerimientos.md): requerimientos del MVP e ideas post-MVP.
 - [`docs/diagramas/`](docs/diagramas/): diagramas de secuencia.
+- [`docs/clases.md`](docs/clases.md): clases del dominio y patrones de diseño.
 - [`CLAUDE.md`](CLAUDE.md): convenciones y decisiones del proyecto.
 
 ## Stack
@@ -58,23 +55,3 @@ Se usa el stack de la cátedra:
 - **Docker** y **Docker Compose**
 - **GitHub Actions** para la integración continua
 - **Fly.io** para el deploy
-
-## Despliegue
-
-> Esta sección se completa a medida que se implementa la API.
-
-```bash
-# Instalar dependencias
-poetry install
-
-# Levantar la API en desarrollo
-poetry serve
-
-# Correr lint, tests y cobertura
-poetry test
-
-# Levantar API y PostgreSQL con Docker
-docker compose up --build
-```
-
-La documentación interactiva de la API queda disponible en `/docs` (Swagger) y `/redoc` cuando el servidor está corriendo.
