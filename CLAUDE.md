@@ -61,7 +61,7 @@ El 40% de la nota es **exposición y defensa**. Cada decisión de código tiene 
 
 ## 3. Requerimientos del proyecto
 
-Detalle completo en `docs/requerimientos.md` y diagramas de secuencia en `docs/diagramas/`. Esa es la fuente de verdad del alcance del MVP: lo que está en su sección Post-MVP no se implementa. Todo endpoint debe poder rastrearse a un RQ.
+Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/diagramas/` y diseño de clases en `docs/clases.md`. Esa es la fuente de verdad del alcance del MVP: lo que está en su sección Post-MVP no se implementa. Todo endpoint debe poder rastrearse a un RQ.
 
 | RQ | Descripción | Endpoint(s) | Tests | Estado |
 |---|---|---|---|---|
@@ -196,17 +196,16 @@ Antes de cada commit: `poetry format` y `poetry test` tienen que pasar.
 
 ## 8. Arquitectura y patrón de diseño
 
-`TODO(proyecto)` — definir **qué patrón** se aplica, **dónde** y **por qué**. Es entregable (va en la presentación con el UML) y tema central de la defensa.
+Decidido. Es entregable (va en la presentación con el UML) y tema central de la defensa. El detalle está en `docs/clases.md` (clases, métodos y decisiones) y el diagrama en `docs/diagramas/clases.drawio`. Leerlos antes de tocar modelos.
 
-Criterios para elegirlo:
+Se aplican dos patrones:
 
-- Tiene que resolver un problema real del proyecto, no ser decorativo.
-- Tiene que poder explicarse en menos de 2 minutos.
-- Candidatos naturales con FastAPI: Repository (acceso a datos), Service (reglas de negocio), Strategy, Observer (notificaciones), Factory.
+- **Observer.** `Partido` es el sujeto y emite eventos (`postulacion_recibida`, `postulacion_aceptada`, `postulacion_rechazada`, `partido_completo`, `revocacion`, `postulacion_retirada`, `partido_cancelado`, `partido_jugado`, `no_show_marcado`). Los observadores implementan `ObservadorPartido`: `NotificadorPartido` crea las notificaciones y `ProcesadorPostPartido` suma partidos jugados, crea votaciones pendientes y aplica el no-show. El evento es un objeto `EventoPartido`.
+- **Factory.** `FabricaNotificaciones` (fábrica simple) arma cada `Notificacion` según su tipo. La usa `NotificadorPartido` y también la lógica de reclamos.
 
-Cuando se decida, documentar acá: patrón, módulos involucrados y diagrama UML en `docs/`.
+Por qué: `Partido` solo avisa y no sabe quién reacciona, así que agregar una consecuencia nueva no lo modifica. La fábrica concentra los mensajes de notificación en un solo lugar.
 
-En construcción: `docs/clases.md` tiene las clases del dominio, las decisiones de modelado y los patrones previstos (Observer sobre `Partido` y Factory para `Notificacion`). Leerlo antes de tocar modelos.
+Pendiente: en qué módulos de `fulbo/` viven las clases del patrón. Se documenta acá cuando se creen.
 
 ## 9. Testing
 
@@ -244,6 +243,7 @@ En construcción: `docs/clases.md` tiene las clases del dominio, las decisiones 
 ## 11. Seguridad y configuración
 
 - Variables en `.env` (local) leídas con `pydantic-settings`: `DATABASE_URL`, `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`.
+- Valores propios del dominio: límite de deuda X (3, fijo en `settings.py`) y credenciales del primer admin (variables de entorno que lee el script de carga inicial).
 - **Nunca** commitear `.env` ni secretos. Mantener un `.env.example` sin valores reales.
 - Contraseñas siempre hasheadas (argon2 vía `pwdlib`), nunca guardadas ni logueadas en claro.
 - Las rutas protegidas usan la dependencia de usuario actual. Un usuario solo puede tocar sus propios recursos (`403` si no).
