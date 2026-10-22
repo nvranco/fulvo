@@ -21,11 +21,6 @@ Fulvo es un **MVP** cuyo proposito es validar la siguiente hipótesis:
 3. Otros usuarios **se postulan** para ocupar los lugares libres.
 4. El organizador **acepta** a los postulantes que quiera.
 5. Al aceptar, organizador y jugador **se ven el número de WhatsApp** para coordinar por fuera de la aplicación.
-6. Si cambian los planes, el postulante **retira su postulación**, el aceptado **se baja**, el organizador **revoca** a un aceptado o **cancela** el partido. Los afectados reciben una notificación dentro de la app.
-7. Cuando el partido se juega, los participantes **votan** de 0 a 5 estrellas a los demás jugadores y al complejo. Esa puntuación arma la reputación de cada usuario.
-8. El organizador puede **marcar no-show** a un aceptado que no se presentó.
-9. Quien tiene votaciones pendientes de partidos ya jugados **queda bloqueado** para publicar partidos y postularse, hasta completarlas.
-10. Si un usuario no está de acuerdo con un no-show o una votación, presenta un **reclamo**. El admin lo revisa y lo anula o lo rechaza. El admin también puede **bloquear usuarios** y corregir zonas y complejos.
 
 La coordinación final (horario exacto, llegada, pago de la cancha) se hace por WhatsApp. Fulvo solo conecta a las personas.
 
