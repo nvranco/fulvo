@@ -9,7 +9,7 @@ sequenceDiagram
     participant S as Sistema
     participant BD as Base de datos
 
-    U->>A: Completar registro (email, contraseña, nombre, WhatsApp, nacimiento, posición)
+    U->>A: Completar registro (email, contraseña, nombre, apellido, WhatsApp, nacimiento, posición)
     A->>S: Registrar usuario
     alt Menor de 16 años
         S-->>A: Rechazar registro por edad

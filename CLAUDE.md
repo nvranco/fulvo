@@ -67,17 +67,17 @@ Detalle completo en `docs/requerimientos.md` y diagramas de secuencia en `docs/d
 |---|---|---|---|---|
 | RQ1 | Registrarse e iniciar sesión (edad mínima 16). | `TODO` | | pendiente |
 | RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. | `TODO` | | pendiente |
-| RQ3 | Ver zonas y complejos. | `TODO` | | pendiente |
-| RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes. | `TODO` | | pendiente |
+| RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `TODO` | | pendiente |
+| RQ4 | Publicar partidos indicando complejo, fecha, hora, duración, tipo y cupos faltantes. | `TODO` | | pendiente |
 | RQ5 | Listar partidos abiertos con filtros y postularse. | `TODO` | | pendiente |
 | RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `TODO` | | pendiente |
 | RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `TODO` | | pendiente |
 | RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
 | RQ9 | Notificaciones dentro de la app. | `TODO` | | pendiente |
-| RQ10 | Admin: bloquear usuarios y editar zonas y complejos. | `TODO` | | pendiente |
-| RQ11 | Reclamos por no-show o votación, resueltos por el admin. | `TODO` | | pendiente |
+| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | `TODO` | | pendiente |
+| RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
-Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints. Monetización (comisiones, suscripciones, pagos), reservas, mapa, amigos, chat y torneos están fuera del MVP.
+Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints. Monetización (comisiones, suscripciones, pagos), reservas, amigos, chat y torneos están fuera del MVP.
 
 ## 4. Stack técnico
 
@@ -205,6 +205,8 @@ Criterios para elegirlo:
 - Candidatos naturales con FastAPI: Repository (acceso a datos), Service (reglas de negocio), Strategy, Observer (notificaciones), Factory.
 
 Cuando se decida, documentar acá: patrón, módulos involucrados y diagrama UML en `docs/`.
+
+En construcción: `docs/clases.md` tiene las clases del dominio, las decisiones de modelado y los patrones previstos (Observer sobre `Partido` y Factory para `Notificacion`). Leerlo antes de tocar modelos.
 
 ## 9. Testing
 

@@ -10,9 +10,9 @@ sequenceDiagram
     participant BD as Base de datos
     actor D as Admin
 
-    U->>A: Crear reclamo (partido, no-show o votación, motivo)
+    U->>A: Crear reclamo (no-show, votación, usuario o complejo, motivo)
     A->>S: Registrar reclamo
-    S->>BD: Verificar que el objetivo afecta al usuario
+    S->>BD: Verificar que el objetivo existe y, si es no-show o votación, que afecta al usuario
     alt Objetivo ajeno o inexistente
         S-->>A: Rechazar reclamo
         A-->>U: Mostrar error
@@ -30,11 +30,11 @@ sequenceDiagram
     S-->>A: Listado
     A-->>D: Mostrar reclamos
 
-    alt Admin anula el no-show o la votación
-        D->>A: Resolver reclamo como anulado
+    alt Admin acepta el reclamo
+        D->>A: Resolver reclamo como resuelto
         A->>S: Registrar resolución
-        S->>BD: Quitar no-show (sumar partido jugado) o eliminar votación
-        S->>BD: Recalcular puntuación promedio del afectado
+        S->>BD: Aplicar medida según el objetivo (quitar no-show y sumar partido jugado, eliminar votación, bloquear usuario o editar complejo)
+        S->>BD: Recalcular puntuación promedio del afectado si cambió un voto o un no-show
         S->>BD: Marcar reclamo resuelto
     else Admin rechaza el reclamo
         D->>A: Resolver reclamo como rechazado
@@ -47,7 +47,7 @@ sequenceDiagram
 
     D->>A: Bloquear o desbloquear usuario
     A->>S: Registrar bloqueo
-    S->>BD: Actualizar estado del usuario
+    S->>BD: Bloquear: crear sanción y marcar usuario bloqueado. Desbloquear: cerrar sanción
     S-->>A: Usuario actualizado
     A-->>D: Mostrar confirmación
 ```

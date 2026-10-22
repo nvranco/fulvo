@@ -1,6 +1,6 @@
 # Publicar partido y postularse (RQ4, RQ5)
 
-Cambios contra el doc viejo: sin mapa ni canchas suscriptas, sin alerta separada, partido con cupos, deuda cuenta por partido.
+Cambios contra el doc viejo: sin canchas suscriptas, sin alerta separada, partido con cupos, deuda cuenta por partido.
 
 ```mermaid
 sequenceDiagram

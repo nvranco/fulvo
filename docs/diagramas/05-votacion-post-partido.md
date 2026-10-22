@@ -10,7 +10,7 @@ sequenceDiagram
     actor P as Participante
     actor O as Organizador
 
-    Note over S: Pasa la fecha y hora del partido
+    Note over S: Al consultar el partido, ya pasó su inicio más su duración
     S->>BD: Marcar partido jugado y sumar un partido jugado a cada participante
     S->>BD: Crear votaciones pendientes (cada participante a los demás participantes y al complejo)
     S->>BD: Crear notificación de votaciones pendientes
