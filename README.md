@@ -6,7 +6,7 @@
   <img src="docs/img/fulvo.png" alt="fulvo?" width="300">
 </p>
 
-Aplicación completar equipos de fútbol. 
+Aplicación para completar equipos de fútbol. 
 Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
 
 ## Secuencia
