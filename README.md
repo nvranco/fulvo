@@ -1,22 +1,20 @@
-<p align="center">
-  <img src="docs/img/fulvo.png" alt="fulvo?" width="150">
-</p>
+
 
 # Fulvo
 
 API RESTful para armar partidos de fútbol y conseguir jugadores que completen los lugares que faltan.
 
-> **Proyecto académico.** Este trabajo es el proyecto final de **Programación 2** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**. Tiene fines **únicamente introductorios y educativos**: no es un producto terminado ni está pensado para uso real en producción.
+> Este trabajo es el proyecto final de **Programación 2** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
 
-## Qué es Fulvo
+Fulvo es un **MVP** cuyo proposito es validar la siguiente hipótesis:
 
-Fulvo es un **MVP** (producto mínimo viable) pensado para validar una hipótesis:
+> ¿Las personas están dispuestas a solicitar jugadores extra para completar un partido a través de una plataforma?
 
-> ¿Las personas están dispuestas a solicitar jugadores extra para completar un partido?
+<p align="center">
+  <img src="docs/img/fulvo.png" alt="fulvo?" width="150">
+</p>
 
-Por eso el alcance es chico a propósito. Solo implementa lo necesario para probar ese comportamiento.
-
-## Idea principal
+## Secuencia
 
 1. Los usuarios **se registran** en el sistema.
 2. Un usuario **organiza un partido** y define cuántos lugares (slots) le faltan.
@@ -26,7 +24,7 @@ Por eso el alcance es chico a propósito. Solo implementa lo necesario para prob
 
 La coordinación final (horario exacto, llegada, pago de la cancha) se hace por WhatsApp. Fulvo solo conecta a las personas.
 
-## Requerimientos de alto nivel
+## Requerimientos
 
 | RQ | Descripción |
 |---|---|
@@ -58,7 +56,7 @@ Se usa el stack de la cátedra:
 - **GitHub Actions** para la integración continua
 - **Fly.io** para el deploy
 
-## Cómo desplegar y probar
+## Despliegue
 
 > Esta sección se completa a medida que se implementa la API.
 
