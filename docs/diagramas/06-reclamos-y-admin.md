@@ -10,13 +10,12 @@ sequenceDiagram
 
     U->>A: Crear reclamo (no-show, votación, usuario o complejo, motivo)
     A->>S: Registrar reclamo
-    S->>BD: Verificar que el objetivo existe y, si es no-show o votación, que afecta al usuario
-    alt Objetivo ajeno o inexistente
+    S->>BD: Verificar que el objetivo existe, que no es el propio usuario, que no tiene un reclamo abierto del mismo autor y, si es no-show o votación, que afecta al usuario
+    alt Objetivo inválido
         S-->>A: Rechazar reclamo
         A-->>U: Mostrar error
     else Válido
         S->>BD: Guardar reclamo en estado abierto
-        S->>BD: Crear notificación para el admin
         S-->>A: Reclamo registrado
         A-->>U: Mostrar confirmación
     end

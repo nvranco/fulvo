@@ -33,7 +33,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 | RQ | Requerimiento | Diagrama |
 |---|---|---|
 | RQ1 | Registrarse e iniciar sesión. Email y contraseña, edad mínima 16. Sin verificación de cuenta en el MVP. | [01](diagramas/01-registro-y-login.md) |
-| RQ2 | Perfil: nombre, apellido, WhatsApp, fecha de nacimiento, posición. Puntuación promedio y partidos jugados son calculados, solo lectura. Perfil público muestra nombre, posición, puntuación y partidos jugados. | — |
+| RQ2 | Perfil: nombre, apellido, WhatsApp, fecha de nacimiento, posición. Puntuación promedio y partidos jugados son calculados, solo lectura. Perfil público muestra nombre, posición, puntuación y partidos jugados. El apellido no es público. | — |
 | RQ3 | Ver zonas y complejos. Cada complejo tiene ubicación (latitud y longitud) para mostrarlo en un mapa y buscar los que están dentro de un radio en km alrededor de un punto, ordenados por distancia. | — |
 | RQ4 | Publicar partido: complejo, fecha, hora, duración, tipo (F5/F7/F8/F11), cupos faltantes. | [02](diagramas/02-publicar-partido-y-postularse.md) |
 | RQ5 | Listar partidos abiertos con filtros por zona, complejo y tipo. Postularse a un partido. | [02](diagramas/02-publicar-partido-y-postularse.md) |
@@ -104,13 +104,16 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
   - Revocación (al jugador).
   - Partido cancelado (a postulantes y aceptados).
   - Votaciones pendientes.
-  - Reclamo nuevo (al admin) y reclamo resuelto (al autor).
+  - Reclamo resuelto (al autor).
 
 **Reclamo**
 
 - Lo crea un usuario sobre un no-show recibido, una votación recibida, otro usuario (denuncia) o un complejo (denuncia).
+- No se puede denunciar a uno mismo.
+- No se puede abrir un reclamo sobre un objetivo que ya tiene un reclamo abierto del mismo autor.
 - Datos: autor, objetivo (tipo y referencia: no-show, votación, usuario o complejo), motivo, estado, resolución, admin que resolvió. El partido se obtiene desde el objetivo.
 - Estados: abierto, resuelto, rechazado.
+- El admin no recibe aviso por un reclamo nuevo: ve los reclamos abiertos en su listado.
 - Resolver como resuelto aplica una medida según el objetivo:
   - No-show: suma 1 partido jugado, quita la marca, quita el voto de 0 estrellas y recalcula la puntuación.
   - Votación: la elimina y recalcula la puntuación.
