@@ -2,6 +2,10 @@
 
 # Fulvo
 
+<p align="center">
+  <img src="docs/img/fulvo.png" alt="fulvo?" width="150">
+</p>
+
 API RESTful para armar partidos de fútbol y conseguir jugadores que completen los lugares que faltan.
 
 > Este trabajo es el proyecto final de **Programación 2** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
@@ -9,10 +13,6 @@ API RESTful para armar partidos de fútbol y conseguir jugadores que completen l
 Fulvo es un **MVP** cuyo proposito es validar la siguiente hipótesis:
 
 > ¿Las personas están dispuestas a solicitar jugadores extra para completar un partido a través de una plataforma?
-
-<p align="center">
-  <img src="docs/img/fulvo.png" alt="fulvo?" width="150">
-</p>
 
 ## Secuencia
 

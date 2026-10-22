@@ -77,7 +77,7 @@ Detalle completo en `docs/requerimientos.md` y diagramas de secuencia en `docs/d
 | RQ10 | Admin: bloquear usuarios y editar zonas y complejos. | `TODO` | | pendiente |
 | RQ11 | Reclamos por no-show o votación, resueltos por el admin. | `TODO` | | pendiente |
 
-Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints. Pagos, reservas, mapa, amigos, chat y torneos están fuera del MVP.
+Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints. Monetización (comisiones, suscripciones, pagos), reservas, mapa, amigos, chat y torneos están fuera del MVP.
 
 ## 4. Stack técnico
 
