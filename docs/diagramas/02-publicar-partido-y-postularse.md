@@ -1,7 +1,5 @@
 # Publicar partido y postularse (RQ4, RQ5)
 
-Cambios contra el doc viejo: sin canchas suscriptas, sin alerta separada, partido con cupos, deuda cuenta por partido.
-
 ```mermaid
 sequenceDiagram
     actor O as Organizador
@@ -10,7 +8,7 @@ sequenceDiagram
     participant BD as Base de datos
     actor J as Jugador
 
-    O->>A: Crear partido (complejo, fecha y hora, tipo, cupos faltantes)
+    O->>A: Crear partido (complejo, fecha y hora, duración, tipo, cupos faltantes)
     A->>S: Registrar partido
     S->>BD: Contar partidos con votaciones pendientes del organizador
     BD-->>S: Deuda

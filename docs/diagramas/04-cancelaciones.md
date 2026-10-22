@@ -1,7 +1,5 @@
 # Cancelaciones (RQ7)
 
-Nuevo: el doc viejo no tenía este diagrama.
-
 ```mermaid
 sequenceDiagram
     actor O as Organizador

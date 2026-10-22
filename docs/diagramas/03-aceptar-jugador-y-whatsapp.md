@@ -1,7 +1,5 @@
 # Aceptar jugador y compartir WhatsApp (RQ6)
 
-Cambios contra el doc viejo: sin pasarela de pagos ni comisión, sin "solicitar contacto". Al aceptar, ambos ven el WhatsApp del otro.
-
 ```mermaid
 sequenceDiagram
     actor O as Organizador

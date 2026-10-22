@@ -1,7 +1,5 @@
 # Registro y login (RQ1)
 
-Nuevo: el doc viejo no tenía este diagrama.
-
 ```mermaid
 sequenceDiagram
     actor U as Usuario

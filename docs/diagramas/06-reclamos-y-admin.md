@@ -1,7 +1,5 @@
 # Reclamos y resolución del admin (RQ10, RQ11)
 
-Nuevo: el doc viejo solo mencionaba "resolver disputas" sin secuencia.
-
 ```mermaid
 sequenceDiagram
     actor U as Usuario
@@ -33,7 +31,7 @@ sequenceDiagram
     alt Admin acepta el reclamo
         D->>A: Resolver reclamo como resuelto
         A->>S: Registrar resolución
-        S->>BD: Aplicar medida según el objetivo (quitar no-show y sumar partido jugado, eliminar votación, bloquear usuario o editar complejo)
+        S->>BD: Aplicar medida según el objetivo (quitar no-show, sumar partido jugado y quitar el voto de 0 estrellas; eliminar votación; bloquear usuario; o editar complejo)
         S->>BD: Recalcular puntuación promedio del afectado si cambió un voto o un no-show
         S->>BD: Marcar reclamo resuelto
     else Admin rechaza el reclamo

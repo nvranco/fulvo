@@ -1,7 +1,5 @@
 # Votación después del partido (RQ8)
 
-Cambios contra el doc viejo: deuda cuenta por partido, solo el organizador marca no-show, sin cancha como entidad (se vota al complejo), sin ventana de votación.
-
 ```mermaid
 sequenceDiagram
     participant S as Sistema
@@ -33,7 +31,7 @@ sequenceDiagram
         O->>A: Marcar no-show
         A->>S: Registrar no-show
         S->>BD: Marcar no-show en el aceptado
-        S->>BD: Restar un partido jugado y recalcular puntuación del ausente
+        S->>BD: Restar un partido jugado al ausente y sumar un voto de 0 estrellas a su puntuación
         S->>BD: Eliminar votaciones pendientes del ausente
     end
 
