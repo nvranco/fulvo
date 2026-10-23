@@ -9,4 +9,4 @@ def test_raiz_devuelve_ok_y_hola_mundo(client):
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.OK
-    assert respuesta.json() == {'mensaje': 'Hola Mundo!'}
+    assert respuesta.json() == {'mensaje': 'Hola Fulvo!'}

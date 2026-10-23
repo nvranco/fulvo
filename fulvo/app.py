@@ -6,4 +6,4 @@ app = FastAPI()
 @app.get('/')
 def leer_raiz():
     """Ruta mínima para comprobar que el entorno funciona."""
-    return {'mensaje': 'Hola Mundo!'}
+    return {'mensaje': 'Hola Fulvo!'}
