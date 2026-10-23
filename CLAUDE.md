@@ -101,7 +101,9 @@ Se sigue **al pie de la letra** el stack de la cátedra. Referencia: sitio https
 | CI | GitHub Actions |
 | Deploy | Fly.io (`fly.toml`), como la cátedra |
 
-Python: `>=3.11,<4.0` en `pyproject.toml`. **Decisión pendiente:** la cátedra usa 3.12 en la CI y 3.14 en el `Dockerfile`. Elegir **una sola versión** y usarla en todos lados (`.python-version`, `Dockerfile`, workflow).
+Python: **3.13**, una sola versión en todos lados (`.python-version`, `requires-python = ">=3.13,<4.0"` en `pyproject.toml`, `Dockerfile` y workflow de CI). Decidido porque ya estaba instalada en las máquinas del grupo y evita diferencias entre local, contenedor y CI (la cátedra usa 3.12 en CI y 3.14 en Docker).
+
+Entorno: `pipx` instala Poetry; Poetry crea el venv en `.venv/` (`poetry config virtualenvs.in-project true`, configuración global por máquina). `package-mode = false` porque es una app. Pasos completos para replicar en otra máquina: `docs/entorno.md`. Mantener ese archivo al día si cambia algo del entorno.
 
 Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock` de `codigo_aulas/13`. No actualizar dependencias sin avisar.
 

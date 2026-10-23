@@ -7,6 +7,7 @@
 </p>
 
 Aplicación para completar equipos de fútbol. 
+
 Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
 
 ## Secuencia
@@ -44,6 +45,21 @@ Se usa el stack de la cátedra:
 - **GitHub Actions** para la integración continua
 - **Fly.io** para el deploy
 
+
+## Cómo correrlo
+
+Prerrequisitos: Python 3.13, Git, Docker, pipx y Poetry. Guía completa en [`docs/entorno.md`](docs/entorno.md).
+
+```bash
+git clone https://github.com/nvranco/fulvo.git
+cd fulvo
+poetry config virtualenvs.in-project true
+poetry env use 3.13
+poetry install
+poetry run fastapi dev fulvo/app.py
+```
+
+La API queda en http://127.0.0.1:8000 y la documentación automática en http://127.0.0.1:8000/docs.
 
 ## Créditos
 
