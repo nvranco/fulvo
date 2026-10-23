@@ -37,14 +37,22 @@ pipx install poetry
 poetry --version
 ```
 
-### 3. Python 3.13 (solo si la máquina no lo tiene)
+### 3. Poe the Poet (plugin de Poetry)
+
+Se instala una vez por máquina, dentro del entorno de Poetry. Agrega las tareas (`poetry lint`, `poetry format`, `poetry test`, `poetry serve`) definidas en `pyproject.toml`:
+
+```bash
+pipx inject poetry 'poethepoet[poetry_plugin]'
+```
+
+### 4. Python 3.13 (solo si la máquina no lo tiene)
 
 ```bash
 poetry python install 3.13
 poetry python list
 ```
 
-### 4. Entorno virtual local
+### 5. Entorno virtual local
 
 Configuración global de Poetry, se hace una vez por máquina:
 
@@ -52,7 +60,7 @@ Configuración global de Poetry, se hace una vez por máquina:
 poetry config virtualenvs.in-project true
 ```
 
-### 5. Clonar e instalar el proyecto
+### 6. Clonar e instalar el proyecto
 
 ```bash
 git clone https://github.com/nvranco/fulvo.git
@@ -63,13 +71,35 @@ poetry install
 
 `poetry install` lee `poetry.lock`, así que todos instalan exactamente las mismas versiones.
 
-### 6. Comprobar que funciona
+### 7. Comprobar que funciona
 
 ```bash
 poetry run fastapi dev fulvo/app.py
 ```
 
-Abrir http://127.0.0.1:8000 (debe responder `{"mensaje": "Hola Mundo!"}`) y http://127.0.0.1:8000/docs (documentación automática). Cortar con `Ctrl+C`.
+También funciona `poetry serve` (atajo definido en `pyproject.toml`). Abrir http://127.0.0.1:8000 (debe responder `{"mensaje": "Hola Mundo!"}`) y http://127.0.0.1:8000/docs (documentación automática). Cortar con `Ctrl+C`.
+
+## Herramientas de desarrollo
+
+Instaladas en el grupo `dev` de Poetry (`poetry add --group dev pytest pytest-cov ruff typos`) y configuradas en `pyproject.toml`:
+
+| Herramienta | Qué hace | Configuración |
+|---|---|---|
+| Ruff | linter y formateador (línea de 79, comillas simples, reglas `I F E W PL PT`) | `[tool.ruff*]` |
+| Typos | revisa ortografía en inglés; excluye `*.md`, `docs`, `poetry.lock` y `migrations` porque están en español | `[tool.typos.files]` |
+| pytest + pytest-cov | tests con cobertura del paquete `fulvo` | `[tool.pytest]` |
+| Poe the Poet | tareas cortas | `[tool.poe.tasks]` |
+
+Tareas:
+
+```bash
+poetry lint     # typos + ruff check
+poetry format   # ruff check --fix + ruff format
+poetry serve    # fastapi dev fulvo/app.py
+poetry test     # lint + pytest + reporte html (falla hasta que haya tests)
+```
+
+Si typos marca una palabra en español dentro del código, se agrega la excepción en `[tool.typos.default]` en vez de renombrar.
 
 ## Cómo se creó el proyecto (referencia)
 

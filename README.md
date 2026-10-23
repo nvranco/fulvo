@@ -56,8 +56,11 @@ cd fulvo
 poetry config virtualenvs.in-project true
 poetry env use 3.13
 poetry install
-poetry run fastapi dev fulvo/app.py
+pipx inject poetry 'poethepoet[poetry_plugin]'
+poetry serve
 ```
+
+Otras tareas: `poetry lint`, `poetry format` y `poetry test`.
 
 La API queda en http://127.0.0.1:8000 y la documentación automática en http://127.0.0.1:8000/docs.
 

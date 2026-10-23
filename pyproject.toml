@@ -13,3 +13,51 @@ package-mode = false
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.1.1,<10.0.0)",
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "ruff (>=0.17.2,<0.18.0)",
+    "typos (>=1.51.1,<2.0.0)"
+]
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ['migrations']
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.pytest]
+pythonpath = ['.']
+addopts = ['-p', 'no:warnings', '--cov=fulvo', '--cov-context=test']
+
+[tool.typos.files]
+# Typos revisa inglés; la documentación está en español.
+extend-exclude = ['*.md', 'docs', 'poetry.lock', 'migrations']
+
+[tool.poe]
+# Permite correr "poetry serve" en vez de "poetry poe serve".
+poetry_command = ''
+
+[tool.poe.tasks]
+lint.sequence = [
+  { cmd = 'typos' },
+  { cmd = 'ruff check' },
+]
+format.sequence = [
+  { cmd = 'ruff check --fix' },
+  { cmd = 'ruff format' },
+]
+serve = 'fastapi dev fulvo/app.py'
+test.sequence = [
+  'lint',
+  { cmd = 'pytest -s -x -vv $POE_EXTRA_ARGS' },
+  { cmd = 'coverage html --show-contexts' },
+]
