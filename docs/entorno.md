@@ -96,10 +96,12 @@ Tareas:
 poetry lint     # typos + ruff check
 poetry format   # ruff check --fix + ruff format
 poetry serve    # fastapi dev fulvo/app.py
-poetry test     # lint + pytest + reporte html (falla hasta que haya tests)
+poetry test     # lint + pytest con cobertura + reporte html (htmlcov/index.html)
 ```
 
-Si typos marca una palabra en español dentro del código, se agrega la excepción en `[tool.typos.default]` en vez de renombrar.
+Los tests siguen el patrón AAA (Organizar, Actuar, Afirmar). La fixture `client` vive en `tests/conftest.py` y el primer test (`tests/test_app.py`) comprueba la ruta `/`.
+
+Si typos marca una palabra en español dentro del código, se agrega la excepción en `[tool.typos.default]` en vez de renombrar (ya están `cliente` y `clientes`).
 
 ## Cómo se creó el proyecto (referencia)
 

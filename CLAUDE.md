@@ -159,7 +159,7 @@ docker compose up --build      # API + PostgreSQL en contenedores
 
 Antes de cada commit: `poetry format` y `poetry test` tienen que pasar.
 
-Requisito por máquina: el plugin de tareas, `pipx inject poetry 'poethepoet[poetry_plugin]'` (ver `docs/entorno.md`). Las tareas están en `[tool.poe.tasks]` de `pyproject.toml`; `poetry_command = ''` permite `poetry serve` en vez de `poetry poe serve`. Typos excluye `*.md`, `docs`, `poetry.lock` y `migrations` (español). Hasta que existan tests, `poetry test` falla en el paso de pytest (no hay nada que correr); `poetry lint` y `poetry format` sí andan.
+Requisito por máquina: el plugin de tareas, `pipx inject poetry 'poethepoet[poetry_plugin]'` (ver `docs/entorno.md`). Las tareas están en `[tool.poe.tasks]` de `pyproject.toml`; `poetry_command = ''` permite `poetry serve` en vez de `poetry poe serve`. Typos excluye `*.md`, `docs`, `poetry.lock` y `migrations` (español).
 
 ## 7. Convenciones de código
 

@@ -38,6 +38,11 @@ quote-style = 'single'
 pythonpath = ['.']
 addopts = ['-p', 'no:warnings', '--cov=fulvo', '--cov-context=test']
 
+[tool.typos.default.extend-words]
+# Palabras en español que typos toma por errores de inglés.
+cliente = 'cliente'
+clientes = 'clientes'
+
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.
 extend-exclude = ['*.md', 'docs', 'poetry.lock', 'migrations']
