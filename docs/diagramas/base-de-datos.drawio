@@ -26,6 +26,7 @@
                 <mxCell id="rel" parent="1" source="zonas" target="complejos" style="edgeStyle=entityRelationEdgeStyle;endArrow=ERmany;startArrow=ERmandOne;endFill=0;startFill=0;" value="" edge="1"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="titulo" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=14;" value="Base de datos (hoy): solo zonas y complejos" vertex="1"><mxGeometry height="24" width="420" x="40" y="10" as="geometry"/></mxCell>
                 <mxCell id="rel-txt" parent="1" style="text;html=1;align=left;fontSize=11;" value="1 zona : N complejos (complejos.zona_id -> zonas.id)" vertex="1"><mxGeometry height="20" width="420" x="40" y="320" as="geometry"/></mxCell>
+                <mxCell id="nota" parent="1" style="shape=note;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=6;fillColor=#fff2cc;strokeColor=#d6b656;size=14;" value="Nota: complejos lleva solo las columnas&#xa;que usa la API hoy. Se agregan con&#xa;migraciones cuando haga falta (RQ8 y otros):&#xa;- puntuacion_promedio&#xa;- cantidad_puntuaciones&#xa;- whatsapp_contacto&#xa;- email_contacto" vertex="1"><mxGeometry height="146" width="300" x="40" y="200" as="geometry"/></mxCell>
             </root>
         </mxGraphModel>
     </diagram>
