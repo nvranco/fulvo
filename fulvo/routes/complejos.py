@@ -1,11 +1,13 @@
 from http import HTTPStatus
 from math import asin, cos, radians, sin, sqrt
-from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from fulvo.carga_inicial import RUTA_CSV, leer_filas
+from fulvo.database import get_session
+from fulvo.models import Complejo
 from fulvo.routes.zonas import buscar_zona
 from fulvo.schemas import (
     ComplejoCercano,
@@ -14,9 +16,9 @@ from fulvo.schemas import (
     ListaComplejos,
     Mensaje,
 )
-from fulvo.secuencia import Secuencia
 
 router = APIRouter(prefix='/complejos', tags=['complejos'])
+Session = Annotated[Session, Depends(get_session)]
 
 RADIO_TIERRA_KM = 6371
 
@@ -24,8 +26,8 @@ RADIO_TIERRA_KM = 6371
 def distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Distancia en km entre dos puntos (fórmula de haversine).
 
-    Se calcula en Python para no depender de la base de datos: sirve igual
-    con la lista en memoria de hoy y con SQLite o PostgreSQL más adelante.
+    Se calcula en Python para no depender de la base de datos: funciona
+    igual en SQLite y en PostgreSQL.
     """
     dif_lat = radians(lat2 - lat1)
     dif_lon = radians(lon2 - lon1)
@@ -39,131 +41,132 @@ def distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * RADIO_TIERRA_KM * asin(min(1, sqrt(a)))
 
 
-def cargar_csv(ruta: Path = RUTA_CSV) -> list[ComplejoPublico]:
-    """Lee el CSV de complejos y arma la lista inicial, con ids desde 1.
+def complejo_publico(complejo: Complejo) -> ComplejoPublico:
+    """Arma la respuesta de la API a partir del modelo.
 
-    Las celdas vacías pasan a None. Pydantic convierte los textos de
-    coordenadas y calificación a número, y valida los rangos.
+    El modelo guarda `zona_id` y la API expone el nombre de la zona y su
+    provincia, así que no se puede leer directo con `from_attributes`: acá
+    se traduce. Los datos de la zona salen de `complejo.zona`, que
+    SQLAlchemy carga solo la primera vez que se lee.
     """
-    return [
-        ComplejoPublico(
-            id=numero,
-            zona=fila['zona'],
-            provincia=fila['provincia'],
-            localidad=fila['localidad'],
-            nombre=fila['nombre'],
-            direccion=fila['direccion'],
-            telefono_contacto=fila['telefono_contacto'] or None,
-            tipo=fila['tipo'],
-            reserva_online=fila['reserva_online'] == 'si',
-            sitio_web=fila['sitio_web'] or None,
-            calificacion_maps=fila['calificacion_maps'] or None,
-            latitud=fila['latitud'],
-            longitud=fila['longitud'],
-            link_maps=fila['link_maps'] or None,
-        )
-        for numero, fila in enumerate(leer_filas(ruta), start=1)
-    ]
-
-
-# "Base de datos" provisional en memoria, como en la lección 03. Se pierde
-# al reiniciar y se reemplazará por SQLAlchemy cuando toque.
-complejos: list[ComplejoPublico] = cargar_csv()
-ids_complejos = Secuencia(len(complejos))
+    return ComplejoPublico(
+        id=complejo.id,
+        zona=complejo.zona.nombre,
+        provincia=complejo.zona.provincia,
+        localidad=complejo.localidad,
+        nombre=complejo.nombre,
+        direccion=complejo.direccion,
+        telefono_contacto=complejo.telefono_contacto,
+        tipo=complejo.tipo,
+        reserva_online=complejo.reserva_online,
+        sitio_web=complejo.sitio_web,
+        calificacion_maps=complejo.calificacion_maps,
+        latitud=complejo.latitud,
+        longitud=complejo.longitud,
+        link_maps=complejo.link_maps,
+    )
 
 
 @router.get('', response_model=ListaComplejos)
 def listar_complejos(
+    session: Session,
     zona: str | None = None,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     """Lista complejos, con filtro opcional por zona y paginación."""
-    resultado = complejos
+    consulta = select(Complejo).order_by(Complejo.id)
     if zona:
-        resultado = [c for c in complejos if c.zona.lower() == zona.lower()]
-    return {'complejos': resultado[offset : offset + limit]}
+        zona_hallada = buscar_zona(session, zona)
+        if zona_hallada is None:
+            return {'complejos': []}
+        consulta = consulta.where(Complejo.zona_id == zona_hallada.id)
+    complejos = session.scalars(consulta.offset(offset).limit(limit))
+    return {'complejos': [complejo_publico(c) for c in complejos]}
 
 
 # Va antes de '/{complejo_id}': si no, FastAPI tomaría "cercanos" como un id.
 @router.get('/cercanos', response_model=list[ComplejoCercano])
 def listar_cercanos(
+    session: Session,
     latitud: Annotated[float, Query(ge=-90, le=90)],
     longitud: Annotated[float, Query(ge=-180, le=180)],
     radio_km: Annotated[float, Query(gt=0, le=50)],
 ):
     """Complejos dentro del radio, del más cercano al más lejano (RQ3)."""
     cercanos = []
-    for complejo in complejos:
+    for complejo in session.scalars(select(Complejo)):
         distancia = distancia_km(
             latitud, longitud, complejo.latitud, complejo.longitud
         )
         if distancia <= radio_km:
             cercanos.append(
                 ComplejoCercano(
-                    **complejo.model_dump(), distancia_km=round(distancia, 2)
+                    **complejo_publico(complejo).model_dump(),
+                    distancia_km=round(distancia, 2),
                 )
             )
     return sorted(cercanos, key=lambda c: c.distancia_km)
 
 
-def buscar_complejo(complejo_id: int) -> ComplejoPublico:
+def buscar_complejo(session: Session, complejo_id: int) -> Complejo:
     """Devuelve el complejo con ese id, o levanta 404 si no existe.
 
     Lo usan la lectura y el borrado, así el 404 y su mensaje viven en un
-    solo lugar. Se busca por id y no por posición en la lista: al borrar,
-    las posiciones se corren y dejan de coincidir con los ids.
+    solo lugar.
     """
-    for complejo in complejos:
-        if complejo.id == complejo_id:
-            return complejo
-    raise HTTPException(
-        status_code=HTTPStatus.NOT_FOUND, detail='Complejo no encontrado'
-    )
+    complejo = session.get(Complejo, complejo_id)
+    if complejo is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='Complejo no encontrado'
+        )
+    return complejo
 
 
 @router.get('/{complejo_id}', response_model=ComplejoPublico)
-def leer_complejo(complejo_id: int):
+def leer_complejo(complejo_id: int, session: Session):
     """Devuelve un complejo por id, o 404 si no existe."""
-    return buscar_complejo(complejo_id)
+    return complejo_publico(buscar_complejo(session, complejo_id))
 
 
 @router.delete('/{complejo_id}', response_model=Mensaje)
-def borrar_complejo(complejo_id: int):
+def borrar_complejo(complejo_id: int, session: Session):
     """Elimina un complejo por id, o 404 si no existe."""
-    complejos.remove(buscar_complejo(complejo_id))
+    session.delete(buscar_complejo(session, complejo_id))
+    session.commit()
     return {'mensaje': 'Complejo eliminado'}
 
 
 @router.post(
     '', status_code=HTTPStatus.CREATED, response_model=ComplejoPublico
 )
-def crear_complejo(datos: ComplejoEntrada):
+def crear_complejo(datos: ComplejoEntrada, session: Session):
     """Carga un complejo nuevo.
 
     404 si la zona no existe (todo complejo pertenece a una zona) y 409 si
     el nombre ya existe en esa dirección.
     """
-    zona = buscar_zona(datos.zona)
+    zona = buscar_zona(session, datos.zona)
     if zona is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='La zona no existe'
         )
-    if any(
-        c.nombre == datos.nombre and c.direccion == datos.direccion
-        for c in complejos
-    ):
+    repetido = session.scalar(
+        select(Complejo).where(
+            Complejo.nombre == datos.nombre,
+            Complejo.direccion == datos.direccion,
+        )
+    )
+    if repetido:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail='Ya existe un complejo con ese nombre y dirección',
         )
-    # La zona y la provincia salen de la zona hallada: se guarda el nombre
-    # con su ortografía correcta y la provincia no se puede contradecir.
-    datos_complejo = datos.model_dump() | {'zona': zona.nombre}
-    nuevo = ComplejoPublico(
-        id=ids_complejos.siguiente(),
-        provincia=zona.provincia,
-        **datos_complejo,
-    )
-    complejos.append(nuevo)
-    return nuevo
+    # Se guarda el id de la zona hallada: así la zona se escribe siempre con
+    # su ortografía correcta y la provincia sale de ella, sin poder
+    # contradecirse con lo que mande el cliente.
+    complejo = Complejo(zona_id=zona.id, **datos.model_dump(exclude={'zona'}))
+    session.add(complejo)
+    session.commit()
+    session.refresh(complejo)
+    return complejo_publico(complejo)

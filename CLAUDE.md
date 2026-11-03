@@ -67,7 +67,7 @@ Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/di
 |---|---|---|---|---|
 | RQ1 | Registrarse e iniciar sesión (edad mínima 16). | `TODO` | | pendiente |
 | RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. | `TODO` | | pendiente |
-| RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `GET /zonas`, `GET /complejos`, `GET /complejos/cercanos`, `GET /complejos/{id}` | `tests/test_complejos.py` | demo (datos en memoria) |
+| RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `GET /zonas`, `GET /complejos`, `GET /complejos/cercanos`, `GET /complejos/{id}` | `tests/test_complejos.py` | hecho (con base de datos) |
 | RQ4 | Publicar partidos indicando complejo, fecha, hora, duración, tipo y cupos faltantes. | `TODO` | | pendiente |
 | RQ5 | Listar partidos abiertos con filtros y postularse. | `TODO` | | pendiente |
 | RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `TODO` | | pendiente |

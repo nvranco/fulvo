@@ -1,66 +1,51 @@
 from http import HTTPStatus
-from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from fulvo.carga_inicial import RUTA_CSV, leer_filas
+from fulvo.database import get_session
+from fulvo.models import Zona
 from fulvo.schemas import ListaZonas, ZonaEntrada, ZonaPublica
-from fulvo.secuencia import Secuencia
 
 router = APIRouter(prefix='/zonas', tags=['zonas'])
+Session = Annotated[Session, Depends(get_session)]
 
 
-def cargar_zonas(ruta: Path = RUTA_CSV) -> list[ZonaPublica]:
-    """Arma la lista inicial de zonas a partir del CSV, con ids desde 1.
-
-    El CSV no tiene una fila por zona sino una por complejo, así que se
-    toma cada zona una sola vez, con la provincia del primer complejo que
-    la trae y en el orden en que aparece.
-    """
-    provincia_por_zona: dict[str, str] = {}
-    for fila in leer_filas(ruta):
-        provincia_por_zona.setdefault(fila['zona'], fila['provincia'])
-    return [
-        ZonaPublica(id=numero, nombre=nombre, provincia=provincia)
-        for numero, (nombre, provincia) in enumerate(
-            provincia_por_zona.items(), start=1
-        )
-    ]
-
-
-# Igual que `complejos`: lista en memoria que se reemplazará por una tabla
-# de SQLAlchemy. Un complejo apunta a su zona por el nombre; con la base de
-# datos será una clave foránea al id.
-zonas: list[ZonaPublica] = cargar_zonas()
-ids_zonas = Secuencia(len(zonas))
-
-
-def buscar_zona(nombre: str) -> ZonaPublica | None:
+def buscar_zona(session: Session, nombre: str) -> Zona | None:
     """Busca una zona por nombre sin distinguir mayúsculas, o None.
 
-    Lo usan crear_zona y la creación de complejos, para que "belgrano" y
-    "Belgrano" se traten siempre como la misma zona.
+    Lo usan crear_zona y la creación y el filtro de complejos, para que
+    "belgrano" y "Belgrano" se traten siempre como la misma zona.
+
+    La comparación se resuelve en Python y no con `lower()` de SQL: el
+    `lower()` de SQLite solo entiende ASCII (no pasa "NÚÑEZ" a "núñez") y el
+    de PostgreSQL sí, y la API se comportaría distinto según la base. Las
+    zonas son pocas, así que recorrerlas es barato.
     """
-    for zona in zonas:
+    for zona in session.scalars(select(Zona)):
         if zona.nombre.lower() == nombre.lower():
             return zona
     return None
 
 
 @router.get('', response_model=ListaZonas)
-def listar_zonas():
+def listar_zonas(session: Session):
     """Lista las zonas disponibles (RQ3)."""
-    return {'zonas': zonas}
+    return {'zonas': session.scalars(select(Zona).order_by(Zona.id)).all()}
 
 
 @router.post('', status_code=HTTPStatus.CREATED, response_model=ZonaPublica)
-def crear_zona(datos: ZonaEntrada):
+def crear_zona(datos: ZonaEntrada, session: Session):
     """Crea una zona nueva. 409 si ya existe una con ese nombre."""
-    if buscar_zona(datos.nombre):
+    if buscar_zona(session, datos.nombre):
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail='Ya existe una zona con ese nombre',
         )
-    nueva = ZonaPublica(id=ids_zonas.siguiente(), **datos.model_dump())
-    zonas.append(nueva)
-    return nueva
+    zona = Zona(**datos.model_dump())
+    session.add(zona)
+    session.commit()
+    session.refresh(zona)
+    return zona

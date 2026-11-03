@@ -53,6 +53,15 @@ def test_listar_complejos_filtra_por_zona_sin_importar_mayusculas(client):
     assert {c['zona'] for c in complejos} == {'Saavedra'}
 
 
+def test_listar_complejos_de_una_zona_inexistente_devuelve_lista_vacia(client):
+    # Actuar
+    respuesta = client.get('/complejos', params={'zona': 'Zona Inventada'})
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.OK
+    assert respuesta.json() == {'complejos': []}
+
+
 def test_listar_complejos_con_limit_cero_devuelve_error_de_validacion(client):
     # Actuar
     respuesta = client.get('/complejos', params={'limit': 0})
