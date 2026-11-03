@@ -153,7 +153,6 @@ fulvo/
 │   ├── schemas.py             # esquemas Pydantic
 │   ├── security.py            # JWT y hash de contraseñas
 │   ├── carga_inicial.py       # carga fulvo/datos/complejos.csv en la base (idempotente)
-│   ├── secuencia.py           # ids que no se reutilizan (hasta tener base de datos)
 │   ├── datos/                 # complejos.csv: carga inicial, viaja con el código
 │   └── routes/                # un archivo por recurso (como la cátedra, aula 12)
 └── tests/

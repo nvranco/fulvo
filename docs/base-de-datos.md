@@ -68,7 +68,7 @@ Una zona tiene muchos complejos y cada complejo pertenece a una sola zona (`comp
 - **Unicidad.**
   - `zonas.nombre` único y `complejos (nombre, direccion)` único. Reflejan las reglas de `409` que ya tiene la API.
   - La base distingue mayúsculas (`Belgrano` y `belgrano` son valores distintos para SQLite y PostgreSQL). Por eso las rutas siguen comparando sin mayúsculas antes de insertar, como hoy con `buscar_zona`. La restricción de la base es la última red de seguridad, no el chequeo principal.
-- **Ids que no se reutilizan.** Hoy `Secuencia` evita que, al borrar el último complejo, un complejo nuevo herede su id. En PostgreSQL la secuencia lo garantiza sola. SQLite sí reutiliza el id del último registro borrado, así que `Complejo` usa `sqlite_autoincrement=True` para comportarse igual. Con eso `secuencia.py` deja de hacer falta.
+- **Ids que no se reutilizan.** Al borrar el último complejo, uno nuevo no debe heredar su id: un cliente que guardó ese id vería otro recurso en lugar de un 404. En PostgreSQL la secuencia lo garantiza sola. SQLite sí reutiliza el id del último registro borrado, así que `Complejo` usa `sqlite_autoincrement=True` para comportarse igual. Eso reemplazó a la clase `Secuencia` de la versión con listas en memoria, que ya se borró.
 - **Borrado.** `DELETE /complejos/{id}` borra la fila. Cuando exista `Partido` (que referencia a `Complejo`), hay que decidir qué pasa con los partidos de un complejo borrado (rechazar el borrado o marcarlo inactivo). Queda anotado y no se resuelve hoy. `zonas` no tiene endpoint de borrado.
 - **Traducción modelo a schema.** `ComplejoPublico` expone `zona` como el nombre (texto) y `provincia`, pero el modelo guarda `zona_id`. La ruta arma el schema con una función chica (`complejo_publico`) que lee `complejo.zona.nombre` y `complejo.zona.provincia`. `ZonaPublica` se lee directo del modelo con `from_attributes=True`.
 
@@ -81,4 +81,4 @@ Una zona tiene muchos complejos y cada complejo pertenece a una sola zona (`comp
 ## 5. Pendiente
 
 - Tablas del resto de las clases (`Usuario`, `Rol`, `Partido`, `Postulacion`, `Votacion`, `Notificacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
-- Estrategia de datos de prueba en los tests: los tests actuales usan los 51 complejos del CSV. Hay que decidir entre cargar el CSV en cada test o armar los datos con `factory-boy`.
+- Datos de prueba: hoy los tests de rutas cargan el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Cuando haya tablas con reglas propias (usuarios, partidos) se arman con `factory-boy`, como la cátedra.
