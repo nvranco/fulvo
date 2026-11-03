@@ -28,6 +28,7 @@ Además, después del partido los participantes se votan entre sí y al complejo
 - [`docs/requerimientos.md`](docs/requerimientos.md): requerimientos del MVP e ideas post-MVP.
 - [`docs/diagramas/`](docs/diagramas/): diagramas de secuencia y diagrama de clases (draw.io y SVG).
 - [`docs/clases.md`](docs/clases.md): clases del dominio y patrones de diseño.
+- [`docs/base-de-datos.md`](docs/base-de-datos.md): esquema de la base de datos (hoy zonas y complejos) y decisiones de diseño.
 - [`CLAUDE.md`](CLAUDE.md): convenciones y decisiones del proyecto.
 
 ## Stack
@@ -35,7 +36,7 @@ Además, después del partido los participantes se votan entre sí y al complejo
 Se usa el stack de la cátedra:
 
 - **FastAPI** como framework de la API
-- **SQLAlchemy** (async) y **Alembic** para base de datos y migraciones
+- **SQLAlchemy** (síncrono) y **Alembic** para base de datos y migraciones
 - **JWT** (`pyjwt`) y **argon2** (`pwdlib`) para autenticación segura
 - **SQLite** en desarrollo y **PostgreSQL** en contenedor y producción
 - **pytest** para los tests

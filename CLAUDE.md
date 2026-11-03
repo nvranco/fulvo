@@ -61,7 +61,7 @@ El 40% de la nota es **exposición y defensa**. Cada decisión de código tiene 
 
 ## 3. Requerimientos del proyecto
 
-Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/diagramas/` y diseño de clases en `docs/clases.md`. Esa es la fuente de verdad del alcance del MVP: lo que está en su sección Post-MVP no se implementa. Todo endpoint debe poder rastrearse a un RQ.
+Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/diagramas/` diseño de clases en `docs/clases.md` y esquema de la base de datos en `docs/base-de-datos.md` (hoy solo zonas y complejos, se amplía con cada tabla nueva). Esa es la fuente de verdad del alcance del MVP: lo que está en su sección Post-MVP no se implementa. Todo endpoint debe poder rastrearse a un RQ.
 
 | RQ | Descripción | Endpoint(s) | Tests | Estado |
 |---|---|---|---|---|
@@ -81,19 +81,19 @@ Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientra
 
 ## 4. Stack técnico
 
-Se sigue **al pie de la letra** el stack de la cátedra. Referencia: sitio https://rmatuk.github.io/prog2 y repo https://github.com/rmatuk/prog2 (carpeta `codigo_aulas/13` es la app completa y final). Ante cualquier duda de cómo hacer algo, mirar primero ahí.
+Se sigue el stack de la cátedra, con **un desvío: SQLAlchemy síncrono** (ver subsección "Desvío" más abajo). Referencia: sitio https://rmatuk.github.io/prog2 y repo https://github.com/rmatuk/prog2. Ante cualquier duda de cómo hacer algo, mirar primero ahí, pero tomando como referencia de base de datos, rutas y tests la carpeta `codigo_aulas/07` (sync) y no la 13 (async). Para Docker, CI, factories y testcontainers sirven `codigo_aulas/11` y `12`, traducidos a sync.
 
 | Rol | Herramienta |
 |---|---|
 | Gestor de dependencias y entorno | Poetry (`pyproject.toml` formato PEP 621) |
 | Framework web | `fastapi[standard]` |
-| ORM | `sqlalchemy[asyncio]` 2.x, modelos con `mapped_as_dataclass` |
+| ORM | `sqlalchemy` 2.x **síncrono** (sin `[asyncio]`), modelos con `mapped_as_dataclass` |
 | Migraciones | `alembic` |
 | Validación y esquemas | `pydantic` y `pydantic-settings` |
 | Auth | JWT con `pyjwt`, hash de contraseñas con `pwdlib[argon2]` |
-| BD en desarrollo y tests locales | SQLite con `aiosqlite` |
+| BD en desarrollo y tests locales | SQLite con el módulo `sqlite3` de Python (sin `aiosqlite`) |
 | BD en contenedor, CI y producción | PostgreSQL con `psycopg[binary]` |
-| Tests | `pytest`, `pytest-cov`, `pytest-asyncio`, `pytest-random-order`, `factory-boy`, `freezegun`, `testcontainers`, `httpx2` |
+| Tests | `pytest`, `pytest-cov`, `pytest-random-order`, `factory-boy`, `freezegun`, `testcontainers`, `httpx2` |
 | Lint y formato | `ruff` |
 | Ortografía del código | `typos` |
 | Ejecutor de tareas | `poethepoet` (plugin de Poetry) |
@@ -105,7 +105,24 @@ Python: **3.13**, una sola versión en todos lados (`.python-version`, `requires
 
 Entorno: `pipx` instala Poetry; Poetry crea el venv en `.venv/` (`poetry config virtualenvs.in-project true`, configuración global por máquina). `package-mode = false` porque es una app. Pasos completos para replicar en otra máquina: `docs/entorno.md`. Mantener ese archivo al día si cambia algo del entorno.
 
-Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock` de `codigo_aulas/13`. No actualizar dependencias sin avisar.
+Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock` de `codigo_aulas/13`, sin `aiosqlite`, sin `pytest-asyncio` y con `sqlalchemy` en vez de `sqlalchemy[asyncio]`. No actualizar dependencias sin avisar.
+
+### Desvío: SQLAlchemy síncrono
+
+**Decisión:** el proyecto usa SQLAlchemy síncrono. La cátedra enseña sync en las lecciones 05 a 07 y pasa a async desde la carpeta `codigo_aulas/08` hasta la 13, sin explicarlo en el sitio. Elegimos sync porque es más simple de escribir, probar y explicar en la defensa, y para el volumen del MVP no hay diferencia práctica.
+
+**Qué implica para cada cambio de código:**
+
+- `database.py`: `create_engine(Settings().DATABASE_URL)` y `get_session` con `with Session(engine) as session: yield session`. Nada de `create_async_engine` ni `AsyncSession`.
+- Rutas: siempre `def`. **Nunca `async def` con una session sync**: bloquearía el event loop. FastAPI corre las rutas `def` en un pool de hilos.
+- Alias de la dependencia: `Session = Annotated[Session, Depends(get_session)]`, como en `codigo_aulas/07`.
+- Tests: `session` con `create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False}, poolclass=StaticPool)`, `create_all` antes y `drop_all` y `dispose()` después. `client` reemplaza `get_session` con `app.dependency_overrides`. Se usa `TestClient`, sin `pytest-asyncio` ni `pytest_asyncio.fixture`.
+- Relaciones: el lazy loading funciona, no hace falta `selectinload` ni `joinedload` (en async sí, o falla con `MissingGreenlet`).
+- Código copiado de `codigo_aulas/08` a `13`: se **traduce a sync** (quitar `async` y `await`, `AsyncSession` pasa a `Session`, `pytest_asyncio.fixture` pasa a `pytest.fixture`, `expire_on_commit=False` no hace falta). Nunca se copia tal cual.
+- Docker y CI: el driver de PostgreSQL es `psycopg[binary]` en modo sync, la URL es `postgresql+psycopg://...`.
+- Alembic corre igual en sync y async: `migrations/env.py` y los modelos no cambian.
+
+**Costo asumido:** si más adelante se pasa a async hay que reescribir `database.py`, todas las rutas y los tests. Los modelos y las migraciones se mantienen. Mientras tanto el rendimiento bajo muchas conexiones simultáneas es menor, y no importa para el MVP.
 
 ## 5. Estructura del repositorio
 
@@ -280,6 +297,7 @@ Pendiente: en qué módulos de `fulvo/` viven las clases del patrón. Se documen
 - Responder y escribir **en español**. Código, comentarios, docstrings y commits también (ver sección 7).
 - Priorizar **explicabilidad** por encima de elegancia o brevedad.
 - Seguir el stack de la cátedra. **Preguntar antes** de agregar una dependencia, cambiar de herramienta o salirse de su estructura.
+- SQLAlchemy es **síncrono** (ver "Desvío" en la sección 4). No escribir `async def`, `await`, `AsyncSession` ni `pytest_asyncio`, ni copiar código async de `codigo_aulas/08` a `13` sin traducirlo a sync.
 - No modificar `docs/consigna.pdf`.
 - No commitear ni hacer push sin pedido explícito. No tocar `.env`.
 - Antes de dar algo por terminado: correr `poetry test` y reportar el resultado real, incluso si falla.
