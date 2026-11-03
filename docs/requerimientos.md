@@ -135,14 +135,13 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 
 **Zonas y complejos**
 
-- Una zona tiene nombre, localidad y provincia.
+- Una zona tiene nombre y provincia. Es un partido o un barrio; la localidad se guarda en cada complejo.
 - Un complejo pertenece a una zona.
-- Datos del complejo: nombre, dirección, latitud, longitud, teléfono, WhatsApp y email de contacto. Ubicación y contactos los carga el script de scraping.
+- Datos del complejo: nombre, dirección, localidad, latitud, longitud, teléfono, WhatsApp y email de contacto, tipo, si tiene reserva online, sitio web, link a Google Maps y calificación de Maps. Ubicación y contactos salen de la carga inicial. La provincia del complejo es la de su zona.
 - El complejo tiene puntuación promedio y cantidad de puntuaciones, calculadas por las votaciones.
-- El complejo tiene un campo de dueño reservado para el rol de dueño de complejo (post-MVP). En el MVP queda vacío.
 - La búsqueda de cercanos recibe un punto (latitud y longitud) y un radio en km. Devuelve los complejos dentro del radio, ordenados por distancia.
-- Se cargan con un script de scraping, fuera de la API.
-- Usuarios no crean ni editan complejos. Solo el admin edita.
+- Los datos iniciales salen de un CSV (`fulvo/datos/complejos.csv`, armado a mano desde Google Maps) que la API carga al arrancar. También se pueden agregar zonas y complejos con la API.
+- Usuarios no crean ni editan complejos. Solo el admin edita. En la demo esos endpoints están abiertos; cuando exista el login (RQ1) se restringen al admin.
 
 ## 5. Requerimientos no funcionales
 

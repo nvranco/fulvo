@@ -67,14 +67,14 @@ Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/di
 |---|---|---|---|---|
 | RQ1 | Registrarse e iniciar sesión (edad mínima 16). | `TODO` | | pendiente |
 | RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. | `TODO` | | pendiente |
-| RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `TODO` | | pendiente |
+| RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `GET /zonas`, `GET /complejos`, `GET /complejos/cercanos`, `GET /complejos/{id}` | `tests/test_complejos.py` | demo (datos en memoria) |
 | RQ4 | Publicar partidos indicando complejo, fecha, hora, duración, tipo y cupos faltantes. | `TODO` | | pendiente |
 | RQ5 | Listar partidos abiertos con filtros y postularse. | `TODO` | | pendiente |
 | RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `TODO` | | pendiente |
 | RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `TODO` | | pendiente |
 | RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
 | RQ9 | Notificaciones dentro de la app. | `TODO` | | pendiente |
-| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | `TODO` | | pendiente |
+| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `POST /complejos`, `DELETE /complejos/{id}`. Bloqueo: `TODO` | `tests/test_complejos.py` | parcial: sin login, abiertos a cualquiera hasta tener RQ1 |
 | RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
 Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints. Monetización (comisiones, suscripciones, pagos), reservas, amigos, chat y torneos están fuera del MVP.
@@ -129,18 +129,23 @@ fulvo/
 │   └── ...                    # requerimientos, casos de uso, UML
 ├── migrations/                # excluido de ruff
 ├── fulvo/
-│   ├── app.py                 # instancia FastAPI y registro de routers
+│   ├── app.py                 # instancia FastAPI y registro de las rutas
 │   ├── settings.py            # configuración desde variables de entorno
 │   ├── database.py            # engine y get_session
 │   ├── models.py              # modelos SQLAlchemy
 │   ├── schemas.py             # esquemas Pydantic
 │   ├── security.py            # JWT y hash de contraseñas
-│   └── routers/               # un archivo por recurso
+│   ├── carga_inicial.py       # lee fulvo/datos/complejos.csv (demo, listas en memoria)
+│   ├── secuencia.py           # ids que no se reutilizan (hasta tener base de datos)
+│   ├── datos/                 # complejos.csv: carga inicial, viaja con el código
+│   └── routes/                # un archivo por recurso (como la cátedra, aula 12)
 └── tests/
     ├── conftest.py
     ├── factories.py
     └── test_*.py
 ```
+
+Las lecciones 03 a 11 de la cátedra ponen todas las rutas en `app.py`; la división en `fast_zero/routes/` (con `app.include_router`) aparece en la lección 12 y en `codigo_aulas/13`. Acá se adoptó antes porque cada recurso (`complejos`, `zonas`) tiene su archivo y `app.py` no crece.
 
 Si el patrón de diseño elegido necesita su propio módulo (por ejemplo `fulvo/servicios/`), se agrega y se documenta acá.
 

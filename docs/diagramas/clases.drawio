@@ -68,22 +68,22 @@
                     <mxGeometry height="56" width="380" y="186" as="geometry"/>
                 </mxCell>
                 <mxCell id="complejo" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Complejo" vertex="1">
-                    <mxGeometry height="290" width="380" x="-420" y="100" as="geometry"/>
+                    <mxGeometry height="374" width="380" x="-420" y="100" as="geometry"/>
                 </mxCell>
-                <mxCell id="complejo-attrs" parent="complejo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- zona: Zona&#xa;- nombre: str&#xa;- direccion: str&#xa;- latitud: decimal&#xa;- longitud: decimal&#xa;- telefono_contacto: str&#xa;- whatsapp_contacto: str&#xa;- email_contacto: str&#xa;- puntuacion_promedio: decimal&#xa;- cantidad_puntuaciones: int&#xa;- duenio: Usuario [0..1] (reservado, vacío en el MVP)" vertex="1">
-                    <mxGeometry height="200" width="380" y="26" as="geometry"/>
+                <mxCell id="complejo-attrs" parent="complejo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- zona: Zona&#xa;- nombre: str&#xa;- direccion: str&#xa;- localidad: str&#xa;- latitud: decimal&#xa;- longitud: decimal&#xa;- telefono_contacto: str&#xa;- whatsapp_contacto: str&#xa;- email_contacto: str&#xa;- puntuacion_promedio: decimal&#xa;- cantidad_puntuaciones: int&#xa;- tipo: str&#xa;- reserva_online: bool&#xa;- sitio_web: str&#xa;- calificacion_maps: decimal&#xa;- link_maps: str" vertex="1">
+                    <mxGeometry height="284" width="380" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="complejo-sep" parent="complejo" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
-                    <mxGeometry height="8" width="380" y="226" as="geometry"/>
+                    <mxGeometry height="8" width="380" y="310" as="geometry"/>
                 </mxCell>
                 <mxCell id="complejo-metodos" parent="complejo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ registrar_puntuacion(estrellas)&#xa;+ quitar_puntuacion(estrellas)&#xa;+ distancia_a(latitud, longitud): float" vertex="1">
-                    <mxGeometry height="56" width="380" y="234" as="geometry"/>
+                    <mxGeometry height="56" width="380" y="318" as="geometry"/>
                 </mxCell>
                 <mxCell id="zona" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Zona" vertex="1">
-                    <mxGeometry height="98" width="380" x="-860" y="196" as="geometry"/>
+                    <mxGeometry height="82" width="380" x="-860" y="246" as="geometry"/>
                 </mxCell>
-                <mxCell id="zona-attrs" parent="zona" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- nombre: str&#xa;- localidad: str&#xa;- provincia: str" vertex="1">
-                    <mxGeometry height="72" width="380" y="26" as="geometry"/>
+                <mxCell id="zona-attrs" parent="zona" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- nombre: str&#xa;- provincia: str" vertex="1">
+                    <mxGeometry height="56" width="380" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="postulacion" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Postulacion" vertex="1">
                     <mxGeometry height="274" width="320" x="820" y="100" as="geometry"/>

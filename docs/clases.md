@@ -64,16 +64,19 @@ La `Notificacion` no se construye a mano: la crea `FabricaNotificaciones` (ver s
 
 **Zona**
 
-- `id`, `nombre`, `localidad`, `provincia`
+- `id`, `nombre`, `provincia`
 - Sin métodos: es solo un dato. Una zona tiene muchos complejos y un complejo pertenece a una zona.
+- Una zona es un partido o un barrio (por ejemplo Vicente López o Belgrano). No lleva `localidad` porque una zona abarca varias: Vicente López incluye Olivos, Munro y Villa Martelli. La `localidad` va en cada complejo.
 
 **Complejo**
 
-- `id`, `zona`, `nombre`, `direccion`
+- `id`, `zona`, `nombre`, `direccion`, `localidad`
 - `latitud`, `longitud`
 - `telefono_contacto`, `whatsapp_contacto`, `email_contacto`
 - `puntuacion_promedio`, `cantidad_puntuaciones`
-- `duenio`: reservado para el rol de dueño de complejo (post-MVP). Vacío en el MVP.
+- `tipo` (campo de fútbol, cancha de fútbol sala, club, etc.), `reserva_online`
+- `sitio_web`, `link_maps`
+- `calificacion_maps`: puntuación que muestra Google Maps. Es un dato de referencia de la carga inicial y no se mezcla con `puntuacion_promedio`, que se calcula con las votaciones de la app.
 
 Métodos:
 
@@ -314,6 +317,5 @@ Se lee desde una clase hacia la otra. Ejemplo: entre `Partido` y `Postulacion`, 
 
 1. Leelo por zonas. A la izquierda, zonas y complejos. Al centro, `Partido` con el Observer arriba (observadores, interfaz y evento) y `Votacion` abajo. A la derecha, `Postulacion` y `Usuario`, con `Rol`, `Sancion` y `Reclamo` debajo, y la Factory con `Notificacion` arriba.
 2. Seguí un caso real. Por ejemplo: un partido pasa a jugado, `Partido` crea un `EventoPartido` y llama a `notificar`, los dos observadores reciben `actualizar(evento)`, el `NotificadorPartido` le pide la notificación a la fábrica y el `ProcesadorPostPartido` crea las votaciones.
-3. `Votacion`, `Sancion` y `Reclamo` se unen a `Usuario` con una sola línea que lleva los dos roles en el nombre (por ejemplo `emisor / receptor_usuario`). Son dos relaciones dibujadas como una para no llenar el diagrama, y la multiplicidad que se ve es la del primer rol (`emisor`, `usuario`, `autor`, que son siempre uno). El segundo rol puede ser opcional: `receptor_usuario` y `resuelto_por` son `0..1`. El dueño de `Complejo` no tiene línea: se ve solo como atributo reservado.
-4. `Reclamo` no tiene línea hacia su objetivo. Guarda `tipo_objetivo` y `objetivo_id`, y la nota al lado explica qué clase corresponde a cada tipo.
+3. `Votacion`, `Sancion` y `Reclamo` se unen a `Usuario` con una sola línea que lleva los dos roles en el nombre (por ejemplo `emisor / receptor_usuario`). Son dos relaciones dibujadas como una para no llenar el diagrama, y la multiplicidad que se ve es la del primer rol (`emisor`, `usuario`, `autor`, que son siempre uno). El segundo rol puede ser opcional: `receptor_usuario` y `resuelto_por` son `0..1`.4. `Reclamo` no tiene línea hacia su objetivo. Guarda `tipo_objetivo` y `objetivo_id`, y la nota al lado explica qué clase corresponde a cada tipo.
 5. Los tipos que no son clases del diagrama (`EstadoPartido`, `TipoPartido`, `TipoNotificacion` y similares) son enumeraciones: listas fijas de valores, como los estados de la sección 4 de `requerimientos.md`.
