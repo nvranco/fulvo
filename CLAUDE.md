@@ -258,8 +258,8 @@ Pendiente: en qué módulos de `fulvo/` viven las clases del patrón. Se documen
 ### CI
 
 - Workflow en `.github/workflows/pipeline.yaml`, se dispara con `push` y `pull_request`.
-- Pasos: checkout, instalar Python, instalar Poetry, `poetry install`, `poetry test`.
-- Las variables de entorno van como **GitHub Secrets**, nunca en el workflow.
+- Pasos: checkout, instalar Python 3.13, instalar Poetry, `pipx inject poetry 'poethepoet[poetry_plugin]'`, `poetry install`, `poetry test`. El paso del plugin no está en la lección 12: es el mismo que hace cada máquina del grupo (`docs/entorno.md`), y sin él `poetry test` no existe.
+- Las variables de entorno van como **GitHub Secrets**, nunca en el workflow. Hoy no hace falta ninguna: `DATABASE_URL` tiene valor por defecto. Cuando el login (RQ1) agregue `SECRET_KEY` y compañía, se cargan como secrets y se mapean en un bloque `env` del job. Solo se mapean secrets que existan: uno que falta llega como texto vacío y pisa el valor por defecto de `Settings`.
 
 ### Deploy
 

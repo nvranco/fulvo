@@ -1,0 +1,35 @@
+name: Pipeline
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Todavía no hay bloque `env`: Settings solo tiene DATABASE_URL y su valor
+    # por defecto (SQLite) alcanza para los tests. Las claves de JWT llegan
+    # con el login (RQ1) y se cargan como secrets del repositorio. Solo se
+    # mapea un secret que exista: uno que falta llega como texto vacío y
+    # pisa el valor por defecto de Settings.
+
+    steps:
+      - name: Copiar los archivos del repositorio
+        uses: actions/checkout@v5
+
+      - name: Instalar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Instalar Poetry
+        run: pipx install poetry
+
+      # Igual que en cada máquina del equipo (docs/entorno.md): sin este
+      # plugin no existe el comando `poetry test`.
+      - name: Instalar el plugin de tareas
+        run: pipx inject poetry 'poethepoet[poetry_plugin]'
+
+      - name: Instalar dependencias
+        run: poetry install
+
+      - name: Correr lint y tests
+        run: poetry test
