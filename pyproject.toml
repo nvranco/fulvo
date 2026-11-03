@@ -42,10 +42,21 @@ addopts = ['-p', 'no:warnings', '--cov=fulvo', '--cov-context=test']
 # Palabras en español que typos toma por errores de inglés.
 cliente = 'cliente'
 clientes = 'clientes'
+direccion = 'direccion'
+inicial = 'inicial'
+parametros = 'parametros'
+calle = 'calle'
+Calle = 'Calle'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.
-extend-exclude = ['*.md', 'docs', 'poetry.lock', 'migrations']
+extend-exclude = [
+    '*.md',
+    'docs',
+    'poetry.lock',
+    'migrations',
+    'fulvo/datos',
+]
 
 [tool.poe]
 # Permite correr "poetry serve" en vez de "poetry poe serve".
