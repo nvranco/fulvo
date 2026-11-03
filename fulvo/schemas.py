@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 # Rangos válidos de coordenadas: evitan guardar ubicaciones imposibles.
 Latitud = Annotated[float, Field(ge=-90, le=90)]
@@ -67,6 +67,11 @@ class ZonaEntrada(BaseModel):
 
 class ZonaPublica(ZonaEntrada):
     """Zona del dominio: un partido o un barrio, con su provincia."""
+
+    # Permite armarla desde el modelo `Zona` (que no es un dict) leyendo sus
+    # atributos: `ZonaPublica.model_validate(zona)`. FastAPI lo aplica solo al
+    # devolver un modelo desde una ruta con `response_model=ZonaPublica`.
+    model_config = ConfigDict(from_attributes=True)
 
     id: int
 
