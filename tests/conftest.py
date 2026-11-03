@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from fulvo.app import app
+from fulvo.carga_inicial import cargar
+from fulvo.database import get_session
 from fulvo.models import table_registry
 from fulvo.routes.complejos import complejos, ids_complejos
 from fulvo.routes.zonas import ids_zonas, zonas
@@ -34,9 +36,32 @@ def session():
 
 
 @pytest.fixture
-def client():
-    """Cliente HTTP de prueba, creado de nuevo para cada test."""
-    return TestClient(app)
+def datos_iniciales(session):
+    """Carga en la base de prueba las zonas y complejos del CSV.
+
+    Es la misma carga que se usa en desarrollo (`fulvo.carga_inicial`). Los
+    tests de rutas parten de estos datos: 8 zonas y 51 complejos.
+    """
+    cargar(session)
+
+
+@pytest.fixture
+def client(session, datos_iniciales):
+    """Cliente HTTP de prueba conectado a la base en memoria.
+
+    Reemplaza `get_session` por la sesión de prueba (`dependency_overrides`):
+    las rutas escriben y leen en la base en memoria, nunca en `fulvo.db`.
+    """
+
+    def get_session_override():
+        return session
+
+    app.dependency_overrides[get_session] = get_session_override
+
+    with TestClient(app) as client:
+        yield client
+
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(autouse=True)
