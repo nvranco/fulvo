@@ -115,7 +115,7 @@ Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock`
 
 - `database.py`: `create_engine(Settings().DATABASE_URL)` y `get_session` con `with Session(engine) as session: yield session`. Nada de `create_async_engine` ni `AsyncSession`.
 - Rutas: siempre `def`. **Nunca `async def` con una session sync**: bloquearía el event loop. FastAPI corre las rutas `def` en un pool de hilos.
-- Alias de la dependencia: `Session = Annotated[Session, Depends(get_session)]`, como en `codigo_aulas/07`.
+- Alias de la dependencia: como en `codigo_aulas/07`, cada archivo de `routes/` que usa la base define `Session = Annotated[Session, Depends(get_session)]` debajo de sus imports (importando `Session` de `sqlalchemy.orm` y `get_session` de `fulvo.database`). El alias reutiliza el nombre `Session` a propósito, igual que la cátedra: en las rutas se escribe `session: Session`. No se define en `database.py`.
 - Tests: `session` con `create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False}, poolclass=StaticPool)`, `create_all` antes y `drop_all` y `dispose()` después. `client` reemplaza `get_session` con `app.dependency_overrides`. Se usa `TestClient`, sin `pytest-asyncio` ni `pytest_asyncio.fixture`.
 - Relaciones: el lazy loading funciona, no hace falta `selectinload` ni `joinedload` (en async sí, o falla con `MissingGreenlet`).
 - Código copiado de `codigo_aulas/08` a `13`: se **traduce a sync** (quitar `async` y `await`, `AsyncSession` pasa a `Session`, `pytest_asyncio.fixture` pasa a `pytest.fixture`, `expire_on_commit=False` no hace falta). Nunca se copia tal cual.

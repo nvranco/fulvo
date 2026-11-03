@@ -45,6 +45,7 @@ clientes = 'clientes'
 direccion = 'direccion'
 inicial = 'inicial'
 parametros = 'parametros'
+sesion = 'sesion'
 calle = 'calle'
 Calle = 'Calle'
 
