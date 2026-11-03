@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
-from fulvo.models import Complejo
+from fulvo.models import Complejo, Zona
 from fulvo.routes.zonas import buscar_zona
 from fulvo.schemas import (
     ComplejoCercano,
@@ -137,6 +137,42 @@ def borrar_complejo(complejo_id: int, session: Session):
     return {'mensaje': 'Complejo eliminado'}
 
 
+def buscar_zona_del_complejo(session: Session, nombre: str) -> Zona:
+    """Devuelve la zona por nombre, o levanta 404 si no existe.
+
+    Todo complejo pertenece a una zona. Lo usan el alta y la edición, así
+    el 404 y su mensaje viven en un solo lugar.
+    """
+    zona = buscar_zona(session, nombre)
+    if zona is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='La zona no existe'
+        )
+    return zona
+
+
+def rechazar_repetido(
+    session: Session, datos: ComplejoEntrada, complejo_id: int | None = None
+) -> None:
+    """Levanta 409 si otro complejo ya tiene ese nombre y esa dirección.
+
+    `complejo_id` es el complejo que se está editando: no cuenta como
+    repetido de sí mismo, así se puede editar sin cambiar nombre ni
+    dirección.
+    """
+    consulta = select(Complejo).where(
+        Complejo.nombre == datos.nombre,
+        Complejo.direccion == datos.direccion,
+    )
+    if complejo_id is not None:
+        consulta = consulta.where(Complejo.id != complejo_id)
+    if session.scalar(consulta):
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Ya existe un complejo con ese nombre y dirección',
+        )
+
+
 @router.post(
     '', status_code=HTTPStatus.CREATED, response_model=ComplejoPublico
 )
@@ -146,27 +182,34 @@ def crear_complejo(datos: ComplejoEntrada, session: Session):
     404 si la zona no existe (todo complejo pertenece a una zona) y 409 si
     el nombre ya existe en esa dirección.
     """
-    zona = buscar_zona(session, datos.zona)
-    if zona is None:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='La zona no existe'
-        )
-    repetido = session.scalar(
-        select(Complejo).where(
-            Complejo.nombre == datos.nombre,
-            Complejo.direccion == datos.direccion,
-        )
-    )
-    if repetido:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Ya existe un complejo con ese nombre y dirección',
-        )
+    zona = buscar_zona_del_complejo(session, datos.zona)
+    rechazar_repetido(session, datos)
     # Se guarda el id de la zona hallada: así la zona se escribe siempre con
     # su ortografía correcta y la provincia sale de ella, sin poder
     # contradecirse con lo que mande el cliente.
     complejo = Complejo(zona_id=zona.id, **datos.model_dump(exclude={'zona'}))
     session.add(complejo)
+    session.commit()
+    session.refresh(complejo)
+    return complejo_publico(complejo)
+
+
+@router.put('/{complejo_id}', response_model=ComplejoPublico)
+def actualizar_complejo(
+    complejo_id: int, datos: ComplejoEntrada, session: Session
+):
+    """Reemplaza todos los datos de un complejo (RQ10).
+
+    Es un PUT: recibe el complejo completo, igual que el alta, y aplica sus
+    mismas reglas. 404 si el complejo o la zona no existen, y 409 si el
+    nombre y la dirección ya son de otro complejo. El id no cambia.
+    """
+    complejo = buscar_complejo(session, complejo_id)
+    zona = buscar_zona_del_complejo(session, datos.zona)
+    rechazar_repetido(session, datos, complejo_id)
+    complejo.zona_id = zona.id
+    for campo, valor in datos.model_dump(exclude={'zona'}).items():
+        setattr(complejo, campo, valor)
     session.commit()
     session.refresh(complejo)
     return complejo_publico(complejo)

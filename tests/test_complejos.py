@@ -10,6 +10,8 @@ MEDIA_CIRCUNFERENCIA_KM = 20015
 TAMANIO_PAGINA = 20
 COMPLEJOS_EN_SAAVEDRA = 6
 ID_DEL_NUEVO = TOTAL_COMPLEJOS + 1
+ID_SAAVEDRA = 6
+ID_BELGRANO = 5
 
 COMPLEJO_NUEVO = {
     'zona': 'Belgrano',
@@ -345,3 +347,150 @@ def test_crear_complejo_en_una_zona_recien_creada_funciona(client):
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.CREATED
+
+
+def test_actualizar_complejo_reemplaza_sus_datos_y_conserva_el_id(client):
+    # Actuar
+    respuesta = client.put('/complejos/1', json=COMPLEJO_NUEVO)
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.OK
+    assert respuesta.json()['id'] == 1
+    consulta = client.get('/complejos/1')
+    assert consulta.json()['nombre'] == 'Cancha de Prueba'
+    assert consulta.json()['direccion'] == 'Calle Falsa 123'
+
+
+def test_actualizar_complejo_a_otra_zona_toma_su_nombre_y_provincia(client):
+    # Organizar: el complejo 1 está en Vicente López (Buenos Aires)
+    datos = {**COMPLEJO_NUEVO, 'zona': 'belgrano'}
+
+    # Actuar
+    respuesta = client.put('/complejos/1', json=datos)
+
+    # Afirmar
+    assert respuesta.json()['zona'] == 'Belgrano'
+    assert respuesta.json()['provincia'] == 'CABA'
+
+
+def test_actualizar_complejo_sin_cambiar_nombre_ni_direccion_funciona(
+    client,
+):
+    # Organizar: mismos datos del complejo 1, con otro teléfono
+    actual = client.get('/complejos/1').json()
+    datos = {**actual, 'telefono_contacto': '011 4444-5555'}
+
+    # Actuar
+    respuesta = client.put('/complejos/1', json=datos)
+
+    # Afirmar: no es conflicto consigo mismo
+    assert respuesta.status_code == HTTPStatus.OK
+    assert respuesta.json()['telefono_contacto'] == '011 4444-5555'
+
+
+def test_actualizar_complejo_con_nombre_y_direccion_de_otro_es_conflicto(
+    client,
+):
+    # Organizar: nombre y dirección del complejo 2
+    datos = {
+        **COMPLEJO_NUEVO,
+        'nombre': 'PLT FÚTBOL',
+        'direccion': 'Juan Zufriategui 1233',
+    }
+
+    # Actuar
+    respuesta = client.put('/complejos/1', json=datos)
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.CONFLICT
+    assert respuesta.json() == {
+        'detail': 'Ya existe un complejo con ese nombre y dirección'
+    }
+
+
+def test_actualizar_complejo_inexistente_devuelve_no_encontrado(client):
+    # Actuar
+    respuesta = client.put('/complejos/9999', json=COMPLEJO_NUEVO)
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.NOT_FOUND
+    assert respuesta.json() == {'detail': 'Complejo no encontrado'}
+
+
+def test_actualizar_complejo_con_zona_inexistente_devuelve_no_encontrado(
+    client,
+):
+    # Organizar
+    datos = {**COMPLEJO_NUEVO, 'zona': 'Zona Inventada'}
+
+    # Actuar
+    respuesta = client.put('/complejos/1', json=datos)
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.NOT_FOUND
+    assert respuesta.json() == {'detail': 'La zona no existe'}
+
+
+def test_actualizar_complejo_con_datos_invalidos_devuelve_error(client):
+    # Organizar
+    datos = {**COMPLEJO_NUEVO, 'longitud': -500}
+
+    # Actuar
+    respuesta = client.put('/complejos/1', json=datos)
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_actualizar_zona_cambia_el_nombre_que_ven_sus_complejos(client):
+    # Actuar
+    respuesta = client.put(
+        f'/zonas/{ID_SAAVEDRA}',
+        json={'nombre': 'Saavedra Norte', 'provincia': 'CABA'},
+    )
+
+    # Afirmar: los complejos de la zona la ven con su nombre nuevo
+    assert respuesta.status_code == HTTPStatus.OK
+    assert respuesta.json() == {
+        'id': ID_SAAVEDRA,
+        'nombre': 'Saavedra Norte',
+        'provincia': 'CABA',
+    }
+    complejos = client.get(
+        '/complejos', params={'zona': 'Saavedra Norte'}
+    ).json()['complejos']
+    assert len(complejos) == COMPLEJOS_EN_SAAVEDRA
+
+
+def test_actualizar_zona_cambiando_solo_sus_mayusculas_funciona(client):
+    # Actuar
+    respuesta = client.put(
+        f'/zonas/{ID_BELGRANO}',
+        json={'nombre': 'BELGRANO', 'provincia': 'CABA'},
+    )
+
+    # Afirmar: no es conflicto consigo misma
+    assert respuesta.status_code == HTTPStatus.OK
+    assert respuesta.json()['nombre'] == 'BELGRANO'
+
+
+def test_actualizar_zona_con_el_nombre_de_otra_devuelve_conflicto(client):
+    # Actuar: la zona 1 es Vicente López
+    respuesta = client.put(
+        '/zonas/1', json={'nombre': 'belgrano', 'provincia': 'CABA'}
+    )
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.CONFLICT
+    assert respuesta.json() == {'detail': 'Ya existe una zona con ese nombre'}
+
+
+def test_actualizar_zona_inexistente_devuelve_no_encontrado(client):
+    # Actuar
+    respuesta = client.put(
+        '/zonas/9999', json={'nombre': 'Colegiales', 'provincia': 'CABA'}
+    )
+
+    # Afirmar
+    assert respuesta.status_code == HTTPStatus.NOT_FOUND
+    assert respuesta.json() == {'detail': 'Zona no encontrada'}
