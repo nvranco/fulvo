@@ -54,6 +54,8 @@ direccion = 'direccion'
 inicial = 'inicial'
 parametros = 'parametros'
 sesion = 'sesion'
+configuracion = 'configuracion'
+falso = 'falso'
 calle = 'calle'
 Calle = 'Calle'
 

@@ -5,11 +5,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # Todavía no hay bloque `env`: Settings solo tiene DATABASE_URL y su valor
-    # por defecto (SQLite) alcanza para los tests. Las claves de JWT llegan
-    # con el login (RQ1) y se cargan como secrets del repositorio. Solo se
-    # mapea un secret que exista: uno que falta llega como texto vacío y
-    # pisa el valor por defecto de Settings.
+    # No hace falta bloque `env`: los tests definen su propia SECRET_KEY
+    # falsa (tests/__init__.py) y el resto de Settings tiene valor por
+    # defecto. Si algún paso necesita un secret real, mapearlo acá y solo si
+    # existe: uno que falta llega como texto vacío y pisa el valor por
+    # defecto de Settings.
 
     steps:
       - name: Copiar los archivos del repositorio
