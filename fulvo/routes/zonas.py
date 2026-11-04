@@ -49,3 +49,30 @@ def crear_zona(datos: ZonaEntrada, session: Session):
     session.commit()
     session.refresh(zona)
     return zona
+
+
+@router.put('/{zona_id}', response_model=ZonaPublica)
+def actualizar_zona(zona_id: int, datos: ZonaEntrada, session: Session):
+    """Reemplaza el nombre y la provincia de una zona (RQ10).
+
+    404 si no existe y 409 si el nombre nuevo ya es de otra zona. Los
+    complejos guardan el id de su zona, así que ven el cambio solos:
+    también la provincia, que leen de la zona.
+    """
+    zona = session.get(Zona, zona_id)
+    if zona is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='Zona no encontrada'
+        )
+    otra = buscar_zona(session, datos.nombre)
+    # La misma zona sí puede cambiar solo las mayúsculas de su nombre.
+    if otra is not None and otra.id != zona.id:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Ya existe una zona con ese nombre',
+        )
+    zona.nombre = datos.nombre
+    zona.provincia = datos.provincia
+    session.commit()
+    session.refresh(zona)
+    return zona

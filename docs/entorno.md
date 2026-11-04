@@ -81,13 +81,14 @@ También funciona `poetry serve` (atajo definido en `pyproject.toml`). Abrir htt
 
 ## Herramientas de desarrollo
 
-Instaladas en el grupo `dev` de Poetry (`poetry add --group dev pytest pytest-cov ruff typos`) y configuradas en `pyproject.toml`:
+Instaladas en el grupo `dev` de Poetry (`poetry add --group dev pytest pytest-cov ruff typos pytest-random-order`) y configuradas en `pyproject.toml`:
 
 | Herramienta | Qué hace | Configuración |
 |---|---|---|
 | Ruff | linter y formateador (línea de 79, comillas simples, reglas `I F E W PL PT`) | `[tool.ruff*]` |
 | Typos | revisa ortografía en inglés; excluye `*.md`, `docs`, `poetry.lock` y `migrations` porque están en español | `[tool.typos.files]` |
-| pytest + pytest-cov | tests con cobertura del paquete `fulvo` | `[tool.pytest]` |
+| pytest + pytest-cov | tests con cobertura del paquete `fulvo`, incluidas las ramas (`--cov-branch`) | `[tool.pytest]` |
+| pytest-random-order | corre los tests en orden aleatorio (`--random-order`) para detectar tests que dependen de otros; imprime la semilla para repetir un orden | `[tool.pytest]` |
 | Poe the Poet | tareas cortas | `[tool.poe.tasks]` |
 
 Tareas:

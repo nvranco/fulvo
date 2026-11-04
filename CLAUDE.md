@@ -74,7 +74,7 @@ Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/di
 | RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `TODO` | | pendiente |
 | RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
 | RQ9 | Notificaciones dentro de la app. | `TODO` | | pendiente |
-| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `POST /complejos`, `DELETE /complejos/{id}`. Bloqueo: `TODO` | `tests/test_complejos.py` | parcial: sin login, abiertos a cualquiera hasta tener RQ1 |
+| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}`. Bloqueo: `TODO` | `tests/test_complejos.py` | parcial: sin login, abiertos a cualquiera hasta tener RQ1 |
 | RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
 Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints. Monetización (comisiones, suscripciones, pagos), reservas, amigos, chat y torneos están fuera del MVP.
@@ -258,8 +258,8 @@ Pendiente: en qué módulos de `fulvo/` viven las clases del patrón. Se documen
 ### CI
 
 - Workflow en `.github/workflows/pipeline.yaml`, se dispara con `push` y `pull_request`.
-- Pasos: checkout, instalar Python, instalar Poetry, `poetry install`, `poetry test`.
-- Las variables de entorno van como **GitHub Secrets**, nunca en el workflow.
+- Pasos: checkout, instalar Python 3.13, instalar Poetry, `pipx inject poetry 'poethepoet[poetry_plugin]'`, `poetry install`, `poetry test`. El paso del plugin no está en la lección 12: es el mismo que hace cada máquina del grupo (`docs/entorno.md`), y sin él `poetry test` no existe.
+- Las variables de entorno van como **GitHub Secrets**, nunca en el workflow. Hoy no hace falta ninguna: `DATABASE_URL` tiene valor por defecto. Cuando el login (RQ1) agregue `SECRET_KEY` y compañía, se cargan como secrets y se mapean en un bloque `env` del job. Solo se mapean secrets que existan: uno que falta llega como texto vacío y pisa el valor por defecto de `Settings`.
 
 ### Deploy
 
