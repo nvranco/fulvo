@@ -1,12 +1,26 @@
 from datetime import UTC, datetime, timedelta
+from http import HTTPStatus
+from typing import Annotated
 
 import jwt
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from fulvo.database import get_session
+from fulvo.models import Usuario
 from fulvo.settings import Settings
 
 # Se lee una vez al importar el módulo, igual que el engine en database.py.
 configuracion = Settings()
+Session = Annotated[Session, Depends(get_session)]
+
+# Le dice a FastAPI de dónde sale el token (encabezado `Authorization:
+# Bearer ...`) y a Swagger a qué ruta ir a pedirlo: el botón "Authorize"
+# de /docs usa `tokenUrl`.
+esquema_oauth2 = OAuth2PasswordBearer(tokenUrl='auth/token')
 
 # `recommended()` arma el hasher con argon2, el algoritmo que pide la
 # cátedra. Argon2 es lento a propósito y usa mucha memoria: encarece los
@@ -72,3 +86,45 @@ def decodificar_token_acceso(token: str) -> dict:
         configuracion.SECRET_KEY,
         algorithms=[configuracion.ALGORITHM],
     )
+
+
+def obtener_usuario_actual(
+    session: Session,
+    token: Annotated[str, Depends(esquema_oauth2)],
+) -> Usuario:
+    """Devuelve el usuario dueño del token, o corta con un error HTTP.
+
+    Es el único lugar que traduce los errores del token a 401 (CLAUDE.md,
+    sección 7). Todo fallo de autenticación da el mismo error, sin decir
+    si el token estaba vencido, alterado o era de un usuario inexistente.
+
+    Se vuelve a leer al usuario de la base en cada request, en vez de
+    confiar en el token, para que un bloqueo valga al instante y no recién
+    cuando el token venza.
+    """
+    no_autenticado = HTTPException(
+        status_code=HTTPStatus.UNAUTHORIZED,
+        detail='No se pudo validar las credenciales',
+        headers={'WWW-Authenticate': 'Bearer'},
+    )
+    try:
+        datos = decodificar_token_acceso(token)
+    except jwt.InvalidTokenError:
+        raise no_autenticado from None
+
+    email = datos.get('sub')
+    if not email:
+        raise no_autenticado
+    usuario = session.scalar(select(Usuario).where(Usuario.email == email))
+    if usuario is None:
+        raise no_autenticado
+    if usuario.bloqueado:
+        # 403 y no 401: la identidad es válida pero no tiene permiso.
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail='Usuario bloqueado'
+        )
+    return usuario
+
+
+# Alias para las rutas protegidas: `usuario: UsuarioActual`.
+UsuarioActual = Annotated[Usuario, Depends(obtener_usuario_actual)]
