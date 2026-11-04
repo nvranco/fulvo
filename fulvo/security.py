@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
-from fulvo.models import Usuario
+from fulvo.models import ROL_ADMIN, Usuario
 from fulvo.settings import Settings
 
 # Se lee una vez al importar el módulo, igual que el engine en database.py.
@@ -128,3 +128,21 @@ def obtener_usuario_actual(
 
 # Alias para las rutas protegidas: `usuario: UsuarioActual`.
 UsuarioActual = Annotated[Usuario, Depends(obtener_usuario_actual)]
+
+
+def exigir_admin(usuario: UsuarioActual) -> Usuario:
+    """Deja pasar solo a un usuario con rol admin; si no, 403.
+
+    Se apoya en `UsuarioActual`, así que sin token o con token inválido
+    da 401 antes de llegar acá. La regla de quién es admin vive en
+    `Usuario.tiene_rol`: este es el único lugar que la convierte en un 403.
+
+    Las rutas la usan con `dependencies=[Depends(exigir_admin)]` en el
+    decorador: no necesitan el usuario, solo el permiso.
+    """
+    if not usuario.tiene_rol(ROL_ADMIN):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail='Esta acción es solo para administradores',
+        )
+    return usuario

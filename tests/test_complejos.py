@@ -91,50 +91,50 @@ def test_leer_complejo_inexistente_devuelve_no_encontrado(client):
     assert respuesta.json() == {'detail': 'Complejo no encontrado'}
 
 
-def test_crear_complejo_devuelve_creado_y_queda_consultable(client):
+def test_crear_complejo_devuelve_creado_y_queda_consultable(client_admin):
     # Actuar
-    respuesta = client.post('/complejos', json=COMPLEJO_NUEVO)
+    respuesta = client_admin.post('/complejos', json=COMPLEJO_NUEVO)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.CREATED
     nuevo_id = respuesta.json()['id']
     assert nuevo_id == ID_DEL_NUEVO
-    consulta = client.get(f'/complejos/{nuevo_id}')
+    consulta = client_admin.get(f'/complejos/{nuevo_id}')
     assert consulta.json()['nombre'] == 'Cancha de Prueba'
 
 
-def test_crear_complejo_repetido_devuelve_conflicto(client):
+def test_crear_complejo_repetido_devuelve_conflicto(client_admin):
     # Organizar
-    client.post('/complejos', json=COMPLEJO_NUEVO)
+    client_admin.post('/complejos', json=COMPLEJO_NUEVO)
 
     # Actuar
-    respuesta = client.post('/complejos', json=COMPLEJO_NUEVO)
+    respuesta = client_admin.post('/complejos', json=COMPLEJO_NUEVO)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.CONFLICT
 
 
 def test_crear_complejo_con_latitud_invalida_devuelve_error_de_validacion(
-    client,
+    client_admin,
 ):
     # Organizar
     datos = {**COMPLEJO_NUEVO, 'latitud': 200}
 
     # Actuar
-    respuesta = client.post('/complejos', json=datos)
+    respuesta = client_admin.post('/complejos', json=datos)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_crear_complejo_con_zona_en_otras_mayusculas_usa_la_zona_existente(
-    client,
+    client_admin,
 ):
     # Organizar
     datos = {**COMPLEJO_NUEVO, 'zona': 'belgrano'}
 
     # Actuar
-    respuesta = client.post('/complejos', json=datos)
+    respuesta = client_admin.post('/complejos', json=datos)
 
     # Afirmar: toma el nombre correcto y la provincia de la zona
     assert respuesta.status_code == HTTPStatus.CREATED
@@ -142,68 +142,72 @@ def test_crear_complejo_con_zona_en_otras_mayusculas_usa_la_zona_existente(
     assert respuesta.json()['provincia'] == 'CABA'
 
 
-def test_crear_complejo_descarta_la_provincia_enviada_por_el_cliente(client):
+def test_crear_complejo_descarta_la_provincia_enviada_por_el_cliente(
+    client_admin,
+):
     # Organizar
     datos = {**COMPLEJO_NUEVO, 'provincia': 'Buenos Aires'}
 
     # Actuar
-    respuesta = client.post('/complejos', json=datos)
+    respuesta = client_admin.post('/complejos', json=datos)
 
     # Afirmar: manda la zona (Belgrano es de CABA)
     assert respuesta.json()['provincia'] == 'CABA'
 
 
-def test_crear_complejo_con_nombre_vacio_devuelve_error_de_validacion(client):
+def test_crear_complejo_con_nombre_vacio_devuelve_error_de_validacion(
+    client_admin,
+):
     # Organizar
     datos = {**COMPLEJO_NUEVO, 'nombre': '   '}
 
     # Actuar
-    respuesta = client.post('/complejos', json=datos)
+    respuesta = client_admin.post('/complejos', json=datos)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_crear_complejo_despues_de_borrar_el_ultimo_no_reutiliza_su_id(
-    client,
+    client_admin,
 ):
     # Organizar
-    client.delete(f'/complejos/{TOTAL_COMPLEJOS}')
+    client_admin.delete(f'/complejos/{TOTAL_COMPLEJOS}')
 
     # Actuar
-    respuesta = client.post('/complejos', json=COMPLEJO_NUEVO)
+    respuesta = client_admin.post('/complejos', json=COMPLEJO_NUEVO)
 
     # Afirmar
     assert respuesta.json()['id'] == ID_DEL_NUEVO
     assert (
-        client.get(f'/complejos/{TOTAL_COMPLEJOS}').status_code
+        client_admin.get(f'/complejos/{TOTAL_COMPLEJOS}').status_code
         == HTTPStatus.NOT_FOUND
     )
 
 
-def test_borrar_complejo_existente_lo_elimina(client):
+def test_borrar_complejo_existente_lo_elimina(client_admin):
     # Actuar
-    respuesta = client.delete('/complejos/1')
+    respuesta = client_admin.delete('/complejos/1')
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.OK
     assert respuesta.json() == {'mensaje': 'Complejo eliminado'}
-    assert client.get('/complejos/1').status_code == HTTPStatus.NOT_FOUND
+    assert client_admin.get('/complejos/1').status_code == HTTPStatus.NOT_FOUND
 
 
-def test_borrar_complejo_no_corre_los_ids_de_los_demas(client):
+def test_borrar_complejo_no_corre_los_ids_de_los_demas(client_admin):
     # Actuar
-    client.delete('/complejos/1')
+    client_admin.delete('/complejos/1')
 
     # Afirmar: el complejo 2 sigue siendo el 2 aunque ahora esté primero
-    consulta = client.get('/complejos/2')
+    consulta = client_admin.get('/complejos/2')
     assert consulta.status_code == HTTPStatus.OK
     assert consulta.json()['nombre'] == 'PLT FÚTBOL'
 
 
-def test_borrar_complejo_inexistente_devuelve_no_encontrado(client):
+def test_borrar_complejo_inexistente_devuelve_no_encontrado(client_admin):
     # Actuar
-    respuesta = client.delete('/complejos/9999')
+    respuesta = client_admin.delete('/complejos/9999')
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.NOT_FOUND
@@ -288,9 +292,9 @@ def test_listar_zonas_devuelve_las_ocho_zonas_con_id_nombre_y_provincia(
     assert zonas[3] == {'id': 4, 'nombre': 'Núñez', 'provincia': 'CABA'}
 
 
-def test_crear_zona_devuelve_creado_y_aparece_en_el_listado(client):
+def test_crear_zona_devuelve_creado_y_aparece_en_el_listado(client_admin):
     # Actuar
-    respuesta = client.post(
+    respuesta = client_admin.post(
         '/zonas', json={'nombre': 'Colegiales', 'provincia': 'CABA'}
     )
 
@@ -301,13 +305,13 @@ def test_crear_zona_devuelve_creado_y_aparece_en_el_listado(client):
         'nombre': 'Colegiales',
         'provincia': 'CABA',
     }
-    zonas = client.get('/zonas').json()['zonas']
+    zonas = client_admin.get('/zonas').json()['zonas']
     assert len(zonas) == TOTAL_ZONAS + 1
 
 
-def test_crear_zona_repetida_devuelve_conflicto(client):
+def test_crear_zona_repetida_devuelve_conflicto(client_admin):
     # Actuar: minúsculas y espacios sobrantes también cuentan como repetida
-    respuesta = client.post(
+    respuesta = client_admin.post(
         '/zonas', json={'nombre': ' belgrano ', 'provincia': 'CABA'}
     )
 
@@ -315,58 +319,68 @@ def test_crear_zona_repetida_devuelve_conflicto(client):
     assert respuesta.status_code == HTTPStatus.CONFLICT
 
 
-def test_crear_zona_con_nombre_vacio_devuelve_error_de_validacion(client):
+def test_crear_zona_con_nombre_vacio_devuelve_error_de_validacion(
+    client_admin,
+):
     # Actuar
-    respuesta = client.post('/zonas', json={'nombre': '', 'provincia': 'CABA'})
+    respuesta = client_admin.post(
+        '/zonas', json={'nombre': '', 'provincia': 'CABA'}
+    )
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_crear_complejo_en_una_zona_inexistente_devuelve_no_encontrado(
-    client,
+    client_admin,
 ):
     # Organizar
     datos = {**COMPLEJO_NUEVO, 'zona': 'Zona Inventada'}
 
     # Actuar
-    respuesta = client.post('/complejos', json=datos)
+    respuesta = client_admin.post('/complejos', json=datos)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.NOT_FOUND
     assert respuesta.json() == {'detail': 'La zona no existe'}
 
 
-def test_crear_complejo_en_una_zona_recien_creada_funciona(client):
+def test_crear_complejo_en_una_zona_recien_creada_funciona(client_admin):
     # Organizar
-    client.post('/zonas', json={'nombre': 'Colegiales', 'provincia': 'CABA'})
+    client_admin.post(
+        '/zonas', json={'nombre': 'Colegiales', 'provincia': 'CABA'}
+    )
     datos = {**COMPLEJO_NUEVO, 'zona': 'Colegiales'}
 
     # Actuar
-    respuesta = client.post('/complejos', json=datos)
+    respuesta = client_admin.post('/complejos', json=datos)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.CREATED
 
 
-def test_actualizar_complejo_reemplaza_sus_datos_y_conserva_el_id(client):
+def test_actualizar_complejo_reemplaza_sus_datos_y_conserva_el_id(
+    client_admin,
+):
     # Actuar
-    respuesta = client.put('/complejos/1', json=COMPLEJO_NUEVO)
+    respuesta = client_admin.put('/complejos/1', json=COMPLEJO_NUEVO)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.OK
     assert respuesta.json()['id'] == 1
-    consulta = client.get('/complejos/1')
+    consulta = client_admin.get('/complejos/1')
     assert consulta.json()['nombre'] == 'Cancha de Prueba'
     assert consulta.json()['direccion'] == 'Calle Falsa 123'
 
 
-def test_actualizar_complejo_a_otra_zona_toma_su_nombre_y_provincia(client):
+def test_actualizar_complejo_a_otra_zona_toma_su_nombre_y_provincia(
+    client_admin,
+):
     # Organizar: el complejo 1 está en Vicente López (Buenos Aires)
     datos = {**COMPLEJO_NUEVO, 'zona': 'belgrano'}
 
     # Actuar
-    respuesta = client.put('/complejos/1', json=datos)
+    respuesta = client_admin.put('/complejos/1', json=datos)
 
     # Afirmar
     assert respuesta.json()['zona'] == 'Belgrano'
@@ -374,14 +388,14 @@ def test_actualizar_complejo_a_otra_zona_toma_su_nombre_y_provincia(client):
 
 
 def test_actualizar_complejo_sin_cambiar_nombre_ni_direccion_funciona(
-    client,
+    client_admin,
 ):
     # Organizar: mismos datos del complejo 1, con otro teléfono
-    actual = client.get('/complejos/1').json()
+    actual = client_admin.get('/complejos/1').json()
     datos = {**actual, 'telefono_contacto': '011 4444-5555'}
 
     # Actuar
-    respuesta = client.put('/complejos/1', json=datos)
+    respuesta = client_admin.put('/complejos/1', json=datos)
 
     # Afirmar: no es conflicto consigo mismo
     assert respuesta.status_code == HTTPStatus.OK
@@ -389,7 +403,7 @@ def test_actualizar_complejo_sin_cambiar_nombre_ni_direccion_funciona(
 
 
 def test_actualizar_complejo_con_nombre_y_direccion_de_otro_es_conflicto(
-    client,
+    client_admin,
 ):
     # Organizar: nombre y dirección del complejo 2
     datos = {
@@ -399,7 +413,7 @@ def test_actualizar_complejo_con_nombre_y_direccion_de_otro_es_conflicto(
     }
 
     # Actuar
-    respuesta = client.put('/complejos/1', json=datos)
+    respuesta = client_admin.put('/complejos/1', json=datos)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.CONFLICT
@@ -408,9 +422,9 @@ def test_actualizar_complejo_con_nombre_y_direccion_de_otro_es_conflicto(
     }
 
 
-def test_actualizar_complejo_inexistente_devuelve_no_encontrado(client):
+def test_actualizar_complejo_inexistente_devuelve_no_encontrado(client_admin):
     # Actuar
-    respuesta = client.put('/complejos/9999', json=COMPLEJO_NUEVO)
+    respuesta = client_admin.put('/complejos/9999', json=COMPLEJO_NUEVO)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.NOT_FOUND
@@ -418,33 +432,33 @@ def test_actualizar_complejo_inexistente_devuelve_no_encontrado(client):
 
 
 def test_actualizar_complejo_con_zona_inexistente_devuelve_no_encontrado(
-    client,
+    client_admin,
 ):
     # Organizar
     datos = {**COMPLEJO_NUEVO, 'zona': 'Zona Inventada'}
 
     # Actuar
-    respuesta = client.put('/complejos/1', json=datos)
+    respuesta = client_admin.put('/complejos/1', json=datos)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.NOT_FOUND
     assert respuesta.json() == {'detail': 'La zona no existe'}
 
 
-def test_actualizar_complejo_con_datos_invalidos_devuelve_error(client):
+def test_actualizar_complejo_con_datos_invalidos_devuelve_error(client_admin):
     # Organizar
     datos = {**COMPLEJO_NUEVO, 'longitud': -500}
 
     # Actuar
-    respuesta = client.put('/complejos/1', json=datos)
+    respuesta = client_admin.put('/complejos/1', json=datos)
 
     # Afirmar
     assert respuesta.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
-def test_actualizar_zona_cambia_el_nombre_que_ven_sus_complejos(client):
+def test_actualizar_zona_cambia_el_nombre_que_ven_sus_complejos(client_admin):
     # Actuar
-    respuesta = client.put(
+    respuesta = client_admin.put(
         f'/zonas/{ID_SAAVEDRA}',
         json={'nombre': 'Saavedra Norte', 'provincia': 'CABA'},
     )
@@ -456,15 +470,15 @@ def test_actualizar_zona_cambia_el_nombre_que_ven_sus_complejos(client):
         'nombre': 'Saavedra Norte',
         'provincia': 'CABA',
     }
-    complejos = client.get(
+    complejos = client_admin.get(
         '/complejos', params={'zona': 'Saavedra Norte'}
     ).json()['complejos']
     assert len(complejos) == COMPLEJOS_EN_SAAVEDRA
 
 
-def test_actualizar_zona_cambiando_solo_sus_mayusculas_funciona(client):
+def test_actualizar_zona_cambiando_solo_sus_mayusculas_funciona(client_admin):
     # Actuar
-    respuesta = client.put(
+    respuesta = client_admin.put(
         f'/zonas/{ID_BELGRANO}',
         json={'nombre': 'BELGRANO', 'provincia': 'CABA'},
     )
@@ -474,9 +488,11 @@ def test_actualizar_zona_cambiando_solo_sus_mayusculas_funciona(client):
     assert respuesta.json()['nombre'] == 'BELGRANO'
 
 
-def test_actualizar_zona_con_el_nombre_de_otra_devuelve_conflicto(client):
+def test_actualizar_zona_con_el_nombre_de_otra_devuelve_conflicto(
+    client_admin,
+):
     # Actuar: la zona 1 es Vicente López
-    respuesta = client.put(
+    respuesta = client_admin.put(
         '/zonas/1', json={'nombre': 'belgrano', 'provincia': 'CABA'}
     )
 
@@ -485,9 +501,9 @@ def test_actualizar_zona_con_el_nombre_de_otra_devuelve_conflicto(client):
     assert respuesta.json() == {'detail': 'Ya existe una zona con ese nombre'}
 
 
-def test_actualizar_zona_inexistente_devuelve_no_encontrado(client):
+def test_actualizar_zona_inexistente_devuelve_no_encontrado(client_admin):
     # Actuar
-    respuesta = client.put(
+    respuesta = client_admin.put(
         '/zonas/9999', json={'nombre': 'Colegiales', 'provincia': 'CABA'}
     )
 

@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 CONTRASENA = 'secreta123'
 EMAIL = 'ana@ejemplo.com'
+EMAIL_ADMIN = 'admin@ejemplo.com'
 
 
 def hoy_menos_anios(anios: int) -> date:

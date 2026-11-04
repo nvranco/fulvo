@@ -7,9 +7,9 @@ from sqlalchemy.pool import StaticPool
 from fulvo.app import app
 from fulvo.carga_inicial import cargar, cargar_roles
 from fulvo.database import get_session
-from fulvo.models import ROL_USUARIO, Rol, Usuario, table_registry
+from fulvo.models import ROL_ADMIN, ROL_USUARIO, Rol, Usuario, table_registry
 from fulvo.security import crear_token_acceso, hashear_contrasena
-from tests.datos import CONTRASENA, EMAIL, hoy_menos_anios
+from tests.datos import CONTRASENA, EMAIL, EMAIL_ADMIN, hoy_menos_anios
 
 
 @pytest.fixture
@@ -95,3 +95,28 @@ def usuario(session, datos_iniciales):
 def token(usuario):
     """Token válido del usuario de la fixture `usuario`."""
     return crear_token_acceso({'sub': usuario.email})
+
+
+@pytest.fixture
+def admin(session, datos_iniciales):
+    """Usuario con rol admin ya guardado."""
+    return guardar_usuario(session, EMAIL_ADMIN, ROL_ADMIN)
+
+
+@pytest.fixture
+def client_admin(client, admin):
+    """El mismo `client`, pero con el token del admin en cada pedido.
+
+    Para los tests que crean, editan o borran zonas y complejos, que
+    exigen rol admin.
+    """
+    token = crear_token_acceso({'sub': admin.email})
+    client.headers['Authorization'] = f'Bearer {token}'
+    return client
+
+
+@pytest.fixture
+def client_usuario(client, token):
+    """El mismo `client`, con el token de un usuario común (sin rol admin)."""
+    client.headers['Authorization'] = f'Bearer {token}'
+    return client
