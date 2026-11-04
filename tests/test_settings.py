@@ -40,3 +40,14 @@ def test_sin_secret_key_la_configuracion_falla(monkeypatch):
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_las_credenciales_del_admin_son_opcionales(monkeypatch):
+    monkeypatch.setenv('SECRET_KEY', 'una-clave')
+    monkeypatch.delenv('ADMIN_EMAIL', raising=False)
+    monkeypatch.delenv('ADMIN_PASSWORD', raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.ADMIN_EMAIL is None
+    assert settings.ADMIN_PASSWORD is None

@@ -1,11 +1,14 @@
 import csv
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fulvo.database import engine
-from fulvo.models import Complejo, Zona
+from fulvo.models import ROL_ADMIN, ROLES_BASE, Complejo, Rol, Usuario, Zona
+from fulvo.security import hashear_contrasena
+from fulvo.settings import Settings
 
 # El CSV vive dentro del paquete `fulvo/` y no en `docs/`: así viaja con el
 # código al contenedor y al deploy sin depender de una carpeta de documentos.
@@ -86,14 +89,78 @@ def cargar(session: Session, ruta: Path = RUTA_CSV) -> tuple[int, int]:
     return zonas_creadas, complejos_creados
 
 
-def main() -> None:
-    """Carga el CSV en la base configurada: `python -m fulvo.carga_inicial`.
+def cargar_roles(session: Session) -> int:
+    """Inserta los roles base (usuario y admin) que todavía no están.
 
-    Las tablas tienen que existir: primero `alembic upgrade head`.
+    Devuelve cuántos creó. Es idempotente, como `cargar`. Está separada de
+    `cargar` para no cambiar lo que esa función devuelve. Los roles tienen
+    que existir antes del primer registro: todo usuario nace con el rol
+    `usuario`.
     """
+    existentes = set(session.scalars(select(Rol.nombre)))
+    nuevos = [n for n in ROLES_BASE if n not in existentes]
+    session.add_all(Rol(nombre=nombre) for nombre in nuevos)
+    session.commit()
+    return len(nuevos)
+
+
+def cargar_admin(session: Session, email: str, contrasena: str) -> bool:
+    """Crea el primer usuario admin si no hay un usuario con ese email.
+
+    Devuelve True si lo creó. Es idempotente: la segunda vez no crea nada.
+    Si el email ya pertenece a un usuario (aunque no sea admin) no lo toca:
+    ascender a alguien a admin de forma silenciosa sería un riesgo.
+
+    Es la única forma de tener un admin: ningún endpoint asigna ese rol
+    (requerimientos.md). Los roles tienen que existir antes (`cargar_roles`).
+
+    El modelo exige nombre, apellido, WhatsApp, nacimiento y posición, que
+    para el admin no tienen sentido: se completan con valores fijos.
+    """
+    email = email.lower()
+    if session.scalar(select(Usuario).where(Usuario.email == email)):
+        return False
+    rol_id = session.scalars(
+        select(Rol.id).where(Rol.nombre == ROL_ADMIN)
+    ).one()
+    session.add(
+        Usuario(
+            email=email,
+            contrasena_hash=hashear_contrasena(contrasena),
+            nombre='Admin',
+            apellido='Fulvo',
+            whatsapp='-',
+            fecha_nacimiento=date(2000, 1, 1),
+            posicion='Administrador',
+            rol_id=rol_id,
+        )
+    )
+    session.commit()
+    return True
+
+
+def main() -> None:
+    """Carga roles, admin, zonas y complejos: `python -m fulvo.carga_inicial`.
+
+    Las tablas tienen que existir: primero `alembic upgrade head`. El admin
+    se crea solo si ADMIN_EMAIL y ADMIN_PASSWORD están definidas.
+    """
+    configuracion = Settings()
     with Session(engine) as session:
+        roles = cargar_roles(session)
         zonas, complejos = cargar(session)
+        if configuracion.ADMIN_EMAIL and configuracion.ADMIN_PASSWORD:
+            creado = cargar_admin(
+                session,
+                configuracion.ADMIN_EMAIL,
+                configuracion.ADMIN_PASSWORD,
+            )
+            admin = 'creado' if creado else 'ya existía'
+        else:
+            admin = 'no creado (faltan ADMIN_EMAIL y ADMIN_PASSWORD)'
+    print(f'Roles creados: {roles}.')
     print(f'Zonas creadas: {zonas}. Complejos creados: {complejos}.')
+    print(f'Admin: {admin}.')
 
 
 if __name__ == '__main__':

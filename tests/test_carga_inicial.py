@@ -1,7 +1,12 @@
+from datetime import date
+from http import HTTPStatus
+
 from sqlalchemy import func, select
 
-from fulvo.carga_inicial import cargar
-from fulvo.models import Complejo, Zona
+from fulvo.carga_inicial import cargar, cargar_admin, cargar_roles
+from fulvo.database import get_session
+from fulvo.models import ROL_ADMIN, ROLES_BASE, Complejo, Rol, Usuario, Zona
+from fulvo.security import verificar_contrasena
 
 # Valores que salen de fulvo/datos/complejos.csv
 TOTAL_ZONAS = 8
@@ -78,3 +83,78 @@ def test_cargar_agrega_solo_los_complejos_que_faltan(session, tmp_path):
     )
 
     assert (zonas, complejos) == (0, 1)
+
+
+def test_cargar_roles_crea_usuario_y_admin(session):
+    creados = cargar_roles(session)
+
+    nombres = set(session.scalars(select(Rol.nombre)))
+    assert creados == len(ROLES_BASE)
+    assert nombres == {'usuario', 'admin'}
+
+
+def test_cargar_roles_dos_veces_no_duplica(session):
+    cargar_roles(session)
+
+    creados = cargar_roles(session)
+
+    assert creados == 0
+    assert session.scalar(select(func.count(Rol.id))) == len(ROLES_BASE)
+
+
+def test_cargar_admin_crea_un_usuario_con_rol_admin(session):
+    cargar_roles(session)
+
+    creado = cargar_admin(session, 'Admin@Ejemplo.com', 'clave-del-admin')
+
+    admin = session.scalars(select(Usuario)).one()
+    assert creado is True
+    assert admin.email == 'admin@ejemplo.com'
+    assert admin.tiene_rol(ROL_ADMIN)
+    assert verificar_contrasena('clave-del-admin', admin.contrasena_hash)
+
+
+def test_cargar_admin_dos_veces_no_duplica(session):
+    cargar_roles(session)
+    cargar_admin(session, 'admin@ejemplo.com', 'clave-del-admin')
+
+    creado = cargar_admin(session, 'admin@ejemplo.com', 'otra-clave')
+
+    assert creado is False
+    assert session.scalar(select(func.count(Usuario.id))) == 1
+
+
+def test_cargar_admin_no_ascienda_a_un_usuario_existente(session):
+    cargar_roles(session)
+    comun = Usuario(
+        email='ana@ejemplo.com',
+        contrasena_hash='x',
+        nombre='Ana',
+        apellido='Pérez',
+        whatsapp='1',
+        fecha_nacimiento=date(1990, 1, 1),
+        posicion='Arquera',
+        rol_id=session.scalars(
+            select(Rol.id).where(Rol.nombre == 'usuario')
+        ).one(),
+    )
+    session.add(comun)
+    session.commit()
+
+    creado = cargar_admin(session, 'ana@ejemplo.com', 'clave-del-admin')
+
+    assert creado is False
+    assert not comun.tiene_rol(ROL_ADMIN)
+
+
+def test_el_admin_cargado_puede_iniciar_sesion(client):
+    # `client` ya cargó los roles; falta el admin.
+    session = client.app.dependency_overrides[get_session]()
+    cargar_admin(session, 'admin@ejemplo.com', 'clave-del-admin')
+
+    respuesta = client.post(
+        '/auth/token',
+        data={'username': 'admin@ejemplo.com', 'password': 'clave-del-admin'},
+    )
+
+    assert respuesta.status_code == HTTPStatus.OK

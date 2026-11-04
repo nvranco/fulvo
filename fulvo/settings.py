@@ -33,3 +33,11 @@ class Settings(BaseSettings):
     # Duración del token. Corta para limitar el daño si se filtra, ya que
     # el MVP no tiene tokens de renovación.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Credenciales del primer admin. Solo las lee la carga inicial
+    # (`python -m fulvo.carga_inicial`), no la API. Son opcionales para que
+    # la app y los tests arranquen sin ellas: si faltan, la carga no crea
+    # admin. Sin contraseña por defecto, por el mismo motivo que SECRET_KEY:
+    # una clave de admin pública en el repo daría acceso a cualquiera.
+    ADMIN_EMAIL: str | None = None
+    ADMIN_PASSWORD: str | None = None

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from fulvo.app import app
-from fulvo.carga_inicial import cargar
+from fulvo.carga_inicial import cargar, cargar_roles
 from fulvo.database import get_session
 from fulvo.models import ROL_USUARIO, Rol, Usuario, table_registry
 from fulvo.security import crear_token_acceso, hashear_contrasena
@@ -37,11 +37,12 @@ def session():
 
 @pytest.fixture
 def datos_iniciales(session):
-    """Carga en la base de prueba las zonas y complejos del CSV.
+    """Carga en la base de prueba los roles base y las zonas y complejos.
 
     Es la misma carga que se usa en desarrollo (`fulvo.carga_inicial`). Los
     tests de rutas parten de estos datos: 8 zonas y 51 complejos.
     """
+    cargar_roles(session)
     cargar(session)
 
 
