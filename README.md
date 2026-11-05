@@ -28,7 +28,7 @@ Además, después del partido los participantes se votan entre sí y al complejo
 - [`docs/requerimientos.md`](docs/requerimientos.md): requerimientos del MVP e ideas post-MVP.
 - [`docs/diagramas/`](docs/diagramas/): diagramas de secuencia y diagrama de clases (draw.io y SVG).
 - [`docs/clases.md`](docs/clases.md): clases del dominio y patrones de diseño.
-- [`docs/base-de-datos.md`](docs/base-de-datos.md): esquema de la base de datos (hoy zonas y complejos) y decisiones de diseño.
+- [`docs/base-de-datos.md`](docs/base-de-datos.md): esquema de la base de datos (hoy zonas, complejos, roles y usuarios) y decisiones de diseño.
 - [`CLAUDE.md`](CLAUDE.md): convenciones y decisiones del proyecto.
 
 ## Stack
@@ -58,10 +58,23 @@ poetry config virtualenvs.in-project true
 poetry env use 3.13
 poetry install
 pipx inject poetry 'poethepoet[poetry_plugin]'
+cp .env.example .env                       # y completar SECRET_KEY (ver abajo)
+poetry run alembic upgrade head            # crea las tablas
+poetry run python -m fulvo.carga_inicial   # roles, zonas, complejos y admin
 poetry serve
 ```
 
-Otras tareas: `poetry lint`, `poetry format` y `poetry test`.
+**El `.env` es obligatorio.** `fulvo/settings.py` exige `SECRET_KEY`, la clave con la que se firman los tokens JWT, y no le da un valor por defecto a propósito: una clave publicada en el repo permitiría falsificar tokens. Sin `.env` no arrancan la API, Alembic ni la carga inicial: fallan con `SECRET_KEY Field required`.
+
+Cada integrante genera su propia clave y la pega en `SECRET_KEY` dentro del `.env`:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Para tener un usuario admin local, completar también `ADMIN_EMAIL` y `ADMIN_PASSWORD`: la carga inicial lo crea. El `.env` no se commitea (está en `.gitignore`). Los pasos detallados están en [`docs/entorno.md`](docs/entorno.md#7-crear-el-env).
+
+Otras tareas: `poetry lint`, `poetry format` y `poetry test`. Los tests no necesitan el `.env`: usan una clave falsa definida en `tests/__init__.py`.
 
 La API queda en http://127.0.0.1:8000 y la documentación automática en http://127.0.0.1:8000/docs.
 

@@ -7,6 +7,7 @@ Guía para dejar la máquina lista y que el proyecto corra igual en cualquier co
 - **Python 3.13** en todos lados (`.python-version`, `requires-python`, Dockerfile y CI). Se eligió una sola versión para evitar diferencias entre máquinas, contenedor y CI. La cátedra usa 3.12 en CI y 3.14 en el Dockerfile; acá se unifica.
 - **Entorno virtual dentro del proyecto** (`.venv/`): el editor lo detecta solo y es fácil de borrar y recrear.
 - `package-mode = false` en `pyproject.toml`: fulvo es una aplicación, no una librería que se publica.
+- **Configuración local en `.env`**, que no se commitea. Cada máquina tiene su propia `SECRET_KEY` (paso 7).
 
 ## Prerrequisitos
 
@@ -71,13 +72,70 @@ poetry install
 
 `poetry install` lee `poetry.lock`, así que todos instalan exactamente las mismas versiones.
 
-### 7. Comprobar que funciona
+### 7. Crear el `.env`
+
+`fulvo/settings.py` exige `SECRET_KEY`, la clave con la que se firman los tokens JWT. No tiene valor por defecto a propósito: una clave publicada en el repo permitiría falsificar tokens. Sin `.env` no arrancan la API, Alembic ni la carga inicial: fallan con `SECRET_KEY Field required`. Se hace una vez por máquina, desde la carpeta del proyecto.
+
+```bash
+cp .env.example .env
+git status --short --ignored .env
+```
+
+El segundo comando tiene que mostrar `!! .env`: git lo ignora y no se va a commitear.
+
+Generar una clave propia y una contraseña para el admin local:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+python -c "import secrets; print(secrets.token_urlsafe(16))"
+```
+
+Abrir `.env` con el editor (`code .env` o `notepad .env`) y completar estas tres líneas, sin comillas ni espacios alrededor del `=`:
+
+```
+SECRET_KEY=la-clave-de-64-caracteres
+ADMIN_EMAIL=admin@ejemplo.com
+ADMIN_PASSWORD=la-contraseña-generada
+```
+
+- Cada integrante genera su propia clave. No se comparte ni se commitea.
+- `ADMIN_EMAIL` y `ADMIN_PASSWORD` son opcionales. Sin ellas la carga inicial no crea un admin, y no se pueden probar las altas, ediciones y bajas de zonas y complejos.
+- El resto de las variables queda como en `.env.example`.
+
+Comprobar que se lee bien (el comando no muestra la clave):
+
+```bash
+poetry run python -c "from fulvo.settings import Settings; s = Settings(); print('SECRET_KEY:', len(s.SECRET_KEY), 'caracteres'); print('Admin:', s.ADMIN_EMAIL)"
+```
+
+Tiene que mostrar `SECRET_KEY: 64 caracteres` y el email del admin.
+
+### 8. Crear la base y cargar los datos iniciales
+
+```bash
+poetry run alembic upgrade head
+poetry run python -m fulvo.carga_inicial
+```
+
+Alembic crea las tablas, o agrega las que faltan si la base ya existía. La carga inicial crea los roles `usuario` y `admin`, las zonas y complejos del CSV y el admin del `.env`. Es idempotente: la segunda vez no duplica nada. En una base nueva muestra:
+
+```
+Roles creados: 2.
+Zonas creadas: 8. Complejos creados: 51.
+Admin: creado.
+```
+
+Sin este paso, registrar un usuario da 500 porque falta el rol `usuario`.
+
+### 9. Comprobar que funciona
 
 ```bash
 poetry run fastapi dev fulvo/app.py
 ```
 
 También funciona `poetry serve` (atajo definido en `pyproject.toml`). Abrir http://127.0.0.1:8000 (debe responder `{"mensaje": "Hola Mundo!"}`) y http://127.0.0.1:8000/docs (documentación automática). Cortar con `Ctrl+C`.
+
+Para probar las rutas del admin desde `/docs`: botón **Authorize**, con `ADMIN_EMAIL` en `username` y `ADMIN_PASSWORD` en `password` (`client_id` y `client_secret` quedan vacíos). Sin autorizarse, `POST /zonas` da 401; con el admin, 201.
 
 ## Herramientas de desarrollo
 
@@ -102,6 +160,8 @@ poetry test     # lint + pytest con cobertura + reporte html (htmlcov/index.html
 
 Los tests siguen el patrón AAA (Organizar, Actuar, Afirmar). La fixture `client` vive en `tests/conftest.py` y el primer test (`tests/test_app.py`) comprueba la ruta `/`.
 
+Los tests no necesitan el `.env`: `tests/__init__.py` define una `SECRET_KEY` falsa antes de importar `fulvo`, y los tests de `Settings` lo ignoran con `_env_file=None`. Por eso el CI corre sin secrets.
+
 Si typos marca una palabra en español dentro del código, se agrega la excepción en `[tool.typos.default]` en vez de renombrar (ya están `cliente` y `clientes`).
 
 ## Cómo se creó el proyecto (referencia)
@@ -118,3 +178,7 @@ La cátedra usa `poetry new --flat fast_zero`. Acá el repositorio ya existía, 
 - `poetry: command not found` tras instalar: no se reinició la terminal después de `pipx ensurepath`.
 - Poetry usa otro Python: correr `poetry env use 3.13` y verificar con `poetry env info`.
 - `docker: command not found`: abrir Docker Desktop una vez y reiniciar la terminal.
+- `SECRET_KEY Field required`: no hay `.env` en la carpeta desde la que se corre el comando, o quedó guardado como `.env.txt`. Correr los comandos desde la raíz del proyecto y revisar con `git status --short --ignored .env` (paso 7).
+- Registrar un usuario da 500: faltan los roles. Correr `poetry run python -m fulvo.carga_inicial` (paso 8).
+- `Admin: no creado (faltan ADMIN_EMAIL y ADMIN_PASSWORD)`: esas líneas faltan o están vacías en el `.env`.
+- `Admin: ya existía` y no se recuerda la contraseña: la carga inicial no cambia la contraseña de un admin que ya existe. En desarrollo, borrar `fulvo.db` y repetir el paso 8.
