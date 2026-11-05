@@ -28,7 +28,7 @@ Además, después del partido los participantes se votan entre sí y al complejo
 - [`docs/requerimientos.md`](docs/requerimientos.md): requerimientos del MVP e ideas post-MVP.
 - [`docs/diagramas/`](docs/diagramas/): diagramas de secuencia y diagrama de clases (draw.io y SVG).
 - [`docs/clases.md`](docs/clases.md): clases del dominio y patrones de diseño.
-- [`docs/base-de-datos.md`](docs/base-de-datos.md): esquema de la base de datos (hoy zonas y complejos) y decisiones de diseño.
+- [`docs/base-de-datos.md`](docs/base-de-datos.md): esquema de la base de datos (hoy zonas, complejos, roles y usuarios) y decisiones de diseño.
 - [`CLAUDE.md`](CLAUDE.md): convenciones y decisiones del proyecto.
 
 ## Stack
