@@ -16,6 +16,7 @@ from fulvo.schemas import (
     ListaComplejos,
     Mensaje,
 )
+from fulvo.security import exigir_admin
 
 router = APIRouter(prefix='/complejos', tags=['complejos'])
 Session = Annotated[Session, Depends(get_session)]
@@ -129,9 +130,13 @@ def leer_complejo(complejo_id: int, session: Session):
     return complejo_publico(buscar_complejo(session, complejo_id))
 
 
-@router.delete('/{complejo_id}', response_model=Mensaje)
+@router.delete(
+    '/{complejo_id}',
+    response_model=Mensaje,
+    dependencies=[Depends(exigir_admin)],
+)
 def borrar_complejo(complejo_id: int, session: Session):
-    """Elimina un complejo por id, o 404 si no existe."""
+    """Elimina un complejo por id (RQ10, solo admin), o 404 si no existe."""
     session.delete(buscar_complejo(session, complejo_id))
     session.commit()
     return {'mensaje': 'Complejo eliminado'}
@@ -174,10 +179,13 @@ def rechazar_repetido(
 
 
 @router.post(
-    '', status_code=HTTPStatus.CREATED, response_model=ComplejoPublico
+    '',
+    status_code=HTTPStatus.CREATED,
+    response_model=ComplejoPublico,
+    dependencies=[Depends(exigir_admin)],
 )
 def crear_complejo(datos: ComplejoEntrada, session: Session):
-    """Carga un complejo nuevo.
+    """Carga un complejo nuevo (RQ10, solo admin).
 
     404 si la zona no existe (todo complejo pertenece a una zona) y 409 si
     el nombre ya existe en esa dirección.
@@ -194,7 +202,11 @@ def crear_complejo(datos: ComplejoEntrada, session: Session):
     return complejo_publico(complejo)
 
 
-@router.put('/{complejo_id}', response_model=ComplejoPublico)
+@router.put(
+    '/{complejo_id}',
+    response_model=ComplejoPublico,
+    dependencies=[Depends(exigir_admin)],
+)
 def actualizar_complejo(
     complejo_id: int, datos: ComplejoEntrada, session: Session
 ):

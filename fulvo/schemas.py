@@ -1,6 +1,13 @@
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    PastDate,
+    StringConstraints,
+)
 
 # Rangos válidos de coordenadas: evitan guardar ubicaciones imposibles.
 Latitud = Annotated[float, Field(ge=-90, le=90)]
@@ -80,3 +87,46 @@ class ListaZonas(BaseModel):
     """Zonas que tienen al menos un complejo, envueltas como en la cátedra."""
 
     zonas: list[ZonaPublica]
+
+
+class UsuarioEntrada(BaseModel):
+    """Datos que envía el cliente para registrarse (RQ1).
+
+    No incluye rol, bloqueado ni puntuaciones: los fija el servidor, así
+    nadie puede registrarse como admin mandando un campo de más.
+    """
+
+    # EmailStr valida el formato del email.
+    email: EmailStr
+    # Largo mínimo para descartar contraseñas triviales; el máximo evita
+    # que alguien mande un texto enorme solo para cargar al hasher (argon2
+    # es lento a propósito).
+    contrasena: Annotated[str, Field(min_length=8, max_length=128)]
+    nombre: Texto
+    apellido: Texto
+    whatsapp: Texto
+    fecha_nacimiento: PastDate
+    posicion: Texto
+
+
+class UsuarioPublico(BaseModel):
+    """Usuario como lo devuelve el registro.
+
+    Sin contraseña ni hash, y sin WhatsApp: ese dato solo se muestra entre
+    organizador y aceptado (CLAUDE.md, sección 3).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: EmailStr
+    nombre: str
+    apellido: str
+    posicion: str
+
+
+class Token(BaseModel):
+    """Respuesta del login: el JWT y su tipo, como pide OAuth2."""
+
+    access_token: str
+    token_type: str

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from fulvo.database import get_session
 from fulvo.models import Zona
 from fulvo.schemas import ListaZonas, ZonaEntrada, ZonaPublica
+from fulvo.security import exigir_admin
 
 router = APIRouter(prefix='/zonas', tags=['zonas'])
 Session = Annotated[Session, Depends(get_session)]
@@ -36,9 +37,14 @@ def listar_zonas(session: Session):
     return {'zonas': session.scalars(select(Zona).order_by(Zona.id)).all()}
 
 
-@router.post('', status_code=HTTPStatus.CREATED, response_model=ZonaPublica)
+@router.post(
+    '',
+    status_code=HTTPStatus.CREATED,
+    response_model=ZonaPublica,
+    dependencies=[Depends(exigir_admin)],
+)
 def crear_zona(datos: ZonaEntrada, session: Session):
-    """Crea una zona nueva. 409 si ya existe una con ese nombre."""
+    """Crea una zona nueva (RQ10, solo admin). 409 si el nombre existe."""
     if buscar_zona(session, datos.nombre):
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
@@ -51,9 +57,13 @@ def crear_zona(datos: ZonaEntrada, session: Session):
     return zona
 
 
-@router.put('/{zona_id}', response_model=ZonaPublica)
+@router.put(
+    '/{zona_id}',
+    response_model=ZonaPublica,
+    dependencies=[Depends(exigir_admin)],
+)
 def actualizar_zona(zona_id: int, datos: ZonaEntrada, session: Session):
-    """Reemplaza el nombre y la provincia de una zona (RQ10).
+    """Reemplaza el nombre y la provincia de una zona (RQ10, solo admin).
 
     404 si no existe y 409 si el nombre nuevo ya es de otra zona. Los
     complejos guardan el id de su zona, así que ven el cambio solos:
