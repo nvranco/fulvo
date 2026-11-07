@@ -149,6 +149,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - La búsqueda de cercanos recibe un punto (latitud y longitud) y un radio en km. Devuelve los complejos dentro del radio, ordenados por distancia.
 - Los datos iniciales salen de un CSV (`fulvo/datos/complejos.csv`, armado a mano desde Google Maps) que la API carga al arrancar. También se pueden agregar zonas y complejos con la API.
 - Usuarios no crean ni editan complejos. Solo el admin edita. Las altas, ediciones y bajas exigen rol admin; las lecturas son públicas.
+- Un complejo con partidos no se puede borrar. La API responde 409 con el mensaje "Error al borrar el complejo: aún tiene partidos agendados". Cuenta cualquier partido del complejo, también los jugados y los cancelados, porque siguen apuntando a él. Se implementa con RQ4, cuando exista `Partido`.
 
 ## 5. Requerimientos no funcionales
 
