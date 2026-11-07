@@ -9,7 +9,7 @@ from fulvo.carga_inicial import cargar, cargar_roles
 from fulvo.database import get_session
 from fulvo.models import ROL_ADMIN, ROL_USUARIO, Rol, table_registry
 from fulvo.security import crear_token_acceso
-from tests.datos import EMAIL, EMAIL_ADMIN
+from tests.datos import EMAIL, EMAIL_ADMIN, EMAIL_OTRO
 from tests.factories import UsuarioFactory
 
 
@@ -85,6 +85,12 @@ def guardar_usuario(session, email, nombre_rol):
 def usuario(session, datos_iniciales):
     """Usuario común ya guardado (email EMAIL, contraseña CONTRASENA)."""
     return guardar_usuario(session, EMAIL, ROL_USUARIO)
+
+
+@pytest.fixture
+def otro_usuario(session, datos_iniciales):
+    """Segundo usuario común, para probar lo que cada uno ve del otro."""
+    return guardar_usuario(session, EMAIL_OTRO, ROL_USUARIO)
 
 
 @pytest.fixture
