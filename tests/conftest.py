@@ -7,9 +7,10 @@ from sqlalchemy.pool import StaticPool
 from fulvo.app import app
 from fulvo.carga_inicial import cargar, cargar_roles
 from fulvo.database import get_session
-from fulvo.models import ROL_ADMIN, ROL_USUARIO, Rol, Usuario, table_registry
-from fulvo.security import crear_token_acceso, hashear_contrasena
-from tests.datos import CONTRASENA, EMAIL, EMAIL_ADMIN, hoy_menos_anios
+from fulvo.models import ROL_ADMIN, ROL_USUARIO, Rol, table_registry
+from fulvo.security import crear_token_acceso
+from tests.datos import EMAIL, EMAIL_ADMIN
+from tests.factories import UsuarioFactory
 
 
 @pytest.fixture
@@ -66,20 +67,15 @@ def client(session, datos_iniciales):
 
 
 def guardar_usuario(session, email, nombre_rol):
-    """Guarda un usuario con el rol indicado (contraseña CONTRASENA)."""
+    """Guarda un usuario con el rol indicado (contraseña CONTRASENA).
+
+    La factory arma el objeto con datos válidos; acá solo se resuelve el
+    `rol_id` (depende de los roles cargados) y se persiste.
+    """
     rol_id = session.scalars(
         select(Rol.id).where(Rol.nombre == nombre_rol)
     ).one()
-    usuario = Usuario(
-        email=email,
-        contrasena_hash=hashear_contrasena(CONTRASENA),
-        nombre='Ana',
-        apellido='Pérez',
-        whatsapp='+5491100000000',
-        fecha_nacimiento=hoy_menos_anios(30),
-        posicion='Delantera',
-        rol_id=rol_id,
-    )
+    usuario = UsuarioFactory(email=email, rol_id=rol_id)
     session.add(usuario)
     session.commit()
     return usuario

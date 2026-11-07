@@ -4,9 +4,10 @@ from http import HTTPStatus
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from freezegun import freeze_time
 
 from fulvo.database import get_session
-from fulvo.security import UsuarioActual, crear_token_acceso
+from fulvo.security import UsuarioActual, configuracion, crear_token_acceso
 from tests.datos import CONTRASENA, EMAIL, datos_de_registro
 
 MENSAJE_GENERICO = 'Email o contraseña incorrectos'
@@ -121,9 +122,13 @@ def test_usuario_actual_con_token_invalido_devuelve_no_autenticado(
 def test_usuario_actual_con_token_vencido_devuelve_no_autenticado(
     cliente_protegido, usuario
 ):
-    vencido = crear_token_acceso({'sub': EMAIL}, timedelta(minutes=-1))
-
-    respuesta = cliente_protegido.get('/protegida', headers=con_token(vencido))
+    minutos = configuracion.ACCESS_TOKEN_EXPIRE_MINUTES
+    with freeze_time('2025-01-01 12:00:00') as reloj:
+        token = crear_token_acceso({'sub': EMAIL})
+        reloj.tick(timedelta(minutes=minutos + 1))
+        respuesta = cliente_protegido.get(
+            '/protegida', headers=con_token(token)
+        )
 
     assert respuesta.status_code == HTTPStatus.UNAUTHORIZED
 
