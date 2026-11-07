@@ -14,7 +14,7 @@ La tabla se declara con un **modelo** SQLAlchemy (`fulvo/models.py`). El modelo 
 
 ```
 JSON -> ZonaEntrada / ComplejoEntrada (valida) -> modelo Zona / Complejo (BD) -> ZonaPublica / ComplejoPublico (JSON)
-JSON -> UsuarioEntrada (valida) -> modelo Usuario (BD, con contrasena_hash) -> UsuarioPublico (JSON, sin hash ni WhatsApp)
+JSON -> UsuarioEntrada (valida) -> modelo Usuario (BD, con contrasena_hash) -> UsuarioRegistrado (JSON, sin hash ni WhatsApp)
 ```
 
 Los schemas de entrada y salida **no cambian**: la API sigue devolviendo lo mismo que hoy.

@@ -46,6 +46,13 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 
 ## 4. Reglas de negocio
 
+**Perfil**
+
+- Cada usuario ve y edita su perfil propio con todos sus datos.
+- Se pueden editar nombre, apellido, WhatsApp, fecha de nacimiento y posición, y se cambia solo lo que se envía. Email y contraseña no se editan en el MVP.
+- Una fecha de nacimiento nueva tiene que respetar la edad mínima de 16, igual que al registrarse.
+- El perfil público se muestra solo a usuarios con sesión iniciada. No incluye apellido, WhatsApp, email ni fecha de nacimiento.
+
 **Partido**
 
 - Una sola entidad: partido con cupos. No hay "alerta" aparte.
@@ -75,7 +82,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 **WhatsApp**
 
 - Solo se expone mientras la postulación está aceptada, y solo entre organizador y aceptado. Si se revoca o el aceptado se baja, se deja de exponer.
-- Ningún listado público ni endpoint ajeno devuelve el número.
+- Ningún listado público ni endpoint ajeno devuelve el número. Cada usuario ve el suyo en su perfil propio.
 
 **Votación**
 
