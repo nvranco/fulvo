@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from pydantic import (
@@ -109,8 +110,8 @@ class UsuarioEntrada(BaseModel):
     posicion: Texto
 
 
-class UsuarioPublico(BaseModel):
-    """Usuario como lo devuelve el registro.
+class UsuarioRegistrado(BaseModel):
+    """Usuario como lo devuelve el registro (RQ1).
 
     Sin contraseña ni hash, y sin WhatsApp: ese dato solo se muestra entre
     organizador y aceptado (CLAUDE.md, sección 3).
@@ -123,6 +124,54 @@ class UsuarioPublico(BaseModel):
     nombre: str
     apellido: str
     posicion: str
+
+
+class UsuarioPublico(BaseModel):
+    """Perfil público (RQ2): lo que un usuario ve de otro.
+
+    El apellido y el WhatsApp no van, y por eso los campos se listan a mano.
+    La puntuación queda vacía hasta el primer voto.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    posicion: str
+    puntuacion_promedio: float | None
+    partidos_jugados: int
+
+
+class UsuarioPerfil(UsuarioPublico):
+    """Perfil propio (RQ2): el público más los datos privados del usuario.
+
+    Solo lo devuelve `/usuarios/yo`, que no recibe un id: cada uno puede ver
+    únicamente sus propios datos privados.
+    """
+
+    email: EmailStr
+    apellido: str
+    whatsapp: str
+    fecha_nacimiento: date
+
+
+class UsuarioEdicion(BaseModel):
+    """Datos del perfil que se pueden cambiar con PATCH (RQ2).
+
+    Son opcionales: se cambia solo lo que se manda. El `None` por defecto
+    significa "no vino" y Pydantic no lo valida. Mandar `null` a propósito
+    da 422, porque el tipo no lo admite: estos datos son obligatorios en la
+    base y no se pueden vaciar.
+
+    No están el email ni la contraseña: RQ2 no los incluye, y el email
+    identifica al usuario dentro del token.
+    """
+
+    nombre: Texto = None
+    apellido: Texto = None
+    whatsapp: Texto = None
+    fecha_nacimiento: PastDate = None
+    posicion: Texto = None
 
 
 class Token(BaseModel):

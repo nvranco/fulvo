@@ -60,6 +60,9 @@ configuracion = 'configuracion'
 falso = 'falso'
 calle = 'calle'
 Calle = 'Calle'
+mis = 'mis'
+recorre = 'recorre'
+ignora = 'ignora'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.

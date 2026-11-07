@@ -46,6 +46,13 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 
 ## 4. Reglas de negocio
 
+**Perfil**
+
+- Cada usuario ve y edita su perfil propio con todos sus datos.
+- Se pueden editar nombre, apellido, WhatsApp, fecha de nacimiento y posición, y se cambia solo lo que se envía. Email y contraseña no se editan en el MVP.
+- Una fecha de nacimiento nueva tiene que respetar la edad mínima de 16, igual que al registrarse.
+- El perfil público se muestra solo a usuarios con sesión iniciada. No incluye apellido, WhatsApp, email ni fecha de nacimiento.
+
 **Partido**
 
 - Una sola entidad: partido con cupos. No hay "alerta" aparte.
@@ -75,7 +82,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 **WhatsApp**
 
 - Solo se expone mientras la postulación está aceptada, y solo entre organizador y aceptado. Si se revoca o el aceptado se baja, se deja de exponer.
-- Ningún listado público ni endpoint ajeno devuelve el número.
+- Ningún listado público ni endpoint ajeno devuelve el número. Cada usuario ve el suyo en su perfil propio.
 
 **Votación**
 
@@ -142,6 +149,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - La búsqueda de cercanos recibe un punto (latitud y longitud) y un radio en km. Devuelve los complejos dentro del radio, ordenados por distancia.
 - Los datos iniciales salen de un CSV (`fulvo/datos/complejos.csv`, armado a mano desde Google Maps) que la API carga al arrancar. También se pueden agregar zonas y complejos con la API.
 - Usuarios no crean ni editan complejos. Solo el admin edita. Las altas, ediciones y bajas exigen rol admin; las lecturas son públicas.
+- Un complejo con partidos no se puede borrar. La API responde 409 con el mensaje "Error al borrar el complejo: aún tiene partidos agendados". Cuenta cualquier partido del complejo, también los jugados y los cancelados, porque siguen apuntando a él. Se implementa con RQ4, cuando exista `Partido`.
 
 ## 5. Requerimientos no funcionales
 
