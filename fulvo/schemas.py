@@ -15,6 +15,7 @@ from fulvo.models import (
     HORA_ARGENTINA,
     EstadoPartido,
     EstadoPostulacion,
+    TipoNotificacion,
     TipoPartido,
 )
 
@@ -323,3 +324,39 @@ class ListaMisPostulaciones(BaseModel):
     """Postulaciones del usuario, envueltas como en la cátedra."""
 
     postulaciones: list[MiPostulacion]
+
+
+class NotificacionPublica(BaseModel):
+    """Notificación como la ve su destinatario (RQ9).
+
+    `referencia_tipo` ("postulacion" o "partido") y `referencia_id` dicen
+    qué originó el aviso, para que la app pueda llevar a esa pantalla.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tipo: TipoNotificacion
+    mensaje: str
+    referencia_tipo: str
+    referencia_id: int
+    leida: bool
+    created_at: datetime
+
+
+class ListaNotificaciones(BaseModel):
+    """Notificaciones del usuario, envueltas como en la cátedra."""
+
+    notificaciones: list[NotificacionPublica]
+
+
+class FiltroNotificaciones(Paginacion):
+    """Filtro opcional por leídas o no leídas, más la paginación."""
+
+    leida: bool | None = None
+
+
+class NotificacionLectura(BaseModel):
+    """Lo único que se puede cambiar de una notificación: marcarla leída."""
+
+    leida: Literal[True]
