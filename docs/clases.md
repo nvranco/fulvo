@@ -97,7 +97,7 @@ Decisiones:
 **Partido**
 
 - `id`, `organizador`, `complejo`
-- `inicio`, `duracion_minutos` (60 por defecto)
+- `inicio`, `duracion_minutos` (siempre 60: el organizador no la elige)
 - `tipo` (F5, F7, F8, F11)
 - `cupos_faltantes`
 - `estado` (abierto, completo, jugado, cancelado)

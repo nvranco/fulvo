@@ -68,13 +68,13 @@ Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/di
 | RQ1 | Registrarse e iniciar sesión (edad mínima 16). | `POST /usuarios`, `POST /auth/token`. La dependencia `UsuarioActual` (en `security.py`) protege las rutas. | `tests/test_usuarios.py`, `tests/test_auth.py`, `tests/test_security.py` | hecho |
 | RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. | `GET /usuarios/yo`, `PATCH /usuarios/yo`, `GET /usuarios/{id}` | `tests/test_perfil.py` | hecho |
 | RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `GET /zonas`, `GET /complejos`, `GET /complejos/cercanos`, `GET /complejos/{id}` | `tests/test_complejos.py` | hecho (con base de datos) |
-| RQ4 | Publicar partidos indicando complejo, fecha, hora, duración, tipo y cupos faltantes. | `TODO` | | pendiente |
-| RQ5 | Listar partidos abiertos con filtros y postularse. | `TODO` | | pendiente |
+| RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes (la duración es fija: 60 minutos). | `POST /partidos`, `GET /partidos/{id}` | `tests/test_partidos.py`, `tests/test_models.py` | hecho; el bloqueo por votaciones pendientes llega con RQ8 |
+| RQ5 | Listar partidos abiertos con filtros y postularse. | Listado: `GET /partidos` (filtros `zona`, `complejo_id` y `tipo`). Postularse: `TODO` | `tests/test_partidos.py` | parcial: falta postularse |
 | RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `TODO` | | pendiente |
 | RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `TODO` | | pendiente |
 | RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
 | RQ9 | Notificaciones dentro de la app. | `TODO` | | pendiente |
-| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}`. Bloqueo: `TODO` | `tests/test_complejos.py`, `tests/test_permisos_admin.py` | parcial: zonas y complejos hechos (solo admin, `exigir_admin`); falta el bloqueo de usuarios |
+| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}` (409 si el complejo tiene partidos). Bloqueo: `TODO` | `tests/test_complejos.py`, `tests/test_permisos_admin.py`, `tests/test_partidos.py` | parcial: zonas y complejos hechos (solo admin, `exigir_admin`); falta el bloqueo de usuarios |
 | RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
 Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints; la única excepción es el perfil propio (`GET /usuarios/yo`), donde cada usuario ve su propio número. Monetización (comisiones, suscripciones, pagos), reservas, amigos, chat y torneos están fuera del MVP.

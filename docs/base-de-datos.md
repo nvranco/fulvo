@@ -2,7 +2,7 @@
 
 Documento de trabajo del esquema de la base de datos. Igual que [`clases.md`](clases.md), se arma de a poco y cada decisión queda anotada acá.
 
-**Alcance de hoy: `zonas`, `complejos`, `roles` y `usuarios`**, que son las entidades que ya tienen endpoints (RQ1, RQ3 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Partido`, `Postulacion`, `Sancion`, etc.) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
+**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios` y `partidos`**, que son las entidades que ya tienen endpoints (RQ1 a RQ5 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Postulacion`, `Sancion`, etc.) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
 
 Diagrama: [`diagramas/base-de-datos.drawio`](diagramas/base-de-datos.drawio) (editable en draw.io) y [`diagramas/base-de-datos.svg`](diagramas/base-de-datos.svg).
 
@@ -15,6 +15,7 @@ La tabla se declara con un **modelo** SQLAlchemy (`fulvo/models.py`). El modelo 
 ```
 JSON -> ZonaEntrada / ComplejoEntrada (valida) -> modelo Zona / Complejo (BD) -> ZonaPublica / ComplejoPublico (JSON)
 JSON -> UsuarioEntrada (valida) -> modelo Usuario (BD, con contrasena_hash) -> UsuarioRegistrado (JSON, sin hash ni WhatsApp)
+JSON -> PartidoEntrada (valida y pasa a hora de Argentina) -> modelo Partido (BD) -> PartidoPublico (JSON, con el complejo y el perfil público del organizador)
 ```
 
 Los schemas de entrada y salida **no cambian**: la API sigue devolviendo lo mismo que hoy.
@@ -82,10 +83,27 @@ Roles base: `usuario` y `admin`. Los crea la carga inicial; ningún endpoint cre
 
 Migración: `329a5a4ee4ad` (crear roles y usuarios), sobre `3cc091c1aa49` (zonas y complejos).
 
+### `partidos`
+
+| Columna | Tipo | Restricciones |
+|---|---|---|
+| `id` | entero | clave primaria |
+| `organizador_id` | entero | obligatorio, clave foránea a `usuarios.id` |
+| `complejo_id` | entero | obligatorio, clave foránea a `complejos.id` |
+| `inicio` | fecha y hora | obligatorio, hora de Argentina sin zona horaria |
+| `tipo` | texto | obligatorio: `F5`, `F7`, `F8` o `F11` |
+| `cupos_faltantes` | entero | obligatorio |
+| `duracion_minutos` | entero | obligatorio, por defecto 60 |
+| `estado` | texto | obligatorio: `abierto` (por defecto), `completo`, `jugado` o `cancelado` |
+
+Migración: `7a76c3c1902d` (crear partidos), sobre `329a5a4ee4ad`.
+
 ### Relaciones
 
 - Una zona tiene muchos complejos y cada complejo pertenece a una sola zona (`complejos.zona_id` apunta a `zonas.id`).
 - Un rol tiene muchos usuarios y cada usuario tiene un solo rol (`usuarios.rol_id` apunta a `roles.id`).
+- Un usuario organiza muchos partidos y cada partido tiene un solo organizador (`partidos.organizador_id` apunta a `usuarios.id`).
+- Un complejo tiene muchos partidos y cada partido se juega en un solo complejo (`partidos.complejo_id` apunta a `complejos.id`).
 
 ## 3. Decisiones
 
@@ -100,7 +118,7 @@ Migración: `329a5a4ee4ad` (crear roles y usuarios), sobre `3cc091c1aa49` (zonas
   - `zonas.nombre` único y `complejos (nombre, direccion)` único. Reflejan las reglas de `409` que ya tiene la API.
   - La base distingue mayúsculas (`Belgrano` y `belgrano` son valores distintos para SQLite y PostgreSQL). Por eso las rutas siguen comparando sin mayúsculas antes de insertar, como hoy con `buscar_zona`. La restricción de la base es la última red de seguridad, no el chequeo principal.
 - **Ids que no se reutilizan.** Al borrar el último complejo, uno nuevo no debe heredar su id: un cliente que guardó ese id vería otro recurso en lugar de un 404. En PostgreSQL la secuencia lo garantiza sola. SQLite sí reutiliza el id del último registro borrado, así que `Complejo` usa `sqlite_autoincrement=True` para comportarse igual. Eso reemplazó a la clase `Secuencia` de la versión con listas en memoria, que ya se borró.
-- **Borrado.** `DELETE /complejos/{id}` borra la fila. Cuando exista `Partido` (que referencia a `Complejo`), un complejo con partidos no se va a poder borrar: la API responderá 409 con "Error al borrar el complejo: aún tiene partidos agendados". Se implementa con RQ4. Así no hace falta una columna de complejo inactivo, y ningún partido queda apuntando a un complejo que ya no existe. `zonas` no tiene endpoint de borrado.
+- **Borrado.** `DELETE /complejos/{id}` borra la fila. Si el complejo tiene partidos, de cualquier estado, no se borra: la API responde 409 con "Error al borrar el complejo: aún tiene partidos agendados" (decisión del equipo del 2026-11-07). Así no hace falta una columna de complejo inactivo, y ningún partido queda apuntando a un complejo que ya no existe. `zonas` no tiene endpoint de borrado.
 - **Edición.** `PUT /zonas/{id}` y `PUT /complejos/{id}` reemplazan la fila completa con las mismas reglas del alta (zona existente, sin repetir nombre o nombre y dirección). El propio registro no cuenta como repetido de sí mismo. Como los complejos guardan `zona_id`, renombrar una zona o cambiarle la provincia se ve en todos sus complejos sin tocarlos.
 - **Traducción modelo a schema.** `ComplejoPublico` expone `zona` como el nombre (texto) y `provincia`, pero el modelo guarda `zona_id`. La ruta arma el schema con una función chica (`complejo_publico`) que lee `complejo.zona.nombre` y `complejo.zona.provincia`. `ZonaPublica` se lee directo del modelo con `from_attributes=True`.
 
@@ -115,6 +133,14 @@ Usuarios y roles:
 - **`bloqueado` es un booleano por ahora.** Alcanza para que un usuario bloqueado no pueda iniciar sesión. La sanción con motivo, admin y fechas (RQ10) llega con la tabla `sanciones`.
 - **Sin `sqlite_autoincrement` en `roles` ni `usuarios`.** Ninguna de las dos tiene endpoint de borrado, así que un id no se puede reutilizar. Se agrega si llega una baja de usuarios, como en `complejos`.
 
+Partidos:
+
+- **Hora de Argentina, sin zona horaria.** SQLite no guarda zonas horarias y PostgreSQL sí, así que una columna "con zona" devolvería cosas distintas según la base. `inicio` se guarda como hora de Argentina sin zona, y toda comparación usa `ahora_argentina()` (`fulvo/models.py`). Argentina tiene un solo huso (UTC-3) y no cambia la hora en verano, así que alcanza con un desfase fijo. Si el cliente manda la hora con otra zona, `PartidoEntrada` la convierte.
+- **`tipo` y `estado` son enums guardados como texto** (`native_enum=False`). En PostgreSQL un enum nativo es un tipo aparte, que Alembic no borra solo al deshacer la migración. Como texto, las dos bases guardan lo mismo, y los valores válidos los controlan el `Enum` de Python y Pydantic.
+- **`duracion_minutos` se guarda aunque sea fija.** Todo partido dura 60 minutos (decisión del equipo del 2026-11-11), pero `Partido.fin()` la usa, y si la regla cambia no hace falta migrar los partidos que ya existen.
+- **El pase a jugado se guarda al consultar.** No hay tarea periódica: `GET /partidos/{id}` llama a `Partido.actualizar_estado` y, si el partido ya terminó, lo guarda como jugado. El listado solo muestra partidos que todavía no empezaron, así que no necesita revisarlos.
+- **Sin `sqlite_autoincrement`.** Los partidos no se borran: se cancelan (RQ7). Un id no se puede reutilizar.
+
 ## 4. Configuración y datos iniciales
 
 - **Conexión.** `DATABASE_URL` en `.env`, leída con `pydantic-settings` (`fulvo/settings.py`). En desarrollo es un archivo SQLite (`sqlite:///fulvo.db`, ignorado por git con `*.db`). En contenedor, CI y producción es PostgreSQL con `postgresql+psycopg://...`.
@@ -124,5 +150,5 @@ Usuarios y roles:
 
 ## 5. Pendiente
 
-- Tablas del resto de las clases (`Partido`, `Postulacion`, `Votacion`, `Notificacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
-- Datos de prueba: los tests de rutas cargan los roles y el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Los usuarios de prueba se arman con `guardar_usuario` en `tests/conftest.py`; con el aula 09 pasan a `factory-boy`, como la cátedra.
+- Tablas del resto de las clases (`Postulacion`, `Votacion`, `Notificacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
+- Datos de prueba: los tests de rutas cargan los roles y el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Los usuarios y los partidos de prueba salen de `UsuarioFactory` y `PartidoFactory` (`tests/factories.py`, con `factory-boy`, como la cátedra).

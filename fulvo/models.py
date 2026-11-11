@@ -1,5 +1,7 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+from enum import Enum
 
+from sqlalchemy import Enum as EnumSQL
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import (
     Mapped,
@@ -135,3 +137,112 @@ class Usuario:
     def tiene_rol(self, nombre: str) -> bool:
         """Dice si el rol del usuario es `nombre`: único punto de permisos."""
         return self.rol.nombre == nombre
+
+
+# Argentina usa un solo huso horario (UTC-3) y no cambia la hora en verano
+# desde 2009, así que alcanza con un desfase fijo. Así no se depende de la
+# base de husos horarios (tzdata), que Python no trae en Windows.
+HORA_ARGENTINA = timezone(timedelta(hours=-3))
+
+
+def ahora_argentina() -> datetime:
+    """Fecha y hora actual de Argentina, sin zona horaria.
+
+    Los partidos guardan su inicio como hora de Argentina sin zona, porque
+    SQLite no guarda zonas horarias y PostgreSQL sí: sin zona, las dos bases
+    guardan y devuelven lo mismo. Toda comparación con un inicio usa esta
+    función, así ninguna depende de la hora de la máquina donde corre la API.
+    """
+    return datetime.now(HORA_ARGENTINA).replace(tzinfo=None)
+
+
+class TipoPartido(str, Enum):
+    """Modalidad del partido, según cuántos juegan por equipo (RQ4)."""
+
+    F5 = 'F5'
+    F7 = 'F7'
+    F8 = 'F8'
+    F11 = 'F11'
+
+
+# Jugadores en cancha, sumando los dos equipos. El organizador juega, así
+# que en un partido pueden faltar como mucho todos menos uno.
+JUGADORES_POR_TIPO = {
+    TipoPartido.F5: 10,
+    TipoPartido.F7: 14,
+    TipoPartido.F8: 16,
+    TipoPartido.F11: 22,
+}
+
+# Todo partido dura 60 minutos: es fijo por decisión del equipo
+# (2026-11-11) y el organizador no lo elige al publicar.
+DURACION_PARTIDO_MINUTOS = 60
+
+
+class EstadoPartido(str, Enum):
+    """Estados de un partido (`docs/requerimientos.md`, sección 4)."""
+
+    abierto = 'abierto'
+    completo = 'completo'
+    jugado = 'jugado'
+    cancelado = 'cancelado'
+
+
+@mapped_as_dataclass(table_registry)
+class Partido:
+    """Partido publicado por un organizador al que le faltan jugadores (RQ4).
+
+    En el diseño es el sujeto del patrón Observer (`docs/clases.md`). Por
+    ahora solo maneja su estado; los avisos a los observadores llegan con
+    las postulaciones (RQ5 a RQ7).
+    """
+
+    __tablename__ = 'partidos'
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    organizador_id: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
+    complejo_id: Mapped[int] = mapped_column(ForeignKey('complejos.id'))
+    inicio: Mapped[datetime]
+    # Los enums se guardan como texto (`native_enum=False`). En PostgreSQL
+    # un enum nativo es un tipo aparte, que Alembic no borra solo al deshacer
+    # la migración. Como texto, SQLite y PostgreSQL guardan lo mismo, y la
+    # lista de valores válidos la controla Python.
+    tipo: Mapped[TipoPartido] = mapped_column(
+        EnumSQL(TipoPartido, native_enum=False)
+    )
+    cupos_faltantes: Mapped[int]
+    # Se guarda aunque hoy sea siempre la misma: `fin()` la usa, y si la
+    # regla cambia no hace falta migrar los partidos que ya existen.
+    duracion_minutos: Mapped[int] = mapped_column(
+        default=DURACION_PARTIDO_MINUTOS
+    )
+    estado: Mapped[EstadoPartido] = mapped_column(
+        EnumSQL(EstadoPartido, native_enum=False),
+        default=EstadoPartido.abierto,
+    )
+
+    # Se cargan solas a partir de los ids, como `Complejo.zona`.
+    organizador: Mapped[Usuario] = relationship(init=False)
+    complejo: Mapped[Complejo] = relationship(init=False)
+
+    def fin(self) -> datetime:
+        """Devuelve cuándo termina el partido: el inicio más la duración."""
+        return self.inicio + timedelta(minutes=self.duracion_minutos)
+
+    def actualizar_estado(self, ahora: datetime) -> bool:
+        """Pasa el partido a jugado si ya terminó, y dice si cambió.
+
+        No hay una tarea periódica: se llama cada vez que se consulta el
+        partido (`docs/requerimientos.md`). Solo cambian los abiertos y los
+        completos: uno cancelado sigue cancelado aunque ya haya pasado su
+        fecha. Recibe `ahora` en vez de leer el reloj para poder probarlo
+        con fechas fijas, como `Usuario.edad`.
+        """
+        en_juego = self.estado in {
+            EstadoPartido.abierto,
+            EstadoPartido.completo,
+        }
+        if en_juego and ahora >= self.fin():
+            self.estado = EstadoPartido.jugado
+            return True
+        return False
