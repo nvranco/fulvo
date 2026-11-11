@@ -9,12 +9,11 @@ from fulvo.models import (
     DURACION_PARTIDO_MINUTOS,
     Complejo,
     EstadoPartido,
-    Partido,
     TipoPartido,
     ahora_argentina,
 )
-from fulvo.security import crear_token_acceso
-from tests.factories import PartidoFactory
+from tests.datos import con_token
+from tests.factories import PartidoFactory, guardar_partido
 
 PARTIDOS = '/partidos'
 # Momento fijo para los tests que congelan el reloj: freezegun lo toma en
@@ -38,25 +37,6 @@ def datos_de_partido(**cambios) -> dict:
         'cupos_faltantes': 2,
     }
     return datos | cambios
-
-
-def guardar_partido(session, organizador, **cambios) -> Partido:
-    """Guarda un partido del organizador, en el complejo 1 salvo cambios."""
-    datos = {'organizador_id': organizador.id, 'complejo_id': 1} | cambios
-    partido = PartidoFactory(**datos)
-    session.add(partido)
-    session.commit()
-    return partido
-
-
-def con_token(usuario) -> dict:
-    """Encabezado con un token creado en este momento.
-
-    Los tests que congelan el reloj lo crean adentro del `freeze_time`: un
-    token de la fixture estaría vencido en la fecha congelada.
-    """
-    token = crear_token_acceso({'sub': usuario.email})
-    return {'Authorization': f'Bearer {token}'}
 
 
 def ids(respuesta) -> list[int]:
