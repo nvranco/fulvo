@@ -2,7 +2,7 @@
 
 Documento de trabajo del esquema de la base de datos. Igual que [`clases.md`](clases.md), se arma de a poco y cada decisión queda anotada acá.
 
-**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos` y `postulaciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ7 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Votacion`, `Notificacion`, `Sancion`, etc.) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
+**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos`, `postulaciones` y `notificaciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ7, RQ9 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Votacion`, `Reclamo`, `Sancion`) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
 
 Diagrama: [`diagramas/base-de-datos.drawio`](diagramas/base-de-datos.drawio) (editable en draw.io) y [`diagramas/base-de-datos.svg`](diagramas/base-de-datos.svg).
 
@@ -113,6 +113,21 @@ Restricción de tabla: `UNIQUE (partido_id, jugador_id)`.
 
 Migración: `120c063df0c0` (crear postulaciones), sobre `7a76c3c1902d`.
 
+### `notificaciones`
+
+| Columna | Tipo | Restricciones |
+|---|---|---|
+| `id` | entero | clave primaria |
+| `usuario_id` | entero | obligatorio, clave foránea a `usuarios.id` (el destinatario) |
+| `tipo` | texto (30) | obligatorio: uno de los tipos de `TipoNotificacion` |
+| `mensaje` | texto | obligatorio, ya armado por la fábrica |
+| `referencia_tipo` | texto | obligatorio: `postulacion` o `partido` |
+| `referencia_id` | entero | obligatorio, sin clave foránea |
+| `leida` | booleano | obligatorio, por defecto falso |
+| `created_at` | fecha y hora | obligatorio, hora de Argentina |
+
+Migración: `9617090e26bf` (crear notificaciones), sobre `120c063df0c0`.
+
 ### Relaciones
 
 - Una zona tiene muchos complejos y cada complejo pertenece a una sola zona (`complejos.zona_id` apunta a `zonas.id`).
@@ -121,6 +136,7 @@ Migración: `120c063df0c0` (crear postulaciones), sobre `7a76c3c1902d`.
 - Un complejo tiene muchos partidos y cada partido se juega en un solo complejo (`partidos.complejo_id` apunta a `complejos.id`).
 - Un partido tiene muchas postulaciones y cada postulación es de un solo partido (`postulaciones.partido_id` apunta a `partidos.id`).
 - Un usuario tiene muchas postulaciones como jugador (`postulaciones.jugador_id` apunta a `usuarios.id`).
+- Un usuario tiene muchas notificaciones (`notificaciones.usuario_id` apunta a `usuarios.id`). Lo que originó cada una se guarda como referencia genérica, sin clave foránea (ver decisiones).
 
 ## 3. Decisiones
 
@@ -166,6 +182,13 @@ Postulaciones:
 - **`created_at` y `respondida_at`** se llaman como en `clases.md`, y guardan la hora de Argentina sin zona, como `partidos.inicio`.
 - **`no_show` todavía no está.** Se agrega con su migración cuando lleguen las votaciones (RQ8).
 
+Notificaciones:
+
+- **Referencia genérica, sin clave foránea.** `referencia_tipo` y `referencia_id` dicen qué originó el aviso: una postulación o un partido, y más adelante un reclamo. Una clave foránea solo puede apuntar a una tabla, así que se sigue la decisión de `clases.md`. El costo es que la base no verifica el id: lo arma siempre la fábrica.
+- **El mensaje se guarda armado.** Lo arma `FabricaNotificaciones` al crear la notificación, y no se recalcula después. Por eso nunca lleva el WhatsApp: si después se revoca al jugador o se cancela el partido, el número no debe quedar guardado.
+- **`tipo` es texto de largo fijo (30).** Como los demás enums, se guarda como texto, pero con un largo fijo, para sumar "votaciones pendientes" (RQ8) y "reclamo resuelto" (RQ11) sin migrar la columna.
+- **Se crean en la misma transacción que el cambio que las originó.** `NotificadorPartido` las suma a la sesión y el commit de la ruta las guarda juntas: no queda una notificación de algo que no pasó.
+
 ## 4. Configuración y datos iniciales
 
 - **Conexión.** `DATABASE_URL` en `.env`, leída con `pydantic-settings` (`fulvo/settings.py`). En desarrollo es un archivo SQLite (`sqlite:///fulvo.db`, ignorado por git con `*.db`). En contenedor, CI y producción es PostgreSQL con `postgresql+psycopg://...`.
@@ -175,5 +198,5 @@ Postulaciones:
 
 ## 5. Pendiente
 
-- Tablas del resto de las clases (`Votacion`, `Notificacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
+- Tablas del resto de las clases (`Votacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
 - Datos de prueba: los tests de rutas cargan los roles y el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Los usuarios y los partidos de prueba salen de `UsuarioFactory` y `PartidoFactory` (`tests/factories.py`, con `factory-boy`, como la cátedra).

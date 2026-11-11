@@ -58,7 +58,7 @@ Métodos:
 |---|---|
 | `marcar_leida()` | Pone `leida` en verdadero. |
 
-La `Notificacion` no se construye a mano: la crea `FabricaNotificaciones` (ver sección 3).
+La `Notificacion` no se construye a mano: la crea `FabricaNotificaciones` (ver sección 3, y `fulvo/observadores.py`). En el código, el destinatario se guarda como `usuario_id`.
 
 ### Zonas y complejos
 
@@ -238,7 +238,7 @@ Decisiones sobre el Observer:
     - `no_show_marcado`: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes.
 - Motivo de usar un segundo observador: los efectos de pasar a jugado y de marcar un no-show no viven dentro de `Partido`. `Partido` solo avisa y no sabe quién reacciona. Agregar otra reacción no lo modifica.
 - **`EventoPartido`:** lo que recibe `actualizar(evento)`. Lleva `tipo` (uno de los 9 eventos), `partido` y `postulacion` (opcional, solo en los eventos que nacen de una postulación). `Partido` lo crea al emitir. Así cada observador sabe qué partido y qué postulación originaron el aviso, sin buscarlos.
-- **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`, y ahí van a ir los observadores concretos y la fábrica. `Partido` y `Postulacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base.
+- **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`. Los observadores concretos y la fábrica están en `fulvo/observadores.py`: necesitan los modelos, y `models.py` ya importa `eventos.py`, así que juntos se importarían mutuamente. `Partido`, `Postulacion` y `Notificacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, y cada pedido suma los observadores en `preparar_partido`.
 - **Fechas.** Los métodos que guardan o comparan una fecha (`postular`, `aceptar`, `rechazar`, `revocar` y `actualizar_estado`) reciben `ahora`, para poder probarlos con fechas fijas, como `edad(hoy)`. El diagrama no lo muestra.
 - **Errores.** Una transición inválida levanta `ReglaDeNegocioError` (`fulvo/errores.py`), que la API responde como 409.
 
@@ -256,10 +256,12 @@ Decisiones sobre la Factory:
 | `revocacion` | Jugador de la postulación | revocación |
 | `postulacion_retirada` | Organizador | postulación retirada |
 | `partido_cancelado` | Postulantes y aceptados | partido cancelado |
-| `partido_jugado` | Participantes | votaciones pendientes |
+| `partido_jugado` | Participantes | votaciones pendientes (se suma con RQ8) |
 | `no_show_marcado` | — | No se notifica |
 
 - La notificación de reclamo resuelto la pide la lógica del reclamo a la misma fábrica, sin pasar por el Observer.
+- **Sin WhatsApp en el texto (2026-11-11).** El aviso de aceptación dice que el WhatsApp está en las postulaciones, pero no incluye el número: lo que se guarda no se puede ocultar después si se revoca al jugador o se cancela el partido.
+- **La referencia** es la postulación si el evento nace de una, y si no, el partido. Para que una postulación recién creada ya tenga id, `NotificadorPartido` hace `flush` antes de pedir las notificaciones.
 
 ## 4. Decisiones ya tomadas que afectan a las clases
 

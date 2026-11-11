@@ -117,6 +117,9 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
   - Partido cancelado (a postulantes y aceptados).
   - Votaciones pendientes.
   - Reclamo resuelto (al autor).
+- Cada usuario ve solo sus notificaciones, de la más nueva a la más vieja, y las marca como leídas de a una.
+- El texto nunca incluye el WhatsApp: si después se revoca al jugador o se cancela el partido, el número no queda guardado en la notificación (decisión del 2026-11-11). El aviso de aceptación dice dónde verlo.
+- "Votaciones pendientes" se crea con las votaciones (RQ8) y "reclamo resuelto" con los reclamos (RQ11).
 
 **Reclamo**
 
