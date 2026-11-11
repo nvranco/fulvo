@@ -65,8 +65,9 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - Un partido publicado no se edita: se cancela y se crea otro.
 - El pase a jugado se revisa cada vez que se consulta el partido. No hay tarea periódica.
 - Se permite postularse a partidos que se solapan en horario.
+- No se puede postular a un partido que ya empezó.
 - Organizador no puede postularse a su propio partido.
-- Usuario no puede postularse dos veces al mismo partido.
+- Usuario no puede postularse dos veces al mismo partido, aunque se haya retirado, lo hayan rechazado o revocado, o el partido se reabra.
 - Estados:
 
 | Estado | Cómo se llega |
@@ -85,7 +86,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 
 **WhatsApp**
 
-- Solo se expone mientras la postulación está aceptada, y solo entre organizador y aceptado. Si se revoca o el aceptado se baja, se deja de exponer.
+- Solo se expone mientras la postulación está aceptada, y solo entre organizador y aceptado. Si se revoca, el aceptado se baja o el partido se cancela, se deja de exponer.
 - Ningún listado público ni endpoint ajeno devuelve el número. Cada usuario ve el suyo en su perfil propio.
 
 **Votación**
@@ -160,7 +161,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - Contraseñas hasheadas con argon2. Login con JWT.
 - Edad mínima 16 validada al registrar.
 - WhatsApp protegido según la sección 4.
-- Errores por excepciones con mensajes claros.
+- Errores por excepciones con mensajes claros. Una acción que las reglas no permiten (por ejemplo, aceptar una postulación ya rechazada) responde 409 con el motivo.
 - API RESTful.
 - Al menos 10 tests unitarios y GitHub Action que los corre.
 
