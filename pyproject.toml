@@ -63,6 +63,11 @@ Calle = 'Calle'
 mis = 'mis'
 recorre = 'recorre'
 ignora = 'ignora'
+hace = 'hace'
+momento = 'momento'
+Momento = 'Momento'
+varios = 'varios'
+pase = 'pase'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.
