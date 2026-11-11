@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -11,7 +11,12 @@ from pydantic import (
     StringConstraints,
 )
 
-from fulvo.models import HORA_ARGENTINA, EstadoPartido, TipoPartido
+from fulvo.models import (
+    HORA_ARGENTINA,
+    EstadoPartido,
+    EstadoPostulacion,
+    TipoPartido,
+)
 
 # Rangos válidos de coordenadas: evitan guardar ubicaciones imposibles.
 Latitud = Annotated[float, Field(ge=-90, le=90)]
@@ -254,3 +259,67 @@ class FiltroPartidos(Paginacion):
     zona: str | None = None
     complejo_id: int | None = None
     tipo: TipoPartido | None = None
+
+
+class PartidoEdicion(BaseModel):
+    """Cambio de un partido publicado: solo se puede cancelar (RQ7).
+
+    Un partido publicado no se edita: se cancela y se publica otro
+    (`requerimientos.md`). Por eso el único valor válido es "cancelado".
+    """
+
+    estado: Literal['cancelado']
+
+
+class PostulacionRespuesta(BaseModel):
+    """Respuesta del organizador a una postulación (RQ6 y RQ7)."""
+
+    estado: Literal['aceptada', 'rechazada', 'revocada']
+
+
+class PostulacionRetiro(BaseModel):
+    """Lo único que el jugador puede hacer con su postulación: retirarla."""
+
+    estado: Literal['retirada']
+
+
+class PostulacionDelPartido(BaseModel):
+    """Postulación como la ve el organizador del partido (RQ6).
+
+    El jugador va con su perfil público. Su WhatsApp va aparte, y solo
+    mientras la postulación está aceptada y el partido no se canceló.
+    """
+
+    id: int
+    estado: EstadoPostulacion
+    created_at: datetime
+    respondida_at: datetime | None
+    jugador: UsuarioPublico
+    whatsapp_jugador: str | None
+
+
+class ListaPostulaciones(BaseModel):
+    """Postulaciones de un partido, envueltas como en la cátedra."""
+
+    postulaciones: list[PostulacionDelPartido]
+
+
+class MiPostulacion(BaseModel):
+    """Postulación como la ve el jugador que se postuló (RQ5 y RQ6).
+
+    Trae el partido completo y el WhatsApp del organizador, que también va
+    solo mientras la postulación está aceptada y el partido no se canceló.
+    """
+
+    id: int
+    estado: EstadoPostulacion
+    created_at: datetime
+    respondida_at: datetime | None
+    partido: PartidoPublico
+    whatsapp_organizador: str | None
+
+
+class ListaMisPostulaciones(BaseModel):
+    """Postulaciones del usuario, envueltas como en la cátedra."""
+
+    postulaciones: list[MiPostulacion]
