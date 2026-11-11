@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     EmailStr,
@@ -9,6 +10,8 @@ from pydantic import (
     PastDate,
     StringConstraints,
 )
+
+from fulvo.models import HORA_ARGENTINA, EstadoPartido, TipoPartido
 
 # Rangos válidos de coordenadas: evitan guardar ubicaciones imposibles.
 Latitud = Annotated[float, Field(ge=-90, le=90)]
@@ -179,3 +182,75 @@ class Token(BaseModel):
 
     access_token: str
     token_type: str
+
+
+def a_hora_argentina(momento: datetime) -> datetime:
+    """Pasa una fecha y hora a la de Argentina, sin zona horaria.
+
+    Si el cliente la manda con zona (por ejemplo en UTC, con `Z` al final),
+    se convierte. Si viene sin zona, se toma como hora de Argentina. Así
+    queda igual que `ahora_argentina()` y se pueden comparar.
+    """
+    if momento.tzinfo is not None:
+        momento = momento.astimezone(HORA_ARGENTINA).replace(tzinfo=None)
+    return momento
+
+
+HoraArgentina = Annotated[datetime, AfterValidator(a_hora_argentina)]
+
+
+class PartidoEntrada(BaseModel):
+    """Datos que envía el organizador para publicar un partido (RQ4).
+
+    No incluye organizador, estado ni duración: el organizador sale del
+    token, todo partido nace abierto y la duración es siempre de 60
+    minutos. El máximo de cupos depende del tipo y lo controla la ruta.
+    """
+
+    complejo_id: int
+    inicio: HoraArgentina
+    tipo: TipoPartido
+    cupos_faltantes: Annotated[int, Field(ge=1)]
+
+
+class PartidoPublico(BaseModel):
+    """Partido como lo devuelve la API (RQ4 y RQ5).
+
+    El organizador va con su perfil público, sin apellido ni WhatsApp. Las
+    fechas y horas están en hora de Argentina, sin zona horaria.
+    """
+
+    id: int
+    inicio: datetime
+    fin: datetime
+    duracion_minutos: int
+    tipo: TipoPartido
+    cupos_faltantes: int
+    estado: EstadoPartido
+    organizador: UsuarioPublico
+    complejo: ComplejoPublico
+
+
+class ListaPartidos(BaseModel):
+    """Respuesta del listado de partidos, envuelta como en la cátedra."""
+
+    partidos: list[PartidoPublico]
+
+
+class Paginacion(BaseModel):
+    """`offset` y `limit` de un listado, como `FilterPage` del aula 10."""
+
+    offset: int = Field(0, ge=0)
+    limit: int = Field(20, ge=1, le=100)
+
+
+class FiltroPartidos(Paginacion):
+    """Filtros opcionales del listado de partidos abiertos (RQ5).
+
+    Hereda la paginación, como `FilterTodo` del aula 10. La ruta lo recibe
+    entero desde la query string con `Annotated[FiltroPartidos, Query()]`.
+    """
+
+    zona: str | None = None
+    complejo_id: int | None = None
+    tipo: TipoPartido | None = None
