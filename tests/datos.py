@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+from fulvo.security import crear_token_acceso
+
 CONTRASENA = 'secreta123'
 EMAIL = 'ana@ejemplo.com'
 EMAIL_ADMIN = 'admin@ejemplo.com'
@@ -32,3 +34,14 @@ def datos_de_registro(**cambios) -> dict:
         'posicion': 'Delantera',
     }
     return datos | cambios
+
+
+def con_token(usuario) -> dict:
+    """Encabezado con un token del usuario, creado en este momento.
+
+    Sirve para hablar como distintos usuarios en un mismo test (por ejemplo,
+    organizador y jugador), y para los tests que congelan el reloj: un token
+    creado afuera del `freeze_time` estaría vencido en la fecha congelada.
+    """
+    token = crear_token_acceso({'sub': usuario.email})
+    return {'Authorization': f'Bearer {token}'}

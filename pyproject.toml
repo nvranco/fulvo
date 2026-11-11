@@ -68,6 +68,13 @@ momento = 'momento'
 Momento = 'Momento'
 varios = 'varios'
 pase = 'pase'
+clase = 'clase'
+clases = 'clases'
+implemente = 'implemente'
+inmutable = 'inmutable'
+responde = 'responde'
+ser = 'ser'
+imposible = 'imposible'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.

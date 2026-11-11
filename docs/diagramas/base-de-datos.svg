@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="940" viewBox="0 0 1360 940" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="1170" viewBox="0 0 1360 1170" font-family="Helvetica, Arial, sans-serif" font-size="12">
 <rect width="100%" height="100%" fill="#ffffff"/>
-<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles, usuarios y partidos</text>
+<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles, usuarios, partidos y postulaciones</text>
 <rect x="40" y="60" width="300" height="104" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="40" y="60" width="300" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="190.0" y="78" text-anchor="middle" font-weight="bold">zonas</text>
@@ -108,4 +108,33 @@
 <text x="968" y="662" font-size="11">que se guardan como texto. La duración es</text>
 <text x="968" y="680" font-size="11">siempre de 60 minutos. Un complejo con</text>
 <text x="968" y="698" font-size="11">partidos no se puede borrar (409).</text>
+<rect x="960" y="760" width="360" height="208" fill="#ffffff" stroke="#6c8ebf"/>
+<rect x="960" y="760" width="360" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
+<text x="1140.0" y="778" text-anchor="middle" font-weight="bold">postulaciones</text>
+<text x="968" y="804" font-weight="bold">PK  id: INTEGER</text>
+<text x="968" y="830">FK  partido_id: INTEGER  NOT NULL</text>
+<text x="968" y="856">FK  jugador_id: INTEGER  NOT NULL</text>
+<text x="968" y="882">estado: VARCHAR  NOT NULL, default en_espera</text>
+<text x="968" y="908">created_at: DATETIME  NOT NULL</text>
+<text x="968" y="934">respondida_at: DATETIME  NULL</text>
+<line x1="960" y1="942" x2="1320" y2="942" stroke="#6c8ebf"/>
+<text x="968" y="960" font-style="italic">UNIQUE (partido_id, jugador_id)</text>
+<polyline points="1320,339 1345,339 1345,825 1320,825" fill="none" stroke="#333"/>
+<line x1="1330" y1="333" x2="1330" y2="345" stroke="#333"/>
+<line x1="1336" y1="333" x2="1336" y2="345" stroke="#333"/>
+<line x1="1334" y1="825" x2="1320" y2="818" stroke="#333"/>
+<line x1="1334" y1="825" x2="1320" y2="832" stroke="#333"/>
+<line x1="1334" y1="825" x2="1320" y2="825" stroke="#333"/>
+<polyline points="880,569 900,569 900,851 960,851" fill="none" stroke="#333"/>
+<line x1="946" y1="851" x2="960" y2="844" stroke="#333"/>
+<line x1="946" y1="851" x2="960" y2="858" stroke="#333"/>
+<line x1="946" y1="851" x2="960" y2="851" stroke="#333"/>
+<text x="960" y="996" font-size="11">1 partido : N postulaciones (partido_id -&gt; partidos.id)</text>
+<text x="960" y="1014" font-size="11">1 usuario : N postulaciones (jugador_id -&gt; usuarios.id)</text>
+<rect x="960" y="1038" width="300" height="104" fill="#fff2cc" stroke="#d6b656"/>
+<text x="968" y="1060" font-size="11">Nota: un jugador se postula una sola vez a</text>
+<text x="968" y="1078" font-size="11">cada partido (UNIQUE). estado es un enum</text>
+<text x="968" y="1096" font-size="11">guardado como texto. El WhatsApp no se</text>
+<text x="968" y="1114" font-size="11">guarda acá: se muestra según el estado.</text>
+<text x="968" y="1132" font-size="11">no_show llega con las votaciones (RQ8).</text>
 </svg>

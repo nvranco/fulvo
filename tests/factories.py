@@ -49,3 +49,20 @@ class PartidoFactory(factory.Factory):
     )
     tipo = TipoPartido.F5
     cupos_faltantes = 2
+
+
+def guardar_usuario_comun(session, rol_id: int, **cambios) -> Usuario:
+    """Guarda un usuario de la factory (email único) con el rol indicado."""
+    usuario = UsuarioFactory(rol_id=rol_id, **cambios)
+    session.add(usuario)
+    session.commit()
+    return usuario
+
+
+def guardar_partido(session, organizador, **cambios) -> Partido:
+    """Guarda un partido del organizador, en el complejo 1 salvo cambios."""
+    datos = {'organizador_id': organizador.id, 'complejo_id': 1} | cambios
+    partido = PartidoFactory(**datos)
+    session.add(partido)
+    session.commit()
+    return partido

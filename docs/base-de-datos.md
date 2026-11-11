@@ -2,7 +2,7 @@
 
 Documento de trabajo del esquema de la base de datos. Igual que [`clases.md`](clases.md), se arma de a poco y cada decisión queda anotada acá.
 
-**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios` y `partidos`**, que son las entidades que ya tienen endpoints (RQ1 a RQ5 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Postulacion`, `Sancion`, etc.) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
+**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos` y `postulaciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ7 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Votacion`, `Notificacion`, `Sancion`, etc.) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
 
 Diagrama: [`diagramas/base-de-datos.drawio`](diagramas/base-de-datos.drawio) (editable en draw.io) y [`diagramas/base-de-datos.svg`](diagramas/base-de-datos.svg).
 
@@ -98,12 +98,29 @@ Migración: `329a5a4ee4ad` (crear roles y usuarios), sobre `3cc091c1aa49` (zonas
 
 Migración: `7a76c3c1902d` (crear partidos), sobre `329a5a4ee4ad`.
 
+### `postulaciones`
+
+| Columna | Tipo | Restricciones |
+|---|---|---|
+| `id` | entero | clave primaria |
+| `partido_id` | entero | obligatorio, clave foránea a `partidos.id` |
+| `jugador_id` | entero | obligatorio, clave foránea a `usuarios.id` |
+| `created_at` | fecha y hora | obligatorio, hora de Argentina |
+| `estado` | texto | obligatorio: `en_espera` (por defecto), `aceptada`, `rechazada`, `retirada` o `revocada` |
+| `respondida_at` | fecha y hora | opcional: cuándo el organizador aceptó, rechazó o revocó |
+
+Restricción de tabla: `UNIQUE (partido_id, jugador_id)`.
+
+Migración: `120c063df0c0` (crear postulaciones), sobre `7a76c3c1902d`.
+
 ### Relaciones
 
 - Una zona tiene muchos complejos y cada complejo pertenece a una sola zona (`complejos.zona_id` apunta a `zonas.id`).
 - Un rol tiene muchos usuarios y cada usuario tiene un solo rol (`usuarios.rol_id` apunta a `roles.id`).
 - Un usuario organiza muchos partidos y cada partido tiene un solo organizador (`partidos.organizador_id` apunta a `usuarios.id`).
 - Un complejo tiene muchos partidos y cada partido se juega en un solo complejo (`partidos.complejo_id` apunta a `complejos.id`).
+- Un partido tiene muchas postulaciones y cada postulación es de un solo partido (`postulaciones.partido_id` apunta a `partidos.id`).
+- Un usuario tiene muchas postulaciones como jugador (`postulaciones.jugador_id` apunta a `usuarios.id`).
 
 ## 3. Decisiones
 
@@ -141,6 +158,14 @@ Partidos:
 - **El pase a jugado se guarda al consultar.** No hay tarea periódica: `GET /partidos/{id}` llama a `Partido.actualizar_estado` y, si el partido ya terminó, lo guarda como jugado. El listado solo muestra partidos que todavía no empezaron, así que no necesita revisarlos.
 - **Sin `sqlite_autoincrement`.** Los partidos no se borran: se cancelan (RQ7). Un id no se puede reutilizar.
 
+Postulaciones:
+
+- **Una sola por partido y jugador.** `UNIQUE (partido_id, jugador_id)`, aunque el jugador se haya retirado, lo hayan rechazado o el partido se reabra (decisión del equipo del 2026-11-11). `Partido.postular` lo controla y responde 409 con un motivo claro; la restricción de la base lo garantiza aunque lleguen dos pedidos al mismo tiempo.
+- **El WhatsApp no se guarda en la postulación.** Se lee de `usuarios` y se muestra según `Postulacion.whatsapp_visible()`: solo con la postulación aceptada y el partido sin cancelar.
+- **`estado` es un enum guardado como texto**, por el mismo motivo que en `partidos`.
+- **`created_at` y `respondida_at`** se llaman como en `clases.md`, y guardan la hora de Argentina sin zona, como `partidos.inicio`.
+- **`no_show` todavía no está.** Se agrega con su migración cuando lleguen las votaciones (RQ8).
+
 ## 4. Configuración y datos iniciales
 
 - **Conexión.** `DATABASE_URL` en `.env`, leída con `pydantic-settings` (`fulvo/settings.py`). En desarrollo es un archivo SQLite (`sqlite:///fulvo.db`, ignorado por git con `*.db`). En contenedor, CI y producción es PostgreSQL con `postgresql+psycopg://...`.
@@ -150,5 +175,5 @@ Partidos:
 
 ## 5. Pendiente
 
-- Tablas del resto de las clases (`Postulacion`, `Votacion`, `Notificacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
+- Tablas del resto de las clases (`Votacion`, `Notificacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
 - Datos de prueba: los tests de rutas cargan los roles y el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Los usuarios y los partidos de prueba salen de `UsuarioFactory` y `PartidoFactory` (`tests/factories.py`, con `factory-boy`, como la cátedra).

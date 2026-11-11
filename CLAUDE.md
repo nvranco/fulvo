@@ -69,15 +69,15 @@ Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/di
 | RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. | `GET /usuarios/yo`, `PATCH /usuarios/yo`, `GET /usuarios/{id}` | `tests/test_perfil.py` | hecho |
 | RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `GET /zonas`, `GET /complejos`, `GET /complejos/cercanos`, `GET /complejos/{id}` | `tests/test_complejos.py` | hecho (con base de datos) |
 | RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes (la duración es fija: 60 minutos). | `POST /partidos`, `GET /partidos/{id}` | `tests/test_partidos.py`, `tests/test_models.py` | hecho; el bloqueo por votaciones pendientes llega con RQ8 |
-| RQ5 | Listar partidos abiertos con filtros y postularse. | Listado: `GET /partidos` (filtros `zona`, `complejo_id` y `tipo`). Postularse: `TODO` | `tests/test_partidos.py` | parcial: falta postularse |
-| RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `TODO` | | pendiente |
-| RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `TODO` | | pendiente |
+| RQ5 | Listar partidos abiertos con filtros y postularse. | `GET /partidos` (filtros `zona`, `complejo_id` y `tipo`), `POST /partidos/{id}/postulaciones`, `GET /postulaciones` (las propias) | `tests/test_partidos.py`, `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py`, `tests/test_eventos.py` | hecho; el bloqueo por votaciones pendientes llega con RQ8 |
+| RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `GET /partidos/{id}/postulaciones` (lista de espera), `PATCH /partidos/{id}/postulaciones/{id}` (aceptar o rechazar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho; las notificaciones llegan con RQ9 |
+| RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `PATCH /postulaciones/{id}` (retirarse o bajarse), `PATCH /partidos/{id}/postulaciones/{id}` (revocar), `PATCH /partidos/{id}` (cancelar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho |
 | RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
 | RQ9 | Notificaciones dentro de la app. | `TODO` | | pendiente |
 | RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}` (409 si el complejo tiene partidos). Bloqueo: `TODO` | `tests/test_complejos.py`, `tests/test_permisos_admin.py`, `tests/test_partidos.py` | parcial: zonas y complejos hechos (solo admin, `exigir_admin`); falta el bloqueo de usuarios |
 | RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
-Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada. No debe aparecer en listados públicos ni en otros endpoints; la única excepción es el perfil propio (`GET /usuarios/yo`), donde cada usuario ve su propio número. Monetización (comisiones, suscripciones, pagos), reservas, amigos, chat y torneos están fuera del MVP.
+Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada y el partido no se canceló (`Postulacion.whatsapp_visible()`). No debe aparecer en listados públicos ni en otros endpoints; la única excepción es el perfil propio (`GET /usuarios/yo`), donde cada usuario ve su propio número. Monetización (comisiones, suscripciones, pagos), reservas, amigos, chat y torneos están fuera del MVP.
 
 ## 4. Stack técnico
 
@@ -152,6 +152,8 @@ fulvo/
 │   ├── models.py              # modelos SQLAlchemy
 │   ├── schemas.py             # esquemas Pydantic
 │   ├── security.py            # JWT y hash de contraseñas
+│   ├── eventos.py             # patrones Observer y Factory (ver sección 8)
+│   ├── errores.py             # errores del dominio, que la API responde como 409
 │   ├── carga_inicial.py       # carga fulvo/datos/complejos.csv en la base (idempotente)
 │   ├── datos/                 # complejos.csv: carga inicial, viaja con el código
 │   └── routes/                # un archivo por recurso (como la cátedra, aula 12)
@@ -163,7 +165,7 @@ fulvo/
 
 Las lecciones 03 a 11 de la cátedra ponen todas las rutas en `app.py`; la división en `fast_zero/routes/` (con `app.include_router`) aparece en la lección 12 y en `codigo_aulas/13`. Acá se adoptó antes porque cada recurso (`complejos`, `zonas`) tiene su archivo y `app.py` no crece.
 
-Si el patrón de diseño elegido necesita su propio módulo (por ejemplo `fulvo/servicios/`), se agrega y se documenta acá.
+Los patrones de diseño tienen su propio módulo, `fulvo/eventos.py` (decisión del 2026-11-11, ver sección 8).
 
 ## 6. Comandos
 
@@ -217,7 +219,7 @@ Requisito por máquina: el plugin de tareas, `pipx inject poetry 'poethepoet[poe
 
 - Se usan **excepciones**, no valores de retorno especiales.
 - Errores de la API con `HTTPException` y `detail` en español, claro y específico.
-- Si se definen excepciones propias de dominio, se traducen a `HTTPException` en un solo lugar.
+- Las reglas del dominio levantan `ReglaDeNegocioError` (`fulvo/errores.py`) sin saber nada de HTTP, y `app.py` la traduce a 409 en un solo lugar, con el mensaje como `detail`.
 
 ## 8. Arquitectura y patrón de diseño
 
@@ -230,7 +232,7 @@ Se aplican dos patrones:
 
 Por qué: `Partido` solo avisa y no sabe quién reacciona, así que agregar una consecuencia nueva no lo modifica. La fábrica concentra los mensajes de notificación en un solo lugar.
 
-Pendiente: en qué módulos de `fulvo/` viven las clases del patrón. Se documenta acá cuando se creen.
+Dónde viven (decisión del 2026-11-11): `TipoEvento`, `EventoPartido` y la interfaz `ObservadorPartido` están en `fulvo/eventos.py`, y ahí van a ir también `NotificadorPartido` y `FabricaNotificaciones` (RQ9) y `ProcesadorPostPartido` (RQ8). El sujeto, `Partido`, y `Postulacion` están en `fulvo/models.py`. La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Hoy ninguna ruta suma observadores: se van a sumar en `buscar_partido` (`fulvo/routes/partidos.py`) cuando lleguen RQ9 y RQ8.
 
 ## 9. Testing
 

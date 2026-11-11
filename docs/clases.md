@@ -107,7 +107,7 @@ Métodos:
 | Método | Qué hace | Evento que emite |
 |---|---|---|
 | `fin()` | Devuelve `inicio` + duración. | — |
-| `postular(jugador)` | Crea la postulación. Rechaza con excepción si el partido no está abierto, si el jugador es el organizador, si ya se postuló o si tiene deuda mayor que X. | `postulacion_recibida` |
+| `postular(jugador)` | Crea la postulación. Rechaza con excepción si el partido no está abierto o ya empezó, si el jugador es el organizador, si ya se postuló antes (aunque se haya retirado) o si tiene deuda mayor que X (RQ8). | `postulacion_recibida` |
 | `aceptar(postulacion)` | Resta 1 cupo. Si llega a 0, el partido pasa a completo y las postulaciones en espera pasan a rechazadas. | `postulacion_aceptada`, `partido_completo` |
 | `rechazar(postulacion)` | Marca la postulación rechazada. | `postulacion_rechazada` |
 | `revocar(postulacion)` | Suma 1 cupo y reabre el partido si estaba completo. | `revocacion` |
@@ -135,7 +135,7 @@ Métodos. `Postulacion` es dueña de sus propias transiciones de estado, y `Part
 | `retirar()` | Pasa de en espera o aceptada a retirada. |
 | `marcar_no_show()` | Solo si está aceptada y no está marcada. Pone `no_show` en verdadero. |
 | `quitar_no_show()` | Solo si está marcada. Pone `no_show` en falso. |
-| `whatsapp_visible()` | Verdadero solo si el estado es aceptada. Es la regla de exposición del WhatsApp. |
+| `whatsapp_visible()` | Verdadero solo si el estado es aceptada y el partido no está cancelado. Es la regla de exposición del WhatsApp. |
 
 Una transición inválida levanta una excepción (por ejemplo, aceptar una postulación ya rechazada). La regla de estados queda en un solo lugar. `Postulacion` no emite eventos.
 
@@ -238,6 +238,9 @@ Decisiones sobre el Observer:
     - `no_show_marcado`: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes.
 - Motivo de usar un segundo observador: los efectos de pasar a jugado y de marcar un no-show no viven dentro de `Partido`. `Partido` solo avisa y no sabe quién reacciona. Agregar otra reacción no lo modifica.
 - **`EventoPartido`:** lo que recibe `actualizar(evento)`. Lleva `tipo` (uno de los 9 eventos), `partido` y `postulacion` (opcional, solo en los eventos que nacen de una postulación). `Partido` lo crea al emitir. Así cada observador sabe qué partido y qué postulación originaron el aviso, sin buscarlos.
+- **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`, y ahí van a ir los observadores concretos y la fábrica. `Partido` y `Postulacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base.
+- **Fechas.** Los métodos que guardan o comparan una fecha (`postular`, `aceptar`, `rechazar`, `revocar` y `actualizar_estado`) reciben `ahora`, para poder probarlos con fechas fijas, como `edad(hoy)`. El diagrama no lo muestra.
+- **Errores.** Una transición inválida levanta `ReglaDeNegocioError` (`fulvo/errores.py`), que la API responde como 409.
 
 Decisiones sobre la Factory:
 
