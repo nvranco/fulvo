@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
-from fulvo.models import Complejo, Zona
+from fulvo.models import Complejo, Partido, Zona
 from fulvo.routes.zonas import buscar_zona
 from fulvo.schemas import (
     ComplejoCercano,
@@ -136,8 +136,22 @@ def leer_complejo(complejo_id: int, session: Session):
     dependencies=[Depends(exigir_admin)],
 )
 def borrar_complejo(complejo_id: int, session: Session):
-    """Elimina un complejo por id (RQ10, solo admin), o 404 si no existe."""
-    session.delete(buscar_complejo(session, complejo_id))
+    """Elimina un complejo por id (RQ10, solo admin).
+
+    404 si no existe y 409 si tiene partidos, de cualquier estado: un
+    partido jugado o cancelado también apunta a su complejo, y quedaría
+    huérfano (decisión del equipo del 2026-11-07).
+    """
+    complejo = buscar_complejo(session, complejo_id)
+    un_partido = session.scalar(
+        select(Partido.id).where(Partido.complejo_id == complejo.id).limit(1)
+    )
+    if un_partido is not None:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Error al borrar el complejo: aún tiene partidos agendados',
+        )
+    session.delete(complejo)
     session.commit()
     return {'mensaje': 'Complejo eliminado'}
 

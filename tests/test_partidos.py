@@ -433,3 +433,30 @@ def test_leer_partido_en_juego_sigue_abierto(client_usuario, session, usuario):
     respuesta = client_usuario.get(f'{PARTIDOS}/{partido.id}')
 
     assert respuesta.json()['estado'] == 'abierto'
+
+
+@pytest.mark.parametrize('estado', list(EstadoPartido))
+def test_borrar_complejo_con_partidos_devuelve_conflicto_y_no_lo_borra(
+    client_admin, session, usuario, estado
+):
+    # Vale para cualquier estado: un partido jugado o cancelado también
+    # apunta a su complejo.
+    guardar_partido(session, usuario, estado=estado)
+
+    respuesta = client_admin.delete('/complejos/1')
+
+    assert respuesta.status_code == HTTPStatus.CONFLICT
+    assert respuesta.json()['detail'] == (
+        'Error al borrar el complejo: aún tiene partidos agendados'
+    )
+    assert client_admin.get('/complejos/1').status_code == HTTPStatus.OK
+
+
+def test_borrar_complejo_con_partidos_en_otro_complejo_lo_permite(
+    client_admin, session, usuario
+):
+    guardar_partido(session, usuario, complejo_id=2)
+
+    respuesta = client_admin.delete('/complejos/1')
+
+    assert respuesta.status_code == HTTPStatus.OK
