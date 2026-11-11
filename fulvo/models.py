@@ -7,9 +7,13 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_as_dataclass,
     mapped_column,
+    reconstructor,
     registry,
     relationship,
 )
+
+from fulvo.errores import ReglaDeNegocioError
+from fulvo.eventos import EventoPartido, ObservadorPartido, TipoEvento
 
 # Registro de todos los modelos: guarda las tablas (`table_registry.metadata`)
 # para que Alembic y los tests puedan crearlas.
@@ -188,13 +192,24 @@ class EstadoPartido(str, Enum):
     cancelado = 'cancelado'
 
 
+def exigir(condicion: bool, mensaje: str) -> None:
+    """Levanta `ReglaDeNegocioError` con `mensaje` si no se cumple la regla.
+
+    Así cada regla del dominio se lee en una línea: `exigir(condición,
+    motivo)`. La API la responde como 409 (`app.py`).
+    """
+    if not condicion:
+        raise ReglaDeNegocioError(mensaje)
+
+
 @mapped_as_dataclass(table_registry)
 class Partido:
     """Partido publicado por un organizador al que le faltan jugadores (RQ4).
 
-    En el diseño es el sujeto del patrón Observer (`docs/clases.md`). Por
-    ahora solo maneja su estado; los avisos a los observadores llegan con
-    las postulaciones (RQ5 a RQ7).
+    Es el sujeto del patrón Observer (`docs/clases.md` y `fulvo/eventos.py`):
+    toda acción sobre el partido o sus postulaciones pasa por un método de
+    esta clase, que cambia el estado y avisa con un `EventoPartido` a sus
+    observadores. No sabe quiénes son ni qué hacen con el aviso.
     """
 
     __tablename__ = 'partidos'
@@ -224,10 +239,57 @@ class Partido:
     # Se cargan solas a partir de los ids, como `Complejo.zona`.
     organizador: Mapped[Usuario] = relationship(init=False)
     complejo: Mapped[Complejo] = relationship(init=False)
+    # Las postulaciones del partido, en el orden en que llegaron. Al sumar
+    # una a esta lista, SQLAlchemy la guarda con el partido en el commit.
+    postulaciones: Mapped[list['Postulacion']] = relationship(
+        init=False, back_populates='partido', order_by='Postulacion.id'
+    )
+
+    def __post_init__(self) -> None:
+        """Arranca sin observadores. Corre al crear un partido nuevo.
+
+        Los observadores no son una columna: viven solo en memoria mientras
+        dura el pedido, y cada ruta suma los que necesita.
+        """
+        self.observadores: list[ObservadorPartido] = []
+
+    @reconstructor
+    def al_leerse_de_la_base(self) -> None:
+        """Hace lo mismo que `__post_init__` con los partidos de la base.
+
+        SQLAlchemy no llama a `__init__` (ni a `__post_init__`) cuando trae
+        un objeto de la base: arma el objeto y llama a los métodos marcados
+        con `@reconstructor`. Sin esto, un partido leído no tendría lista de
+        observadores.
+        """
+        self.__post_init__()
+
+    def agregar_observador(self, observador: ObservadorPartido) -> None:
+        """Suma un observador, que va a recibir los eventos del partido."""
+        self.observadores.append(observador)
+
+    def quitar_observador(self, observador: ObservadorPartido) -> None:
+        """Deja de avisarle a un observador."""
+        self.observadores.remove(observador)
+
+    def notificar(self, evento: EventoPartido) -> None:
+        """Pasa el evento a cada observador, en el orden en que se sumaron."""
+        for observador in self.observadores:
+            observador.actualizar(evento)
+
+    def avisar(
+        self, tipo: TipoEvento, postulacion: 'Postulacion | None' = None
+    ) -> None:
+        """Arma el `EventoPartido` y lo notifica a los observadores."""
+        self.notificar(EventoPartido(tipo, self, postulacion))
 
     def fin(self) -> datetime:
         """Devuelve cuándo termina el partido: el inicio más la duración."""
         return self.inicio + timedelta(minutes=self.duracion_minutos)
+
+    def en_juego(self) -> bool:
+        """Dice si el partido sigue vigente: abierto o completo."""
+        return self.estado in {EstadoPartido.abierto, EstadoPartido.completo}
 
     def actualizar_estado(self, ahora: datetime) -> bool:
         """Pasa el partido a jugado si ya terminó, y dice si cambió.
@@ -236,13 +298,208 @@ class Partido:
         partido (`docs/requerimientos.md`). Solo cambian los abiertos y los
         completos: uno cancelado sigue cancelado aunque ya haya pasado su
         fecha. Recibe `ahora` en vez de leer el reloj para poder probarlo
-        con fechas fijas, como `Usuario.edad`.
+        con fechas fijas, como `Usuario.edad`. Si cambia, emite
+        `partido_jugado`.
         """
-        en_juego = self.estado in {
-            EstadoPartido.abierto,
-            EstadoPartido.completo,
-        }
-        if en_juego and ahora >= self.fin():
+        if self.en_juego() and ahora >= self.fin():
             self.estado = EstadoPartido.jugado
+            self.avisar(TipoEvento.partido_jugado)
             return True
         return False
+
+    def postular(self, jugador: Usuario, ahora: datetime) -> 'Postulacion':
+        """Crea la postulación del jugador, en espera, y la devuelve (RQ5).
+
+        El partido tiene que estar abierto y sin empezar, el jugador no
+        puede ser el organizador y no puede tener otra postulación a este
+        partido, aunque la anterior se haya retirado o rechazado (decisión
+        del equipo del 2026-11-11). El bloqueo por votaciones pendientes
+        llega con RQ8.
+        """
+        exigir(
+            self.estado == EstadoPartido.abierto, 'El partido no está abierto'
+        )
+        exigir(ahora < self.inicio, 'El partido ya empezó')
+        exigir(
+            jugador.id != self.organizador_id,
+            'El organizador no puede postularse a su propio partido',
+        )
+        exigir(
+            all(p.jugador_id != jugador.id for p in self.postulaciones),
+            'El jugador ya se postuló a este partido',
+        )
+        postulacion = Postulacion(
+            partido_id=self.id, jugador_id=jugador.id, created_at=ahora
+        )
+        self.postulaciones.append(postulacion)
+        self.avisar(TipoEvento.postulacion_recibida, postulacion)
+        return postulacion
+
+    def aceptar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
+        """Acepta una postulación en espera y resta un cupo (RQ6).
+
+        Si los cupos llegan a 0, el partido pasa a completo y las
+        postulaciones que seguían en espera pasan a rechazadas. Por cada una
+        se emite `partido_completo`, porque el aviso es para cada postulante
+        que quedó afuera (`clases.md`).
+        """
+        exigir(
+            self.estado == EstadoPartido.abierto, 'El partido no está abierto'
+        )
+        postulacion.aceptar(ahora)
+        self.cupos_faltantes -= 1
+        self.avisar(TipoEvento.postulacion_aceptada, postulacion)
+        if self.cupos_faltantes == 0:
+            self.estado = EstadoPartido.completo
+            for otra in self.postulaciones:
+                if otra.estado == EstadoPostulacion.en_espera:
+                    otra.rechazar(ahora)
+                    self.avisar(TipoEvento.partido_completo, otra)
+
+    def rechazar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
+        """Rechaza una postulación en espera (RQ6)."""
+        exigir(
+            self.estado == EstadoPartido.abierto, 'El partido no está abierto'
+        )
+        postulacion.rechazar(ahora)
+        self.avisar(TipoEvento.postulacion_rechazada, postulacion)
+
+    def revocar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
+        """Revoca a un aceptado: libera su cupo (RQ7)."""
+        exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        postulacion.revocar(ahora)
+        self.liberar_cupo()
+        self.avisar(TipoEvento.revocacion, postulacion)
+
+    def retirar(self, postulacion: 'Postulacion') -> None:
+        """El jugador retira su postulación o, si estaba aceptado, se baja.
+
+        Si estaba aceptado, libera su cupo (RQ7). Las dos cosas son el mismo
+        evento, `postulacion_retirada` (`requerimientos.md`).
+        """
+        exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        estaba_aceptada = postulacion.estado == EstadoPostulacion.aceptada
+        postulacion.retirar()
+        if estaba_aceptada:
+            self.liberar_cupo()
+        self.avisar(TipoEvento.postulacion_retirada, postulacion)
+
+    def liberar_cupo(self) -> None:
+        """Suma un cupo y, si el partido estaba completo, lo reabre."""
+        self.cupos_faltantes += 1
+        if self.estado == EstadoPartido.completo:
+            self.estado = EstadoPartido.abierto
+
+    def cancelar(self) -> None:
+        """Cancela el partido (RQ7).
+
+        Las postulaciones no cambian de estado, pero el WhatsApp deja de
+        verse (`Postulacion.whatsapp_visible`).
+        """
+        exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        self.estado = EstadoPartido.cancelado
+        self.avisar(TipoEvento.partido_cancelado)
+
+
+class EstadoPostulacion(str, Enum):
+    """Estados de una postulación (`docs/requerimientos.md`, sección 4)."""
+
+    en_espera = 'en_espera'
+    aceptada = 'aceptada'
+    rechazada = 'rechazada'
+    retirada = 'retirada'
+    revocada = 'revocada'
+
+
+@mapped_as_dataclass(table_registry)
+class Postulacion:
+    """Pedido de un jugador para sumarse a un partido (RQ5 a RQ7).
+
+    Es dueña de sus transiciones de estado: cada método revisa desde qué
+    estado se puede pasar y, si no se puede, levanta `ReglaDeNegocioError`.
+    No emite eventos: los emite `Partido`, que es quien llama a estos
+    métodos (`clases.md`).
+    """
+
+    __tablename__ = 'postulaciones'
+    # Un jugador se postula una sola vez a cada partido, aunque se retire o
+    # lo rechacen (decisión del equipo del 2026-11-11). `Partido.postular`
+    # lo controla, y la base lo garantiza aunque lleguen dos pedidos juntos.
+    __table_args__ = (UniqueConstraint('partido_id', 'jugador_id'),)
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    partido_id: Mapped[int] = mapped_column(ForeignKey('partidos.id'))
+    jugador_id: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
+    created_at: Mapped[datetime]
+    estado: Mapped[EstadoPostulacion] = mapped_column(
+        EnumSQL(EstadoPostulacion, native_enum=False),
+        default=EstadoPostulacion.en_espera,
+    )
+    # Cuándo respondió el organizador: al aceptar, rechazar o revocar.
+    respondida_at: Mapped[datetime | None] = mapped_column(default=None)
+
+    partido: Mapped[Partido] = relationship(
+        init=False, back_populates='postulaciones'
+    )
+    jugador: Mapped[Usuario] = relationship(init=False)
+
+    def pasar(
+        self,
+        desde: set[EstadoPostulacion],
+        hacia: EstadoPostulacion,
+        mensaje: str,
+    ) -> None:
+        """Cambia al estado `hacia` si el actual está en `desde`; si no, 409.
+
+        Es la única regla de estados de la postulación: los métodos de
+        abajo solo dicen desde dónde y hacia dónde se puede pasar.
+        """
+        exigir(self.estado in desde, mensaje)
+        self.estado = hacia
+
+    def aceptar(self, ahora: datetime) -> None:
+        """De en espera a aceptada; guarda cuándo respondió el organizador."""
+        self.pasar(
+            {EstadoPostulacion.en_espera},
+            EstadoPostulacion.aceptada,
+            'Solo se puede aceptar una postulación en espera',
+        )
+        self.respondida_at = ahora
+
+    def rechazar(self, ahora: datetime) -> None:
+        """De en espera a rechazada; guarda cuándo respondió el organizador."""
+        self.pasar(
+            {EstadoPostulacion.en_espera},
+            EstadoPostulacion.rechazada,
+            'Solo se puede rechazar una postulación en espera',
+        )
+        self.respondida_at = ahora
+
+    def revocar(self, ahora: datetime) -> None:
+        """De aceptada a revocada; guarda cuándo respondió el organizador."""
+        self.pasar(
+            {EstadoPostulacion.aceptada},
+            EstadoPostulacion.revocada,
+            'Solo se puede revocar una postulación aceptada',
+        )
+        self.respondida_at = ahora
+
+    def retirar(self) -> None:
+        """De en espera o aceptada a retirada: la decisión es del jugador."""
+        self.pasar(
+            {EstadoPostulacion.en_espera, EstadoPostulacion.aceptada},
+            EstadoPostulacion.retirada,
+            'Solo se puede retirar una postulación en espera o aceptada',
+        )
+
+    def whatsapp_visible(self) -> bool:
+        """Dice si el organizador y el jugador se ven el WhatsApp.
+
+        Solo mientras la postulación está aceptada y el partido no se
+        canceló (decisión del equipo del 2026-11-11). Es la única regla de
+        exposición del WhatsApp: las rutas la consultan y no la repiten.
+        """
+        return (
+            self.estado == EstadoPostulacion.aceptada
+            and self.partido.estado != EstadoPartido.cancelado
+        )
