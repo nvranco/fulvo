@@ -75,6 +75,9 @@ inmutable = 'inmutable'
 responde = 'responde'
 ser = 'ser'
 imposible = 'imposible'
+Notificacion = 'Notificacion'
+notificacion = 'notificacion'
+dependencias = 'dependencias'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.

@@ -7,6 +7,7 @@ from fulvo.errores import ReglaDeNegocioError
 from fulvo.routes import (
     auth,
     complejos,
+    notificaciones,
     partidos,
     postulaciones,
     usuarios,
@@ -20,6 +21,7 @@ app.include_router(usuarios.router)
 app.include_router(auth.router)
 app.include_router(partidos.router)
 app.include_router(postulaciones.router)
+app.include_router(notificaciones.router)
 
 
 @app.exception_handler(ReglaDeNegocioError)

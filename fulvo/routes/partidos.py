@@ -18,6 +18,7 @@ from fulvo.models import (
     Usuario,
     ahora_argentina,
 )
+from fulvo.observadores import NotificadorPartido
 from fulvo.routes.complejos import buscar_complejo, complejo_publico
 from fulvo.routes.zonas import buscar_zona
 from fulvo.schemas import (
@@ -147,22 +148,35 @@ def listar_partidos_abiertos(
     return {'partidos': [partido_publico(p) for p in partidos]}
 
 
-def buscar_partido(session: Session, partido_id: int) -> Partido:
-    """Devuelve el partido con ese id, ya al día, o levanta 404.
+def preparar_partido(session: Session, partido: Partido) -> None:
+    """Le suma al partido sus observadores y lo pone al día.
 
-    "Al día" quiere decir que antes revisa si ya terminó: es el pase a
-    jugado al consultar que pide `docs/requerimientos.md`. Lo usan todas
-    las rutas que reciben un partido, así ninguna trabaja con un estado
-    viejo; el commit de cada ruta guarda el cambio. Cuando lleguen las
-    notificaciones (RQ9) y las votaciones (RQ8), acá se le suman al partido
-    sus observadores, antes de que pase cualquier cosa.
+    Los observadores no se guardan en la base: cada pedido los suma, antes
+    de que pase cualquier cosa. Si el partido ya los tiene (porque ya está
+    en memoria en esta sesión), no se repiten: si no, cada evento se
+    notificaría dos veces. Con las votaciones (RQ8) se suma acá
+    `ProcesadorPostPartido`.
+
+    Después revisa si ya terminó: es el pase a jugado al consultar que pide
+    `docs/requerimientos.md`. El commit de cada ruta guarda el cambio.
+    """
+    if not partido.observadores:
+        partido.agregar_observador(NotificadorPartido(session))
+    partido.actualizar_estado(ahora_argentina())
+
+
+def buscar_partido(session: Session, partido_id: int) -> Partido:
+    """Devuelve el partido con ese id, preparado, o levanta 404.
+
+    Lo usan todas las rutas que reciben un partido, así ninguna trabaja con
+    un estado viejo ni sin sus observadores.
     """
     partido = session.get(Partido, partido_id)
     if partido is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='Partido no encontrado'
         )
-    partido.actualizar_estado(ahora_argentina())
+    preparar_partido(session, partido)
     return partido
 
 

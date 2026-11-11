@@ -70,10 +70,10 @@ Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/di
 | RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `GET /zonas`, `GET /complejos`, `GET /complejos/cercanos`, `GET /complejos/{id}` | `tests/test_complejos.py` | hecho (con base de datos) |
 | RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes (la duración es fija: 60 minutos). | `POST /partidos`, `GET /partidos/{id}` | `tests/test_partidos.py`, `tests/test_models.py` | hecho; el bloqueo por votaciones pendientes llega con RQ8 |
 | RQ5 | Listar partidos abiertos con filtros y postularse. | `GET /partidos` (filtros `zona`, `complejo_id` y `tipo`), `POST /partidos/{id}/postulaciones`, `GET /postulaciones` (las propias) | `tests/test_partidos.py`, `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py`, `tests/test_eventos.py` | hecho; el bloqueo por votaciones pendientes llega con RQ8 |
-| RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `GET /partidos/{id}/postulaciones` (lista de espera), `PATCH /partidos/{id}/postulaciones/{id}` (aceptar o rechazar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho; las notificaciones llegan con RQ9 |
+| RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `GET /partidos/{id}/postulaciones` (lista de espera), `PATCH /partidos/{id}/postulaciones/{id}` (aceptar o rechazar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho |
 | RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `PATCH /postulaciones/{id}` (retirarse o bajarse), `PATCH /partidos/{id}/postulaciones/{id}` (revocar), `PATCH /partidos/{id}` (cancelar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho |
 | RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
-| RQ9 | Notificaciones dentro de la app. | `TODO` | | pendiente |
+| RQ9 | Notificaciones dentro de la app. | `GET /notificaciones` (las propias, filtro `leida`), `PATCH /notificaciones/{id}` (marcar como leída). Las crea `NotificadorPartido` al pasar algo en un partido | `tests/test_notificaciones.py`, `tests/test_observadores.py` | hecho; "votaciones pendientes" llega con RQ8 y "reclamo resuelto" con RQ11 |
 | RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}` (409 si el complejo tiene partidos). Bloqueo: `TODO` | `tests/test_complejos.py`, `tests/test_permisos_admin.py`, `tests/test_partidos.py` | parcial: zonas y complejos hechos (solo admin, `exigir_admin`); falta el bloqueo de usuarios |
 | RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
@@ -152,7 +152,8 @@ fulvo/
 │   ├── models.py              # modelos SQLAlchemy
 │   ├── schemas.py             # esquemas Pydantic
 │   ├── security.py            # JWT y hash de contraseñas
-│   ├── eventos.py             # patrones Observer y Factory (ver sección 8)
+│   ├── eventos.py             # patrón Observer: evento e interfaz (ver sección 8)
+│   ├── observadores.py        # observadores concretos y fábrica de notificaciones (Factory)
 │   ├── errores.py             # errores del dominio, que la API responde como 409
 │   ├── carga_inicial.py       # carga fulvo/datos/complejos.csv en la base (idempotente)
 │   ├── datos/                 # complejos.csv: carga inicial, viaja con el código
@@ -165,7 +166,7 @@ fulvo/
 
 Las lecciones 03 a 11 de la cátedra ponen todas las rutas en `app.py`; la división en `fast_zero/routes/` (con `app.include_router`) aparece en la lección 12 y en `codigo_aulas/13`. Acá se adoptó antes porque cada recurso (`complejos`, `zonas`) tiene su archivo y `app.py` no crece.
 
-Los patrones de diseño tienen su propio módulo, `fulvo/eventos.py` (decisión del 2026-11-11, ver sección 8).
+Los patrones de diseño tienen sus propios módulos: `fulvo/eventos.py` (la parte genérica del Observer) y `fulvo/observadores.py` (los observadores concretos y la Factory). Decisión del 2026-11-11, ver sección 8.
 
 ## 6. Comandos
 
@@ -232,7 +233,15 @@ Se aplican dos patrones:
 
 Por qué: `Partido` solo avisa y no sabe quién reacciona, así que agregar una consecuencia nueva no lo modifica. La fábrica concentra los mensajes de notificación en un solo lugar.
 
-Dónde viven (decisión del 2026-11-11): `TipoEvento`, `EventoPartido` y la interfaz `ObservadorPartido` están en `fulvo/eventos.py`, y ahí van a ir también `NotificadorPartido` y `FabricaNotificaciones` (RQ9) y `ProcesadorPostPartido` (RQ8). El sujeto, `Partido`, y `Postulacion` están en `fulvo/models.py`. La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Hoy ninguna ruta suma observadores: se van a sumar en `buscar_partido` (`fulvo/routes/partidos.py`) cuando lleguen RQ9 y RQ8.
+Dónde viven (decisiones del 2026-11-11):
+
+- `fulvo/eventos.py`: la parte genérica del Observer, `TipoEvento`, `EventoPartido` y la interfaz `ObservadorPartido`. No importa ningún modelo.
+- `fulvo/observadores.py`: los observadores concretos y la fábrica. Hoy `NotificadorPartido` y `FabricaNotificaciones` (RQ9); con RQ8 se suma `ProcesadorPostPartido`.
+- `fulvo/models.py`: el sujeto (`Partido`), `Postulacion` y `Notificacion`.
+
+Van separados porque `models.py` importa `eventos.py` (para emitir eventos) y los observadores necesitan los modelos (por ejemplo, la fábrica crea `Notificacion`). En un solo archivo, `models.py` y `eventos.py` se importarían mutuamente y Python no podría cargarlos. Así las dependencias van en un solo sentido: `observadores.py` → `models.py` → `eventos.py`.
+
+La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Cada pedido suma los observadores en `preparar_partido` (`fulvo/routes/partidos.py`), una sola vez por partido, antes de cualquier acción. `NotificadorPartido` suma las notificaciones a la sesión del pedido, y el commit de la ruta las guarda junto con el cambio que las originó.
 
 ## 9. Testing
 

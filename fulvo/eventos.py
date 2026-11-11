@@ -5,11 +5,11 @@ pasa a cada uno de sus observadores. No sabe quién reacciona ni cómo, así que
 sumar una consecuencia nueva (una notificación, una votación pendiente) no lo
 modifica.
 
-Hoy el módulo tiene el evento y la interfaz. Los observadores concretos
-llegan con sus requerimientos: `NotificadorPartido` y la fábrica
-`FabricaNotificaciones` con las notificaciones (RQ9), y
-`ProcesadorPostPartido` con las votaciones (RQ8). Todos van en este módulo
-(decisión del equipo del 2026-11-11).
+Este módulo tiene la parte genérica del patrón: el evento y la interfaz.
+Los observadores concretos (`NotificadorPartido` y, con RQ8,
+`ProcesadorPostPartido`) y la fábrica `FabricaNotificaciones` están en
+`fulvo/observadores.py`, porque necesitan los modelos y `models.py` ya
+importa este módulo (decisión del equipo del 2026-11-11).
 """
 
 from abc import ABC, abstractmethod

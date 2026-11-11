@@ -6,8 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
-from fulvo.models import Postulacion, ahora_argentina
-from fulvo.routes.partidos import buscar_partido, mi_postulacion
+from fulvo.models import Postulacion
+from fulvo.routes.partidos import (
+    buscar_partido,
+    mi_postulacion,
+    preparar_partido,
+)
 from fulvo.schemas import (
     ListaMisPostulaciones,
     MiPostulacion,
@@ -31,8 +35,8 @@ def listar_mis_postulaciones(
     """Postulaciones del usuario, de la más nueva a la más vieja (RQ5).
 
     Cada una trae su partido y, si está aceptada, el WhatsApp del
-    organizador (RQ6). Antes revisa si cada partido ya terminó, como
-    cualquier consulta de un partido.
+    organizador (RQ6). Antes prepara cada partido (observadores y pase a
+    jugado), como cualquier consulta de un partido.
     """
     consulta = (
         select(Postulacion)
@@ -42,9 +46,8 @@ def listar_mis_postulaciones(
         .limit(filtro.limit)
     )
     postulaciones = session.scalars(consulta).all()
-    ahora = ahora_argentina()
     for postulacion in postulaciones:
-        postulacion.partido.actualizar_estado(ahora)
+        preparar_partido(session, postulacion.partido)
     session.commit()
     return {'postulaciones': [mi_postulacion(p) for p in postulaciones]}
 

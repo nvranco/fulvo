@@ -503,3 +503,53 @@ class Postulacion:
             self.estado == EstadoPostulacion.aceptada
             and self.partido.estado != EstadoPartido.cancelado
         )
+
+
+class TipoNotificacion(str, Enum):
+    """Tipos de notificación (`docs/requerimientos.md`, sección 4).
+
+    Están los que generan las postulaciones y los partidos. "Votaciones
+    pendientes" se suma con las votaciones (RQ8) y "reclamo resuelto" con
+    los reclamos (RQ11).
+    """
+
+    postulacion_recibida = 'postulacion_recibida'
+    postulacion_aceptada = 'postulacion_aceptada'
+    postulacion_rechazada = 'postulacion_rechazada'
+    partido_completo = 'partido_completo'
+    postulacion_retirada = 'postulacion_retirada'
+    revocacion = 'revocacion'
+    partido_cancelado = 'partido_cancelado'
+
+
+@mapped_as_dataclass(table_registry)
+class Notificacion:
+    """Aviso dentro de la app para un usuario (RQ9).
+
+    No se arma a mano: la crea `FabricaNotificaciones`
+    (`fulvo/observadores.py`), que es la única que conoce los textos. La
+    referencia (tipo e id) dice qué originó el aviso. No es una clave
+    foránea, porque puede apuntar a una postulación o a un partido
+    (`clases.md`).
+    """
+
+    __tablename__ = 'notificaciones'
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    # El destinatario.
+    usuario_id: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
+    # Largo fijo de 30: así se pueden sumar los tipos de RQ8 y RQ11 sin
+    # migrar la columna (como texto, el largo sale del valor más largo).
+    tipo: Mapped[TipoNotificacion] = mapped_column(
+        EnumSQL(TipoNotificacion, native_enum=False, length=30)
+    )
+    mensaje: Mapped[str]
+    # "postulacion" o "partido".
+    referencia_tipo: Mapped[str]
+    referencia_id: Mapped[int]
+    created_at: Mapped[datetime]
+    leida: Mapped[bool] = mapped_column(default=False)
+
+    def marcar_leida(self) -> None:
+        """Marca la notificación como leída. Repetirlo no cambia nada."""
+        self.leida = True
