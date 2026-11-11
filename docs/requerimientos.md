@@ -35,7 +35,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 | RQ1 | Registrarse e iniciar sesión. Email y contraseña, edad mínima 16. Sin verificación de cuenta en el MVP. | [01](diagramas/01-registro-y-login.md) |
 | RQ2 | Perfil: nombre, apellido, WhatsApp, fecha de nacimiento, posición. Puntuación promedio y partidos jugados son calculados, solo lectura. Perfil público muestra nombre, posición, puntuación y partidos jugados. El apellido no es público. | — |
 | RQ3 | Ver zonas y complejos. Cada complejo tiene ubicación (latitud y longitud) para mostrarlo en un mapa y buscar los que están dentro de un radio en km alrededor de un punto, ordenados por distancia. | — |
-| RQ4 | Publicar partido: complejo, fecha, hora, duración, tipo (F5/F7/F8/F11), cupos faltantes. | [02](diagramas/02-publicar-partido-y-postularse.md) |
+| RQ4 | Publicar partido: complejo, fecha, hora, tipo (F5/F7/F8/F11) y cupos faltantes. La duración es fija: 60 minutos. | [02](diagramas/02-publicar-partido-y-postularse.md) |
 | RQ5 | Listar partidos abiertos con filtros por zona, complejo y tipo. Postularse a un partido. | [02](diagramas/02-publicar-partido-y-postularse.md) |
 | RQ6 | Organizador ve la lista de espera, acepta, rechaza o revoca postulantes. Al aceptar, organizador y aceptado se ven el WhatsApp mutuamente. | [03](diagramas/03-aceptar-jugador-y-whatsapp.md) |
 | RQ7 | Cancelar: postulante retira postulación, organizador cancela partido, aceptado se baja, organizador revoca aceptado. | [04](diagramas/04-cancelaciones.md) |
@@ -56,7 +56,11 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 **Partido**
 
 - Una sola entidad: partido con cupos. No hay "alerta" aparte.
-- Datos: organizador, complejo, fecha y hora, duración en minutos (60 por defecto), tipo, cupos faltantes, estado.
+- Datos: organizador, complejo, fecha y hora, duración en minutos (siempre 60: el organizador no la elige), tipo, cupos faltantes, estado.
+- La fecha y la hora son de Argentina. Si llegan con otra zona horaria, se convierten.
+- Solo se publica un partido que empieza en el futuro.
+- Cupos faltantes: como mínimo 1 y como máximo los jugadores del tipo menos el organizador, que también juega. F5 hasta 9, F7 hasta 13, F8 hasta 15 y F11 hasta 21.
+- El listado de partidos abiertos muestra solo los que todavía no empezaron, del más próximo al más lejano. El listado y el detalle piden sesión iniciada, porque muestran el perfil público del organizador.
 - El grupo del organizador no son usuarios del sistema. Solo se guarda cuántos faltan.
 - Un partido publicado no se edita: se cancela y se crea otro.
 - El pase a jugado se revisa cada vez que se consulta el partido. No hay tarea periódica.
@@ -149,7 +153,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - La búsqueda de cercanos recibe un punto (latitud y longitud) y un radio en km. Devuelve los complejos dentro del radio, ordenados por distancia.
 - Los datos iniciales salen de un CSV (`fulvo/datos/complejos.csv`, armado a mano desde Google Maps) que la API carga al arrancar. También se pueden agregar zonas y complejos con la API.
 - Usuarios no crean ni editan complejos. Solo el admin edita. Las altas, ediciones y bajas exigen rol admin; las lecturas son públicas.
-- Un complejo con partidos no se puede borrar. La API responde 409 con el mensaje "Error al borrar el complejo: aún tiene partidos agendados". Cuenta cualquier partido del complejo, también los jugados y los cancelados, porque siguen apuntando a él. Se implementa con RQ4, cuando exista `Partido`.
+- Un complejo con partidos no se puede borrar. La API responde 409 con el mensaje "Error al borrar el complejo: aún tiene partidos agendados". Cuenta cualquier partido del complejo, también los jugados y los cancelados, porque siguen apuntando a él.
 
 ## 5. Requerimientos no funcionales
 

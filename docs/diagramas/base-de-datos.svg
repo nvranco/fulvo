@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="940" viewBox="0 0 940 940" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="940" viewBox="0 0 1360 940" font-family="Helvetica, Arial, sans-serif" font-size="12">
 <rect width="100%" height="100%" fill="#ffffff"/>
-<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles y usuarios</text>
+<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles, usuarios y partidos</text>
 <rect x="40" y="60" width="300" height="104" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="40" y="60" width="300" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="190.0" y="78" text-anchor="middle" font-weight="bold">zonas</text>
@@ -77,4 +77,35 @@
 <text x="48" y="752" font-size="11">Las puntuaciones y partidos_jugados los</text>
 <text x="48" y="770" font-size="11">calcula la app (RQ8). La sanción del</text>
 <text x="48" y="788" font-size="11">bloqueo llega con RQ10 (tabla sanciones).</text>
+<rect x="960" y="300" width="360" height="234" fill="#ffffff" stroke="#6c8ebf"/>
+<rect x="960" y="300" width="360" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
+<text x="1140.0" y="318" text-anchor="middle" font-weight="bold">partidos</text>
+<text x="968" y="344" font-weight="bold">PK  id: INTEGER</text>
+<text x="968" y="370">FK  complejo_id: INTEGER  NOT NULL</text>
+<text x="968" y="396">FK  organizador_id: INTEGER  NOT NULL</text>
+<text x="968" y="422">inicio: DATETIME  NOT NULL</text>
+<text x="968" y="448">tipo: VARCHAR  NOT NULL (F5, F7, F8, F11)</text>
+<text x="968" y="474">cupos_faltantes: INTEGER  NOT NULL</text>
+<text x="968" y="500">duracion_minutos: INTEGER  NOT NULL, default 60</text>
+<text x="968" y="526">estado: VARCHAR  NOT NULL, default abierto</text>
+<polyline points="880,99 920,99 920,365 960,365" fill="none" stroke="#333"/>
+<line x1="890" y1="93" x2="890" y2="105" stroke="#333"/>
+<line x1="896" y1="93" x2="896" y2="105" stroke="#333"/>
+<line x1="946" y1="365" x2="960" y2="358" stroke="#333"/>
+<line x1="946" y1="365" x2="960" y2="372" stroke="#333"/>
+<line x1="946" y1="365" x2="960" y2="365" stroke="#333"/>
+<polyline points="880,569 930,569 930,391 960,391" fill="none" stroke="#333"/>
+<line x1="890" y1="563" x2="890" y2="575" stroke="#333"/>
+<line x1="896" y1="563" x2="896" y2="575" stroke="#333"/>
+<line x1="946" y1="391" x2="960" y2="384" stroke="#333"/>
+<line x1="946" y1="391" x2="960" y2="398" stroke="#333"/>
+<line x1="946" y1="391" x2="960" y2="391" stroke="#333"/>
+<text x="960" y="562" font-size="11">1 complejo : N partidos (partidos.complejo_id -&gt; complejos.id)</text>
+<text x="960" y="580" font-size="11">1 usuario : N partidos (partidos.organizador_id -&gt; usuarios.id)</text>
+<rect x="960" y="604" width="300" height="104" fill="#fff2cc" stroke="#d6b656"/>
+<text x="968" y="626" font-size="11">Nota: inicio se guarda en hora de Argentina,</text>
+<text x="968" y="644" font-size="11">sin zona horaria. tipo y estado son enums</text>
+<text x="968" y="662" font-size="11">que se guardan como texto. La duración es</text>
+<text x="968" y="680" font-size="11">siempre de 60 minutos. Un complejo con</text>
+<text x="968" y="698" font-size="11">partidos no se puede borrar (409).</text>
 </svg>
