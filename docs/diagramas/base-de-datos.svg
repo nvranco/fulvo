@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1780" viewBox="0 0 1420 1780" font-family="Helvetica, Arial, sans-serif" font-size="12">
 <rect width="100%" height="100%" fill="#ffffff"/>
-<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles, usuarios, partidos, postulaciones, notificaciones y votaciones</text>
+<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles, usuarios, partidos, postulaciones, notificaciones, votaciones y sanciones</text>
 <rect x="40" y="60" width="300" height="104" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="40" y="60" width="300" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="190.0" y="78" text-anchor="middle" font-weight="bold">zonas</text>
@@ -76,8 +76,8 @@
 <text x="48" y="716" font-size="11">contrasena_hash guarda el hash argon2,</text>
 <text x="48" y="734" font-size="11">nunca la contraseña.</text>
 <text x="48" y="752" font-size="11">Las puntuaciones y partidos_jugados los</text>
-<text x="48" y="770" font-size="11">calcula la app (RQ8). La sanción del</text>
-<text x="48" y="788" font-size="11">bloqueo llega con RQ10 (tabla sanciones).</text>
+<text x="48" y="770" font-size="11">calcula la app (RQ8). Cada bloqueo queda</text>
+<text x="48" y="788" font-size="11">registrado en sanciones (RQ10).</text>
 <rect x="960" y="300" width="360" height="234" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="960" y="300" width="360" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="1140.0" y="318" text-anchor="middle" font-weight="bold">partidos</text>
@@ -203,4 +203,32 @@
 <text x="968" y="1712" font-size="11">emisor y receptor en cada partido (UNIQUE).</text>
 <text x="968" y="1730" font-size="11">Las pendientes se borran con un no-show:</text>
 <text x="968" y="1748" font-size="11">la tabla no reutiliza ids (AUTOINCREMENT).</text>
+<rect x="40" y="980" width="300" height="182" fill="#ffffff" stroke="#6c8ebf"/>
+<rect x="40" y="980" width="300" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
+<text x="190.0" y="998" text-anchor="middle" font-weight="bold">sanciones</text>
+<text x="48" y="1024" font-weight="bold">PK  id: INTEGER</text>
+<text x="48" y="1050">FK  usuario_id: INTEGER  NOT NULL</text>
+<text x="48" y="1076">FK  aplicada_por_id: INTEGER  NOT NULL</text>
+<text x="48" y="1102">motivo: VARCHAR  NOT NULL</text>
+<text x="48" y="1128">desde: DATETIME  NOT NULL</text>
+<text x="48" y="1154">hasta: DATETIME  NULL</text>
+<line x1="510" y1="563" x2="510" y2="575" stroke="#333"/>
+<line x1="504" y1="563" x2="504" y2="575" stroke="#333"/>
+<polyline points="520,569 470,569 470,1045 340,1045" fill="none" stroke="#333"/>
+<line x1="354" y1="1045" x2="340" y2="1038" stroke="#333"/>
+<line x1="354" y1="1045" x2="340" y2="1052" stroke="#333"/>
+<line x1="354" y1="1045" x2="340" y2="1045" stroke="#333"/>
+<polyline points="520,569 470,569 470,1071 340,1071" fill="none" stroke="#333"/>
+<line x1="354" y1="1071" x2="340" y2="1064" stroke="#333"/>
+<line x1="354" y1="1071" x2="340" y2="1078" stroke="#333"/>
+<line x1="354" y1="1071" x2="340" y2="1071" stroke="#333"/>
+<text x="40" y="1190" font-size="11">1 usuario : N sanciones (usuario_id -&gt; usuarios.id)</text>
+<text x="40" y="1208" font-size="11">1 admin : N sanciones (aplicada_por_id -&gt; usuarios.id)</text>
+<rect x="40" y="1232" width="300" height="130" fill="#fff2cc" stroke="#d6b656"/>
+<text x="48" y="1254" font-size="11">Nota: una fila por bloqueo, que no se borra:</text>
+<text x="48" y="1272" font-size="11">desbloquear completa hasta. Una sola activa</text>
+<text x="48" y="1290" font-size="11">por usuario (lo controla el modelo).</text>
+<text x="48" y="1308" font-size="11">usuarios.bloqueado se mantiene al día con</text>
+<text x="48" y="1326" font-size="11">la sanción. El reclamo de origen (opcional)</text>
+<text x="48" y="1344" font-size="11">llega con RQ11.</text>
 </svg>

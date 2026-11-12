@@ -39,6 +39,9 @@ Decisiones:
 - Las votaciones que emite el usuario son una lista (`Usuario.votaciones`), como las postulaciones de un partido. Se crean sumándolas a esa lista y se borran sacándolas (`delete-orphan`): así la lista en memoria nunca queda vieja y `deuda()` no consulta la base.
 - `quitar_puntuacion` llega con los reclamos (RQ11), que son los que la usan.
 - El bloqueo lo hace `Usuario.bloquear(...)`, que crea la `Sancion`. `Sancion.cerrar()` pone la fecha de fin.
+- En el código (RQ10), `bloquear(admin, motivo, ahora)` devuelve la sanción y levanta `ReglaDeNegocioError` (409) si el usuario es admin, incluido uno mismo, o si ya está bloqueado (decisión del equipo del 2026-11-12). El reclamo de origen se suma con los reclamos (RQ11). `desbloquear(sancion, ahora)` recibe la sanción que se cierra, porque la API la nombra por su id. Las dos reciben `ahora` para probarlas con fechas fijas, como `Votacion.emitir`.
+- Las sanciones son una lista del usuario (`Usuario.sanciones`) que nunca se borra: es su historial. `bloquear` suma la nueva a esa lista, como las votaciones.
+- Lo que pasa con sus partidos al bloquearlo no vive en `Usuario`: cancelar los partidos que organiza y retirar sus postulaciones necesita buscarlos en la base, así que lo hace `sacar_de_partidos_por_jugar` (`fulvo/routes/partidos.py`), siempre con los métodos de `Partido`. Los avisos salen por el Observer, igual que cuando cancela o se baja una persona, y el patrón no cambia.
 - El contacto del usuario se llama `whatsapp`.
 - El `apellido` no se muestra en el perfil público.
 
@@ -213,6 +216,8 @@ Métodos:
 |---|---|
 | `cerrar()` | Guarda `hasta` con la fecha actual. Lo llama `Usuario.desbloquear()`. |
 | `activa()` | Verdadero si `hasta` está vacío. |
+
+En el código (RQ10), `cerrar(ahora)` recibe la fecha y levanta `ReglaDeNegocioError` (409) si la sanción ya estaba cerrada. `reclamo` todavía no existe: llega con RQ11, junto con la tabla de reclamos. La API muestra `activa` como un campo más, calculado con este método.
 
 ## 2. Decisiones de modelado
 

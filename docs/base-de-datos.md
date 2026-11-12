@@ -2,7 +2,7 @@
 
 Documento de trabajo del esquema de la base de datos. Igual que [`clases.md`](clases.md), se arma de a poco y cada decisión queda anotada acá.
 
-**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos`, `postulaciones`, `notificaciones` y `votaciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ9 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Reclamo`, `Sancion`) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
+**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos`, `postulaciones`, `notificaciones`, `votaciones` y `sanciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ10). La última clase de [`clases.md`](clases.md), `Reclamo`, todavía no tiene tabla: se agrega con su migración de Alembic cuando se hagan sus endpoints (RQ11).
 
 Diagrama: [`diagramas/base-de-datos.drawio`](diagramas/base-de-datos.drawio) (editable en draw.io) y [`diagramas/base-de-datos.svg`](diagramas/base-de-datos.svg).
 
@@ -154,6 +154,19 @@ Restricciones de tabla:
 
 Migración: `ded49d3ddd2a` (crear votaciones), sobre `9617090e26bf`. La misma migración suma la puntuación de `complejos` y el `no_show` de `postulaciones`.
 
+### `sanciones`
+
+| Columna | Tipo | Restricciones |
+|---|---|---|
+| `id` | entero | clave primaria |
+| `usuario_id` | entero | obligatorio, clave foránea a `usuarios.id` (el usuario bloqueado) |
+| `aplicada_por_id` | entero | obligatorio, clave foránea a `usuarios.id` (el admin que lo bloqueó) |
+| `motivo` | texto | obligatorio |
+| `desde` | fecha y hora | obligatorio, hora de Argentina: cuándo se bloqueó |
+| `hasta` | fecha y hora | opcional: cuándo se desbloqueó, vacía mientras la sanción está activa |
+
+Migración: `8c64cf074cd1` (crear sanciones), sobre `ded49d3ddd2a`.
+
 ### Relaciones
 
 - Una zona tiene muchos complejos y cada complejo pertenece a una sola zona (`complejos.zona_id` apunta a `zonas.id`).
@@ -165,6 +178,7 @@ Migración: `ded49d3ddd2a` (crear votaciones), sobre `9617090e26bf`. La misma mi
 - Un usuario tiene muchas notificaciones (`notificaciones.usuario_id` apunta a `usuarios.id`). Lo que originó cada una se guarda como referencia genérica, sin clave foránea (ver decisiones).
 - Un partido tiene muchas votaciones (`votaciones.partido_id` apunta a `partidos.id`).
 - Un usuario emite muchas votaciones (`votaciones.emisor_id` apunta a `usuarios.id`) y puede recibir muchas (`votaciones.receptor_usuario_id`). Un complejo también recibe muchas (`votaciones.receptor_complejo_id` apunta a `complejos.id`).
+- Un usuario puede tener muchas sanciones, una por cada vez que lo bloquearon (`sanciones.usuario_id` apunta a `usuarios.id`), y un admin puede aplicar muchas (`sanciones.aplicada_por_id` también apunta a `usuarios.id`).
 
 ## 3. Decisiones
 
@@ -191,7 +205,7 @@ Usuarios y roles:
 - **Email único y en minúsculas.** Es el identificador del login. El registro y el login lo pasan a minúsculas, así que la restricción `UNIQUE` de la base alcanza para que `Ana@x.com` y `ana@x.com` sean la misma cuenta. Con `zonas.nombre` no se puede hacer lo mismo, porque el nombre se guarda tal como se escribió.
 - **Solo el hash de la contraseña.** `contrasena_hash` guarda el hash argon2 (`pwdlib`), que lleva su propia sal. La contraseña en claro no se guarda ni se loguea.
 - **Edad mínima en el modelo, no en la tabla.** Se guarda `fecha_nacimiento` y la regla de 16 años la aplica `Usuario.edad(hoy)` al registrar. Guardar la edad no sirve, porque cambia con el tiempo.
-- **`bloqueado` es un booleano por ahora.** Alcanza para que un usuario bloqueado no pueda iniciar sesión. La sanción con motivo, admin y fechas (RQ10) llega con la tabla `sanciones`.
+- **`bloqueado` se guarda aunque exista la sanción activa.** El login y cada pedido con token miran solo `usuarios.bloqueado`, sin consultar `sanciones`. Lo mantienen al día `Usuario.bloquear` y `Usuario.desbloquear`, que son los únicos que crean y cierran sanciones, así el booleano no contradice al historial (RQ10).
 - **Sin `sqlite_autoincrement` en `roles` ni `usuarios`.** Ninguna de las dos tiene endpoint de borrado, así que un id no se puede reutilizar. Se agrega si llega una baja de usuarios, como en `complejos`.
 
 Partidos:
@@ -226,6 +240,13 @@ Votaciones:
 - **Las votaciones pendientes se borran.** Al marcar un no-show se borran las pendientes del ausente y las que había hacia él. Por eso la tabla usa `sqlite_autoincrement`, como `complejos`: SQLite no reutiliza el id de una votación borrada, igual que PostgreSQL.
 - **Valores por defecto para las filas que ya existían.** `complejos.cantidad_puntuaciones` y `postulaciones.no_show` son obligatorias y las tablas ya tenían filas, así que la migración les pone un valor por defecto en la base (`server_default`: 0 y falso). En SQLite, bajar la migración recrea `complejos`, y el downgrade le vuelve a pasar `sqlite_autoincrement` para que no lo pierda.
 
+Sanciones:
+
+- **Una fila por bloqueo, que nunca se borra.** Desbloquear completa `hasta` en lugar de borrar la fila, así queda el historial de quién bloqueó a quién, cuándo y por qué. Volver a bloquear crea otra fila. Como no se borran filas, un id no se puede reutilizar y no hace falta `sqlite_autoincrement`.
+- **Dos claves foráneas a `usuarios`.** `usuario_id` es el bloqueado y `aplicada_por_id` el admin, como `emisor_id` y `receptor_usuario_id` en `votaciones`. El modelo dice con `foreign_keys` cuál usa cada relación.
+- **Una sola sanción activa por usuario, controlada por el modelo.** `Usuario.bloquear` responde 409 si el usuario ya está bloqueado. La base no lo garantiza por su cuenta: dos bloqueos al mismo usuario exactamente a la vez podrían dejar dos sanciones activas. Como lo hace solo el admin, para el MVP se acepta, igual que el promedio de las votaciones.
+- **Sin el reclamo de origen por ahora.** `clases.md` prevé un reclamo opcional en cada sanción, pero la tabla `reclamos` llega con RQ11: `reclamo_id` se suma con esa migración.
+
 ## 4. Configuración y datos iniciales
 
 - **Conexión.** `DATABASE_URL` en `.env`, leída con `pydantic-settings` (`fulvo/settings.py`). En desarrollo es un archivo SQLite (`sqlite:///fulvo.db`, ignorado por git con `*.db`). En contenedor, CI y producción es PostgreSQL con `postgresql+psycopg://...`.
@@ -235,5 +256,5 @@ Votaciones:
 
 ## 5. Pendiente
 
-- Tablas del resto de las clases (`Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
+- La tabla de `Reclamo` (RQ11), con su migración, y la columna `sanciones.reclamo_id`, que apunta a ella. Este documento y el diagrama se amplían en ese paso.
 - Datos de prueba: los tests de rutas cargan los roles y el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Los usuarios y los partidos de prueba salen de `UsuarioFactory` y `PartidoFactory` (`tests/factories.py`, con `factory-boy`, como la cátedra).
