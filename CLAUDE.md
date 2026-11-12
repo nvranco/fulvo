@@ -61,19 +61,19 @@ El 40% de la nota es **exposición y defensa**. Cada decisión de código tiene 
 
 ## 3. Requerimientos del proyecto
 
-Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/diagramas/` diseño de clases en `docs/clases.md` y esquema de la base de datos en `docs/base-de-datos.md` (hoy solo zonas y complejos, se amplía con cada tabla nueva). Esa es la fuente de verdad del alcance del MVP: lo que está en su sección Post-MVP no se implementa. Todo endpoint debe poder rastrearse a un RQ.
+Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/diagramas/` diseño de clases en `docs/clases.md` y esquema de la base de datos en `docs/base-de-datos.md` (se amplía con cada tabla nueva). Esa es la fuente de verdad del alcance del MVP: lo que está en su sección Post-MVP no se implementa. Todo endpoint debe poder rastrearse a un RQ.
 
 | RQ | Descripción | Endpoint(s) | Tests | Estado |
 |---|---|---|---|---|
 | RQ1 | Registrarse e iniciar sesión (edad mínima 16). | `POST /usuarios`, `POST /auth/token`. La dependencia `UsuarioActual` (en `security.py`) protege las rutas. | `tests/test_usuarios.py`, `tests/test_auth.py`, `tests/test_security.py` | hecho |
 | RQ2 | Perfil de usuario con puntuación promedio y partidos jugados. | `GET /usuarios/yo`, `PATCH /usuarios/yo`, `GET /usuarios/{id}` | `tests/test_perfil.py` | hecho |
 | RQ3 | Ver zonas y complejos, con ubicación en mapa y búsqueda de cercanos por radio. | `GET /zonas`, `GET /complejos`, `GET /complejos/cercanos`, `GET /complejos/{id}` | `tests/test_complejos.py` | hecho (con base de datos) |
-| RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes (la duración es fija: 60 minutos). | `POST /partidos`, `GET /partidos/{id}` | `tests/test_partidos.py`, `tests/test_models.py` | hecho; el bloqueo por votaciones pendientes llega con RQ8 |
-| RQ5 | Listar partidos abiertos con filtros y postularse. | `GET /partidos` (filtros `zona`, `complejo_id` y `tipo`), `POST /partidos/{id}/postulaciones`, `GET /postulaciones` (las propias) | `tests/test_partidos.py`, `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py`, `tests/test_eventos.py` | hecho; el bloqueo por votaciones pendientes llega con RQ8 |
+| RQ4 | Publicar partidos indicando complejo, fecha, hora, tipo y cupos faltantes (la duración es fija: 60 minutos). | `POST /partidos`, `GET /partidos/{id}` | `tests/test_partidos.py`, `tests/test_models.py`, `tests/test_votaciones.py` (bloqueo por deuda) | hecho, con el bloqueo por deuda de RQ8 |
+| RQ5 | Listar partidos abiertos con filtros y postularse. | `GET /partidos` (filtros `zona`, `complejo_id` y `tipo`), `POST /partidos/{id}/postulaciones`, `GET /postulaciones` (las propias) | `tests/test_partidos.py`, `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py`, `tests/test_eventos.py`, `tests/test_votaciones.py` (bloqueo por deuda) | hecho, con el bloqueo por deuda de RQ8 |
 | RQ6 | El organizador acepta, rechaza o revoca postulantes. Al aceptar, ambos se ven el WhatsApp. | `GET /partidos/{id}/postulaciones` (lista de espera), `PATCH /partidos/{id}/postulaciones/{id}` (aceptar o rechazar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho |
 | RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `PATCH /postulaciones/{id}` (retirarse o bajarse), `PATCH /partidos/{id}/postulaciones/{id}` (revocar), `PATCH /partidos/{id}` (cancelar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho |
-| RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `TODO` | | pendiente |
-| RQ9 | Notificaciones dentro de la app. | `GET /notificaciones` (las propias, filtro `leida`), `PATCH /notificaciones/{id}` (marcar como leída). Las crea `NotificadorPartido` al pasar algo en un partido | `tests/test_notificaciones.py`, `tests/test_observadores.py` | hecho; "votaciones pendientes" llega con RQ8 y "reclamo resuelto" con RQ11 |
+| RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `GET /votaciones` (las propias, filtro `estado`), `PATCH /votaciones/{id}` (emitir, de 0 a 5 estrellas), `PATCH /partidos/{id}/postulaciones/{id}` con `{"no_show": true}` (el organizador, con el partido jugado). Las votaciones las crea `ProcesadorPostPartido` al pasar el partido a jugado. La deuda se ve en `GET /usuarios/yo` y bloquea publicar y postularse (409) | `tests/test_votaciones.py`, `tests/test_votaciones_modelo.py`, `tests/test_procesador.py` | hecho |
+| RQ9 | Notificaciones dentro de la app. | `GET /notificaciones` (las propias, filtro `leida`), `PATCH /notificaciones/{id}` (marcar como leída). Las crea `NotificadorPartido` al pasar algo en un partido | `tests/test_notificaciones.py`, `tests/test_observadores.py` | hecho; "reclamo resuelto" llega con RQ11 |
 | RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}` (409 si el complejo tiene partidos). Bloqueo: `TODO` | `tests/test_complejos.py`, `tests/test_permisos_admin.py`, `tests/test_partidos.py` | parcial: zonas y complejos hechos (solo admin, `exigir_admin`); falta el bloqueo de usuarios |
 | RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
@@ -236,12 +236,12 @@ Por qué: `Partido` solo avisa y no sabe quién reacciona, así que agregar una 
 Dónde viven (decisiones del 2026-11-11):
 
 - `fulvo/eventos.py`: la parte genérica del Observer, `TipoEvento`, `EventoPartido` y la interfaz `ObservadorPartido`. No importa ningún modelo.
-- `fulvo/observadores.py`: los observadores concretos y la fábrica. Hoy `NotificadorPartido` y `FabricaNotificaciones` (RQ9); con RQ8 se suma `ProcesadorPostPartido`.
-- `fulvo/models.py`: el sujeto (`Partido`), `Postulacion` y `Notificacion`.
+- `fulvo/observadores.py`: los observadores concretos y la fábrica: `NotificadorPartido` y `FabricaNotificaciones` (RQ9) y `ProcesadorPostPartido` (RQ8).
+- `fulvo/models.py`: el sujeto (`Partido`), `Postulacion`, `Notificacion` y `Votacion`.
 
 Van separados porque `models.py` importa `eventos.py` (para emitir eventos) y los observadores necesitan los modelos (por ejemplo, la fábrica crea `Notificacion`). En un solo archivo, `models.py` y `eventos.py` se importarían mutuamente y Python no podría cargarlos. Así las dependencias van en un solo sentido: `observadores.py` → `models.py` → `eventos.py`.
 
-La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Cada pedido suma los observadores en `preparar_partido` (`fulvo/routes/partidos.py`), una sola vez por partido, antes de cualquier acción. `NotificadorPartido` suma las notificaciones a la sesión del pedido, y el commit de la ruta las guarda junto con el cambio que las originó.
+La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Cada pedido suma los observadores en `preparar_partido` (`fulvo/routes/partidos.py`), una sola vez por partido, antes de cualquier acción. Los dos observadores suman sus cambios (notificaciones, partidos jugados, votaciones) a la sesión del pedido, y el commit de la ruta los guarda junto con el cambio que los originó. Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron: si nadie los consultó, todavía no tienen votaciones.
 
 ## 9. Testing
 
@@ -279,7 +279,7 @@ La lista de observadores no es una columna: la arma `__post_init__` en los parti
 ## 11. Seguridad y configuración
 
 - Variables en `.env` (local) leídas con `pydantic-settings`: `DATABASE_URL`, `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`.
-- Valores propios del dominio: límite de deuda X (3, fijo en `settings.py`) y credenciales del primer admin (`ADMIN_EMAIL` y `ADMIN_PASSWORD`, opcionales en `Settings`, que lee solo `carga_inicial`).
+- Valores propios del dominio: límite de deuda X (`LIMITE_DEUDA = 3`, constante fija en `settings.py`, fuera de `Settings` porque no es una variable de entorno) y credenciales del primer admin (`ADMIN_EMAIL` y `ADMIN_PASSWORD`, opcionales en `Settings`, que lee solo `carga_inicial`).
 - **Nunca** commitear `.env` ni secretos. Mantener un `.env.example` sin valores reales.
 - Contraseñas siempre hasheadas (argon2 vía `pwdlib`), nunca guardadas ni logueadas en claro.
 - Las rutas protegidas usan la dependencia de usuario actual. Un usuario solo puede tocar sus propios recursos (`403` si no).

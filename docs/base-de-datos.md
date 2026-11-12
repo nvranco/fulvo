@@ -2,7 +2,7 @@
 
 Documento de trabajo del esquema de la base de datos. Igual que [`clases.md`](clases.md), se arma de a poco y cada decisión queda anotada acá.
 
-**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos`, `postulaciones` y `notificaciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ7, RQ9 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Votacion`, `Reclamo`, `Sancion`) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
+**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos`, `postulaciones`, `notificaciones` y `votaciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ9 y RQ10). El resto de las clases de [`clases.md`](clases.md) (`Reclamo`, `Sancion`) todavía no tiene tabla: se agregan una por una, con una migración de Alembic cada vez, a medida que se hagan sus endpoints.
 
 Diagrama: [`diagramas/base-de-datos.drawio`](diagramas/base-de-datos.drawio) (editable en draw.io) y [`diagramas/base-de-datos.svg`](diagramas/base-de-datos.svg).
 
@@ -51,8 +51,12 @@ Una zona es un partido o un barrio (Vicente López, Belgrano). Ver `clases.md`.
 | `latitud` | decimal | obligatorio |
 | `longitud` | decimal | obligatorio |
 | `link_maps` | texto | opcional |
+| `puntuacion_promedio` | decimal | opcional (vacío hasta el primer voto) |
+| `cantidad_puntuaciones` | entero | obligatorio, por defecto 0 |
 
 Restricción de tabla: `UNIQUE (nombre, direccion)`.
+
+Las dos columnas de puntuación se sumaron con las votaciones (RQ8), en la migración `ded49d3ddd2a`.
 
 ### `roles`
 
@@ -108,10 +112,11 @@ Migración: `7a76c3c1902d` (crear partidos), sobre `329a5a4ee4ad`.
 | `created_at` | fecha y hora | obligatorio, hora de Argentina |
 | `estado` | texto | obligatorio: `en_espera` (por defecto), `aceptada`, `rechazada`, `retirada` o `revocada` |
 | `respondida_at` | fecha y hora | opcional: cuándo el organizador aceptó, rechazó o revocó |
+| `no_show` | booleano | obligatorio, por defecto falso: el organizador marcó que el jugador aceptado no vino |
 
 Restricción de tabla: `UNIQUE (partido_id, jugador_id)`.
 
-Migración: `120c063df0c0` (crear postulaciones), sobre `7a76c3c1902d`.
+Migración: `120c063df0c0` (crear postulaciones), sobre `7a76c3c1902d`. `no_show` se sumó en `ded49d3ddd2a` (RQ8).
 
 ### `notificaciones`
 
@@ -128,6 +133,27 @@ Migración: `120c063df0c0` (crear postulaciones), sobre `7a76c3c1902d`.
 
 Migración: `9617090e26bf` (crear notificaciones), sobre `120c063df0c0`.
 
+### `votaciones`
+
+| Columna | Tipo | Restricciones |
+|---|---|---|
+| `id` | entero | clave primaria |
+| `partido_id` | entero | obligatorio, clave foránea a `partidos.id` |
+| `emisor_id` | entero | obligatorio, clave foránea a `usuarios.id` (quien vota) |
+| `created_at` | fecha y hora | obligatorio, hora de Argentina: cuándo se creó pendiente |
+| `receptor_usuario_id` | entero | opcional, clave foránea a `usuarios.id` |
+| `receptor_complejo_id` | entero | opcional, clave foránea a `complejos.id` |
+| `estado` | texto | obligatorio: `pendiente` (por defecto) o `emitida` |
+| `estrellas` | entero | opcional: de 0 a 5, vacío mientras está pendiente |
+| `emitida_at` | fecha y hora | opcional: cuándo se emitió |
+
+Restricciones de tabla:
+
+- `CHECK ((receptor_usuario_id IS NULL) <> (receptor_complejo_id IS NULL))`, llamada `un_solo_receptor`: exactamente uno de los dos receptores tiene valor.
+- `UNIQUE (partido_id, emisor_id, receptor_usuario_id)` y `UNIQUE (partido_id, emisor_id, receptor_complejo_id)`: un voto por emisor y receptor en cada partido.
+
+Migración: `ded49d3ddd2a` (crear votaciones), sobre `9617090e26bf`. La misma migración suma la puntuación de `complejos` y el `no_show` de `postulaciones`.
+
 ### Relaciones
 
 - Una zona tiene muchos complejos y cada complejo pertenece a una sola zona (`complejos.zona_id` apunta a `zonas.id`).
@@ -137,10 +163,12 @@ Migración: `9617090e26bf` (crear notificaciones), sobre `120c063df0c0`.
 - Un partido tiene muchas postulaciones y cada postulación es de un solo partido (`postulaciones.partido_id` apunta a `partidos.id`).
 - Un usuario tiene muchas postulaciones como jugador (`postulaciones.jugador_id` apunta a `usuarios.id`).
 - Un usuario tiene muchas notificaciones (`notificaciones.usuario_id` apunta a `usuarios.id`). Lo que originó cada una se guarda como referencia genérica, sin clave foránea (ver decisiones).
+- Un partido tiene muchas votaciones (`votaciones.partido_id` apunta a `partidos.id`).
+- Un usuario emite muchas votaciones (`votaciones.emisor_id` apunta a `usuarios.id`) y puede recibir muchas (`votaciones.receptor_usuario_id`). Un complejo también recibe muchas (`votaciones.receptor_complejo_id` apunta a `complejos.id`).
 
 ## 3. Decisiones
 
-- **Solo las columnas que usa la API hoy.** Quedan afuera `puntuacion_promedio`, `cantidad_puntuaciones`, `whatsapp_contacto` y `email_contacto`, que `clases.md` prevé para `Complejo`. Se agregan con una migración cuando llegue el RQ que las necesite (la puntuación llega con RQ8). Así cada columna tiene un endpoint que la justifica, y se practica la migración incremental.
+- **Solo las columnas que usa la API hoy.** Quedan afuera `whatsapp_contacto` y `email_contacto`, que `clases.md` prevé para `Complejo`. Se agregan con una migración cuando llegue el RQ que las necesite, como pasó con la puntuación (RQ8). Así cada columna tiene un endpoint que la justifica, y se practica la migración incremental.
 - **Sin `created_at` ni `updated_at` por ahora.** Ningún RQ los pide para zonas y complejos. Se suman cuando haya una tabla que los necesite (por ejemplo `Notificacion` ya los define en `clases.md`).
 - **La provincia vive solo en `zonas`.** El complejo no la guarda: la API la devuelve leyéndola de su zona. Así un complejo no puede contradecir a su zona. Es lo mismo que hace hoy `crear_complejo`, que copia la provincia de la zona.
 - **`zona_id` es una clave foránea por id, no por nombre.** Hoy un complejo apunta a su zona por el nombre. Con la base de datos es una referencia al `id`, y el nombre se obtiene con la relación `Complejo.zona`.
@@ -180,7 +208,7 @@ Postulaciones:
 - **El WhatsApp no se guarda en la postulación.** Se lee de `usuarios` y se muestra según `Postulacion.whatsapp_visible()`: solo con la postulación aceptada y el partido sin cancelar.
 - **`estado` es un enum guardado como texto**, por el mismo motivo que en `partidos`.
 - **`created_at` y `respondida_at`** se llaman como en `clases.md`, y guardan la hora de Argentina sin zona, como `partidos.inicio`.
-- **`no_show` todavía no está.** Se agrega con su migración cuando lleguen las votaciones (RQ8).
+- **`no_show` es un booleano de la postulación**, porque el no-show vive en la postulación (`clases.md`). Lo marca el organizador sobre un aceptado, con el partido jugado (RQ8).
 
 Notificaciones:
 
@@ -188,6 +216,15 @@ Notificaciones:
 - **El mensaje se guarda armado.** Lo arma `FabricaNotificaciones` al crear la notificación, y no se recalcula después. Por eso nunca lleva el WhatsApp: si después se revoca al jugador o se cancela el partido, el número no debe quedar guardado.
 - **`tipo` es texto de largo fijo (30).** Como los demás enums, se guarda como texto, pero con un largo fijo, para sumar "votaciones pendientes" (RQ8) y "reclamo resuelto" (RQ11) sin migrar la columna.
 - **Se crean en la misma transacción que el cambio que las originó.** `NotificadorPartido` las suma a la sesión y el commit de la ruta las guarda juntas: no queda una notificación de algo que no pasó.
+
+Votaciones:
+
+- **El receptor son dos claves foráneas opcionales.** Una votación va a un usuario o al complejo. `clases.md` decide dos referencias en lugar de subclases, y así cada una puede ser una clave foránea de verdad (a diferencia de la referencia genérica de `notificaciones`). La restricción `CHECK` exige que exactamente una tenga valor: lo controla la base, no solo el código.
+- **Un voto por emisor y receptor en cada partido.** Las dos restricciones `UNIQUE` lo garantizan aunque el pase a jugado se procesara dos veces. Funcionan porque en SQL dos nulos no son iguales: los votos al complejo (con `receptor_usuario_id` nulo) no chocan entre sí en la primera, y los votos a usuarios no chocan en la segunda.
+- **`estado` es un enum guardado como texto**, como en `partidos`. `estrellas` y `emitida_at` quedan vacías mientras la votación está pendiente.
+- **La puntuación se guarda calculada**, en `usuarios` y `complejos` (`puntuacion_promedio` y `cantidad_puntuaciones`), y se actualiza con cada voto: no se recalcula recorriendo las votaciones. El no-show cuenta como un voto de 0 en el usuario, pero no es una fila de `votaciones`. Con dos votos al mismo receptor exactamente a la vez, uno podría pisar al otro: para el volumen del MVP se acepta.
+- **Las votaciones pendientes se borran.** Al marcar un no-show se borran las pendientes del ausente y las que había hacia él. Por eso la tabla usa `sqlite_autoincrement`, como `complejos`: SQLite no reutiliza el id de una votación borrada, igual que PostgreSQL.
+- **Valores por defecto para las filas que ya existían.** `complejos.cantidad_puntuaciones` y `postulaciones.no_show` son obligatorias y las tablas ya tenían filas, así que la migración les pone un valor por defecto en la base (`server_default`: 0 y falso). En SQLite, bajar la migración recrea `complejos`, y el downgrade le vuelve a pasar `sqlite_autoincrement` para que no lo pierda.
 
 ## 4. Configuración y datos iniciales
 
@@ -198,5 +235,5 @@ Notificaciones:
 
 ## 5. Pendiente
 
-- Tablas del resto de las clases (`Votacion`, `Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
+- Tablas del resto de las clases (`Reclamo`, `Sancion`), de a una con su migración. Este documento y el diagrama se amplían en cada paso.
 - Datos de prueba: los tests de rutas cargan los roles y el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Los usuarios y los partidos de prueba salen de `UsuarioFactory` y `PartidoFactory` (`tests/factories.py`, con `factory-boy`, como la cátedra).

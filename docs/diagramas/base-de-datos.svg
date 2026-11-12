@@ -1,13 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="1380" viewBox="0 0 1360 1380" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1780" viewBox="0 0 1420 1780" font-family="Helvetica, Arial, sans-serif" font-size="12">
 <rect width="100%" height="100%" fill="#ffffff"/>
-<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles, usuarios, partidos, postulaciones y notificaciones</text>
+<text x="40" y="28" font-weight="bold" font-size="14">Base de datos (hoy): zonas, complejos, roles, usuarios, partidos, postulaciones, notificaciones y votaciones</text>
 <rect x="40" y="60" width="300" height="104" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="40" y="60" width="300" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="190.0" y="78" text-anchor="middle" font-weight="bold">zonas</text>
 <text x="48" y="104" font-weight="bold">PK  id: INTEGER</text>
 <text x="48" y="130">nombre: VARCHAR  NOT NULL, UNIQUE</text>
 <text x="48" y="156">provincia: VARCHAR  NOT NULL</text>
-<rect x="520" y="60" width="360" height="390" fill="#ffffff" stroke="#6c8ebf"/>
+<rect x="520" y="60" width="360" height="442" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="520" y="60" width="360" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="700.0" y="78" text-anchor="middle" font-weight="bold">complejos</text>
 <text x="528" y="104" font-weight="bold">PK  id: INTEGER</text>
@@ -23,8 +23,10 @@
 <text x="528" y="364">latitud: FLOAT  NOT NULL</text>
 <text x="528" y="390">longitud: FLOAT  NOT NULL</text>
 <text x="528" y="416">link_maps: VARCHAR  NULL</text>
-<line x1="520" y1="424" x2="880" y2="424" stroke="#6c8ebf"/>
-<text x="528" y="442" font-style="italic">UNIQUE (nombre, direccion)</text>
+<text x="528" y="442">puntuacion_promedio: FLOAT  NULL</text>
+<text x="528" y="468">cantidad_puntuaciones: INTEGER  NOT NULL, default 0</text>
+<line x1="520" y1="476" x2="880" y2="476" stroke="#6c8ebf"/>
+<text x="528" y="494" font-style="italic">UNIQUE (nombre, direccion)</text>
 <polyline points="340,99 430,99 430,125 520,125" fill="none" stroke="#333"/>
 <line x1="350" y1="93" x2="350" y2="105" stroke="#333"/>
 <line x1="356" y1="93" x2="356" y2="105" stroke="#333"/>
@@ -32,14 +34,13 @@
 <line x1="506" y1="125" x2="520" y2="132" stroke="#333"/>
 <line x1="506" y1="125" x2="520" y2="125" stroke="#333"/>
 <text x="40" y="478" font-size="11">1 zona : N complejos (complejos.zona_id -> zonas.id)</text>
-<rect x="40" y="200" width="300" height="146" fill="#fff2cc" stroke="#d6b656"/>
+<rect x="40" y="200" width="300" height="128" fill="#fff2cc" stroke="#d6b656"/>
 <text x="48" y="222" font-size="11">Nota: complejos lleva solo las columnas</text>
 <text x="48" y="240" font-size="11">que usa la API hoy. Se agregan con</text>
-<text x="48" y="258" font-size="11">migraciones cuando haga falta (RQ8 y otros):</text>
-<text x="48" y="276" font-size="11">- puntuacion_promedio</text>
-<text x="48" y="294" font-size="11">- cantidad_puntuaciones</text>
-<text x="48" y="312" font-size="11">- whatsapp_contacto</text>
-<text x="48" y="330" font-size="11">- email_contacto</text>
+<text x="48" y="258" font-size="11">migraciones cuando haga falta:</text>
+<text x="48" y="276" font-size="11">- whatsapp_contacto</text>
+<text x="48" y="294" font-size="11">- email_contacto</text>
+<text x="48" y="312" font-size="11">La puntuación sale de las votaciones (RQ8).</text>
 <rect x="40" y="530" width="300" height="78" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="40" y="530" width="300" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="190.0" y="548" text-anchor="middle" font-weight="bold">roles</text>
@@ -108,7 +109,7 @@
 <text x="968" y="662" font-size="11">que se guardan como texto. La duración es</text>
 <text x="968" y="680" font-size="11">siempre de 60 minutos. Un complejo con</text>
 <text x="968" y="698" font-size="11">partidos no se puede borrar (409).</text>
-<rect x="960" y="760" width="360" height="208" fill="#ffffff" stroke="#6c8ebf"/>
+<rect x="960" y="760" width="360" height="234" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="960" y="760" width="360" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="1140.0" y="778" text-anchor="middle" font-weight="bold">postulaciones</text>
 <text x="968" y="804" font-weight="bold">PK  id: INTEGER</text>
@@ -117,8 +118,9 @@
 <text x="968" y="882">estado: VARCHAR  NOT NULL, default en_espera</text>
 <text x="968" y="908">created_at: DATETIME  NOT NULL</text>
 <text x="968" y="934">respondida_at: DATETIME  NULL</text>
-<line x1="960" y1="942" x2="1320" y2="942" stroke="#6c8ebf"/>
-<text x="968" y="960" font-style="italic">UNIQUE (partido_id, jugador_id)</text>
+<text x="968" y="960">no_show: BOOLEAN  NOT NULL, default false</text>
+<line x1="960" y1="968" x2="1320" y2="968" stroke="#6c8ebf"/>
+<text x="968" y="986" font-style="italic">UNIQUE (partido_id, jugador_id)</text>
 <polyline points="1320,339 1345,339 1345,825 1320,825" fill="none" stroke="#333"/>
 <line x1="1330" y1="333" x2="1330" y2="345" stroke="#333"/>
 <line x1="1336" y1="333" x2="1336" y2="345" stroke="#333"/>
@@ -129,14 +131,14 @@
 <line x1="946" y1="851" x2="960" y2="844" stroke="#333"/>
 <line x1="946" y1="851" x2="960" y2="858" stroke="#333"/>
 <line x1="946" y1="851" x2="960" y2="851" stroke="#333"/>
-<text x="960" y="996" font-size="11">1 partido : N postulaciones (partido_id -&gt; partidos.id)</text>
-<text x="960" y="1014" font-size="11">1 usuario : N postulaciones (jugador_id -&gt; usuarios.id)</text>
-<rect x="960" y="1038" width="300" height="104" fill="#fff2cc" stroke="#d6b656"/>
-<text x="968" y="1060" font-size="11">Nota: un jugador se postula una sola vez a</text>
-<text x="968" y="1078" font-size="11">cada partido (UNIQUE). estado es un enum</text>
-<text x="968" y="1096" font-size="11">guardado como texto. El WhatsApp no se</text>
-<text x="968" y="1114" font-size="11">guarda acá: se muestra según el estado.</text>
-<text x="968" y="1132" font-size="11">no_show llega con las votaciones (RQ8).</text>
+<text x="960" y="1022" font-size="11">1 partido : N postulaciones (partido_id -&gt; partidos.id)</text>
+<text x="960" y="1040" font-size="11">1 usuario : N postulaciones (jugador_id -&gt; usuarios.id)</text>
+<rect x="960" y="1064" width="300" height="104" fill="#fff2cc" stroke="#d6b656"/>
+<text x="968" y="1086" font-size="11">Nota: un jugador se postula una sola vez a</text>
+<text x="968" y="1104" font-size="11">cada partido (UNIQUE). estado es un enum</text>
+<text x="968" y="1122" font-size="11">guardado como texto. El WhatsApp no se</text>
+<text x="968" y="1140" font-size="11">guarda acá: se muestra según el estado.</text>
+<text x="968" y="1158" font-size="11">no_show lo marca el organizador (RQ8).</text>
 <rect x="520" y="960" width="360" height="234" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="520" y="960" width="360" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="700.0" y="978" text-anchor="middle" font-weight="bold">notificaciones</text>
@@ -159,4 +161,46 @@
 <text x="528" y="1304" font-size="11">postulación o un partido. El mensaje se</text>
 <text x="528" y="1322" font-size="11">guarda armado por FabricaNotificaciones</text>
 <text x="528" y="1340" font-size="11">y nunca lleva el WhatsApp.</text>
+<rect x="960" y="1210" width="360" height="338" fill="#ffffff" stroke="#6c8ebf"/>
+<rect x="960" y="1210" width="360" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
+<text x="1140.0" y="1228" text-anchor="middle" font-weight="bold">votaciones</text>
+<text x="968" y="1254" font-weight="bold">PK  id: INTEGER</text>
+<text x="968" y="1280">FK  partido_id: INTEGER  NOT NULL</text>
+<text x="968" y="1306">FK  emisor_id: INTEGER  NOT NULL</text>
+<text x="968" y="1332">created_at: DATETIME  NOT NULL</text>
+<text x="968" y="1358">FK  receptor_usuario_id: INTEGER  NULL</text>
+<text x="968" y="1384">FK  receptor_complejo_id: INTEGER  NULL</text>
+<text x="968" y="1410">estado: VARCHAR  NOT NULL, default pendiente</text>
+<text x="968" y="1436">estrellas: INTEGER  NULL (0 a 5)</text>
+<text x="968" y="1462">emitida_at: DATETIME  NULL</text>
+<line x1="960" y1="1470" x2="1320" y2="1470" stroke="#6c8ebf"/>
+<text x="968" y="1488" font-style="italic">CHECK un_solo_receptor (usuario o complejo, uno solo)</text>
+<text x="968" y="1514" font-style="italic">UNIQUE (partido_id, emisor_id, receptor_usuario_id)</text>
+<text x="968" y="1540" font-style="italic">UNIQUE (partido_id, emisor_id, receptor_complejo_id)</text>
+<polyline points="1320,339 1370,339 1370,1275 1320,1275" fill="none" stroke="#333"/>
+<line x1="1334" y1="1275" x2="1320" y2="1268" stroke="#333"/>
+<line x1="1334" y1="1275" x2="1320" y2="1282" stroke="#333"/>
+<line x1="1334" y1="1275" x2="1320" y2="1275" stroke="#333"/>
+<polyline points="880,569 900,569 900,1301 960,1301" fill="none" stroke="#333"/>
+<line x1="946" y1="1301" x2="960" y2="1294" stroke="#333"/>
+<line x1="946" y1="1301" x2="960" y2="1308" stroke="#333"/>
+<line x1="946" y1="1301" x2="960" y2="1301" stroke="#333"/>
+<polyline points="880,569 900,569 900,1353 960,1353" fill="none" stroke="#333"/>
+<line x1="946" y1="1353" x2="960" y2="1346" stroke="#333"/>
+<line x1="946" y1="1353" x2="960" y2="1360" stroke="#333"/>
+<line x1="946" y1="1353" x2="960" y2="1353" stroke="#333"/>
+<polyline points="880,99 1395,99 1395,1379 1320,1379" fill="none" stroke="#333"/>
+<line x1="1334" y1="1379" x2="1320" y2="1372" stroke="#333"/>
+<line x1="1334" y1="1379" x2="1320" y2="1386" stroke="#333"/>
+<line x1="1334" y1="1379" x2="1320" y2="1379" stroke="#333"/>
+<text x="960" y="1576" font-size="11">1 partido : N votaciones (partido_id -&gt; partidos.id)</text>
+<text x="960" y="1594" font-size="11">1 usuario : N votaciones (emisor_id -&gt; usuarios.id)</text>
+<text x="960" y="1612" font-size="11">0..1 usuario : N votaciones (receptor_usuario_id -&gt; usuarios.id)</text>
+<text x="960" y="1630" font-size="11">0..1 complejo : N votaciones (receptor_complejo_id -&gt; complejos.id)</text>
+<rect x="960" y="1654" width="300" height="104" fill="#fff2cc" stroke="#d6b656"/>
+<text x="968" y="1676" font-size="11">Nota: el receptor es un usuario o el</text>
+<text x="968" y="1694" font-size="11">complejo, uno solo (CHECK). Un voto por</text>
+<text x="968" y="1712" font-size="11">emisor y receptor en cada partido (UNIQUE).</text>
+<text x="968" y="1730" font-size="11">Las pendientes se borran con un no-show:</text>
+<text x="968" y="1748" font-size="11">la tabla no reutiliza ids (AUTOINCREMENT).</text>
 </svg>
