@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import (
     AfterValidator,
@@ -9,12 +9,15 @@ from pydantic import (
     Field,
     PastDate,
     StringConstraints,
+    model_validator,
 )
 
 from fulvo.models import (
+    ESTRELLAS_MAXIMAS,
     HORA_ARGENTINA,
     EstadoPartido,
     EstadoPostulacion,
+    EstadoVotacion,
     TipoNotificacion,
     TipoPartido,
 )
@@ -57,10 +60,16 @@ class ComplejoEntrada(BaseModel):
 
 
 class ComplejoPublico(ComplejoEntrada):
-    """Complejo como lo devuelve la API: datos, id y provincia."""
+    """Complejo como lo devuelve la API: datos, id y provincia.
+
+    También su puntuación en la app, que sale de las votaciones (RQ8) y por
+    eso no se recibe al cargarlo. Queda vacía hasta el primer voto.
+    """
 
     id: int
     provincia: str
+    puntuacion_promedio: float | None
+    cantidad_puntuaciones: int
 
 
 class ComplejoCercano(ComplejoPublico):
@@ -155,13 +164,17 @@ class UsuarioPerfil(UsuarioPublico):
     """Perfil propio (RQ2): el público más los datos privados del usuario.
 
     Solo lo devuelve `/usuarios/yo`, que no recibe un id: cada uno puede ver
-    únicamente sus propios datos privados.
+    únicamente sus propios datos privados. Muestra también la deuda y si
+    puede publicar y postularse (RQ8, final del diagrama 05).
     """
 
     email: EmailStr
     apellido: str
     whatsapp: str
     fecha_nacimiento: date
+    # Se calculan al consultar (`Usuario.deuda`), no son columnas.
+    deuda: int
+    habilitado: bool
 
 
 class UsuarioEdicion(BaseModel):
@@ -273,9 +286,23 @@ class PartidoEdicion(BaseModel):
 
 
 class PostulacionRespuesta(BaseModel):
-    """Respuesta del organizador a una postulación (RQ6 y RQ7)."""
+    """Lo que hace el organizador con una postulación (RQ6 a RQ8).
 
-    estado: Literal['aceptada', 'rechazada', 'revocada']
+    Una cosa por pedido: cambiar el estado (aceptar, rechazar o revocar) o
+    marcar que el jugador no vino (`{"no_show": true}`). Por eso los dos
+    campos son opcionales y el validador exige exactamente uno. Un no-show
+    no se desmarca desde acá: solo `true` es válido.
+    """
+
+    estado: Literal['aceptada', 'rechazada', 'revocada'] | None = None
+    no_show: Literal[True] | None = None
+
+    @model_validator(mode='after')
+    def exigir_una_accion(self) -> Self:
+        """422 si no llega ninguno de los dos campos, o si llegan los dos."""
+        if (self.estado is None) == (self.no_show is None):
+            raise ValueError('Mandá "estado" o "no_show": uno de los dos')
+        return self
 
 
 class PostulacionRetiro(BaseModel):
@@ -285,16 +312,18 @@ class PostulacionRetiro(BaseModel):
 
 
 class PostulacionDelPartido(BaseModel):
-    """Postulación como la ve el organizador del partido (RQ6).
+    """Postulación como la ve el organizador del partido (RQ6 y RQ8).
 
     El jugador va con su perfil público. Su WhatsApp va aparte, y solo
     mientras la postulación está aceptada y el partido no se canceló.
+    `no_show` dice si el organizador marcó que no vino.
     """
 
     id: int
     estado: EstadoPostulacion
     created_at: datetime
     respondida_at: datetime | None
+    no_show: bool
     jugador: UsuarioPublico
     whatsapp_jugador: str | None
 
@@ -310,12 +339,14 @@ class MiPostulacion(BaseModel):
 
     Trae el partido completo y el WhatsApp del organizador, que también va
     solo mientras la postulación está aceptada y el partido no se canceló.
+    `no_show` le avisa al jugador si el organizador marcó que no vino.
     """
 
     id: int
     estado: EstadoPostulacion
     created_at: datetime
     respondida_at: datetime | None
+    no_show: bool
     partido: PartidoPublico
     whatsapp_organizador: str | None
 
@@ -360,3 +391,39 @@ class NotificacionLectura(BaseModel):
     """Lo único que se puede cambiar de una notificación: marcarla leída."""
 
     leida: Literal[True]
+
+
+class VotacionPublica(BaseModel):
+    """Votación como la ve quien la tiene que emitir (RQ8).
+
+    Trae el partido y a quién se vota: un jugador, con su perfil público, o
+    el complejo. Como en el modelo, uno de los dos receptores viene vacío.
+    `estrellas` y `emitida_at` están vacías mientras está pendiente.
+    """
+
+    id: int
+    estado: EstadoVotacion
+    estrellas: int | None
+    created_at: datetime
+    emitida_at: datetime | None
+    partido: PartidoPublico
+    receptor_usuario: UsuarioPublico | None
+    receptor_complejo: ComplejoPublico | None
+
+
+class ListaVotaciones(BaseModel):
+    """Votaciones del usuario, envueltas como en la cátedra."""
+
+    votaciones: list[VotacionPublica]
+
+
+class FiltroVotaciones(Paginacion):
+    """Filtro opcional por estado (pendiente o emitida), más la paginación."""
+
+    estado: EstadoVotacion | None = None
+
+
+class VotacionEmision(BaseModel):
+    """El voto que completa una votación: de 0 a 5 estrellas (RQ8)."""
+
+    estrellas: Annotated[int, Field(ge=0, le=ESTRELLAS_MAXIMAS)]

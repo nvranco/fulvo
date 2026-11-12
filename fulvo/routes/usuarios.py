@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
 from fulvo.models import EDAD_MINIMA, ROL_USUARIO, Rol, Usuario
+from fulvo.routes.partidos import poner_al_dia_partidos_de
 from fulvo.schemas import (
     UsuarioEdicion,
     UsuarioEntrada,
@@ -85,16 +86,42 @@ def registrar_usuario(datos: UsuarioEntrada, session: Session):
     return usuario
 
 
+def perfil_propio(session: Session, usuario: Usuario) -> UsuarioPerfil:
+    """Arma el perfil propio, con la deuda y la habilitación al día (RQ8).
+
+    Primero pone al día los partidos del usuario: si uno terminó y nadie lo
+    consultó, todavía no tiene sus votaciones y la deuda saldría de menos.
+    No alcanza con `from_attributes`: la deuda y la habilitación se
+    calculan con métodos del modelo, así que los campos se pasan a mano.
+    """
+    poner_al_dia_partidos_de(session, usuario)
+    session.commit()
+    return UsuarioPerfil(
+        id=usuario.id,
+        nombre=usuario.nombre,
+        posicion=usuario.posicion,
+        puntuacion_promedio=usuario.puntuacion_promedio,
+        partidos_jugados=usuario.partidos_jugados,
+        email=usuario.email,
+        apellido=usuario.apellido,
+        whatsapp=usuario.whatsapp,
+        fecha_nacimiento=usuario.fecha_nacimiento,
+        deuda=usuario.deuda(),
+        habilitado=usuario.habilitado(),
+    )
+
+
 # `/yo` tiene que declararse antes que `/{usuario_id}`: FastAPI prueba las
 # rutas en orden, y si no, "yo" se tomaría como un id y daría 422.
 @router.get('/yo', response_model=UsuarioPerfil)
-def leer_mi_perfil(usuario: UsuarioActual):
+def leer_mi_perfil(usuario: UsuarioActual, session: Session):
     """Devuelve el perfil propio, con los datos privados (RQ2).
 
     La ruta no recibe un id a propósito: el usuario sale del token, así que
-    no hay forma de pedir los datos privados de otro.
+    no hay forma de pedir los datos privados de otro. También dice en
+    cuántos partidos debe votaciones y si puede publicar y postularse (RQ8).
     """
-    return usuario
+    return perfil_propio(session, usuario)
 
 
 @router.patch('/yo', response_model=UsuarioPerfil)
@@ -112,8 +139,7 @@ def editar_mi_perfil(
         setattr(usuario, campo, valor)
     rechazar_menor_de_edad(usuario, session)
     session.commit()
-    session.refresh(usuario)
-    return usuario
+    return perfil_propio(session, usuario)
 
 
 # El token se exige aunque el perfil sea público: solo lo necesitan usuarios

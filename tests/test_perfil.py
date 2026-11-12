@@ -25,6 +25,8 @@ def test_leer_mi_perfil_devuelve_mis_datos_privados(client_usuario, usuario):
         'posicion': 'Delantera',
         'puntuacion_promedio': None,
         'partidos_jugados': 0,
+        'deuda': 0,
+        'habilitado': True,
     }
 
 

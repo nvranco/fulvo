@@ -65,6 +65,8 @@ def complejo_publico(complejo: Complejo) -> ComplejoPublico:
         latitud=complejo.latitud,
         longitud=complejo.longitud,
         link_maps=complejo.link_maps,
+        puntuacion_promedio=complejo.puntuacion_promedio,
+        cantidad_puntuaciones=complejo.cantidad_puntuaciones,
     )
 
 
