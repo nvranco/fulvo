@@ -8,21 +8,25 @@ dos lo importa a él. Si estuvieran en el mismo archivo, `models.py` y
 `eventos.py` se importarían mutuamente y Python no podría cargarlos
 (decisión del equipo del 2026-11-11).
 
-Hoy hay un observador, `NotificadorPartido` (RQ9), y la fábrica que usa,
-`FabricaNotificaciones` (patrón Factory). `ProcesadorPostPartido` llega con
-las votaciones (RQ8).
+Hay dos observadores: `NotificadorPartido` (RQ9), que crea los avisos con la
+fábrica `FabricaNotificaciones` (patrón Factory), y `ProcesadorPostPartido`
+(RQ8), que suma los partidos jugados, crea las votaciones pendientes y aplica
+los no-shows.
 """
 
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from fulvo.eventos import EventoPartido, ObservadorPartido, TipoEvento
 from fulvo.models import (
     EstadoPostulacion,
+    EstadoVotacion,
     Notificacion,
     Partido,
     Postulacion,
     TipoNotificacion,
     Usuario,
+    Votacion,
     ahora_argentina,
 )
 
@@ -70,6 +74,10 @@ class FabricaNotificaciones:
         TipoNotificacion.partido_cancelado: (
             'Se canceló el partido del {partido}.'
         ),
+        TipoNotificacion.votaciones_pendientes: (
+            'Terminó el partido del {partido}. Tenés votaciones pendientes: '
+            'puntuá a los demás jugadores y al complejo.'
+        ),
     }
 
     def crear(
@@ -107,8 +115,7 @@ class FabricaNotificaciones:
 
 # Para cada evento del partido: qué notificación genera y a quién va. Es la
 # tabla de `clases.md` (sección 3). Un evento que no está acá no genera
-# ninguna: `no_show_marcado` nunca, y `partido_jugado` hasta que lleguen las
-# votaciones (RQ8), que le suman el aviso de votaciones pendientes.
+# ninguna: es el caso de `no_show_marcado`.
 NOTIFICACIONES_POR_EVENTO = {
     TipoEvento.postulacion_recibida: (
         TipoNotificacion.postulacion_recibida,
@@ -134,6 +141,10 @@ NOTIFICACIONES_POR_EVENTO = {
     TipoEvento.partido_cancelado: (
         TipoNotificacion.partido_cancelado,
         'postulantes',
+    ),
+    TipoEvento.partido_jugado: (
+        TipoNotificacion.votaciones_pendientes,
+        'participantes',
     ),
 }
 
@@ -172,16 +183,101 @@ class NotificadorPartido(ObservadorPartido):
     def destinatarios(evento: EventoPartido, para: str) -> list[Usuario]:
         """Quiénes reciben el aviso, según la tabla de arriba.
 
-        El organizador, el jugador de la postulación o, si se cancela el
-        partido, los que estaban en espera y los aceptados.
+        El organizador, el jugador de la postulación, los participantes (al
+        terminar el partido) o, si se cancela el partido, los que estaban en
+        espera y los aceptados.
         """
         if para == 'organizador':
             return [evento.partido.organizador]
         if para == 'jugador':
             return [evento.postulacion.jugador]
+        if para == 'participantes':
+            return evento.partido.participantes()
         activas = {EstadoPostulacion.en_espera, EstadoPostulacion.aceptada}
         return [
             postulacion.jugador
             for postulacion in evento.partido.postulaciones
             if postulacion.estado in activas
         ]
+
+
+class ProcesadorPostPartido(ObservadorPartido):
+    """Observador que aplica lo que pasa después del partido (RQ8).
+
+    Reacciona a dos eventos. Con `partido_jugado` suma un partido jugado a
+    cada participante y crea sus votaciones pendientes. Con
+    `no_show_marcado` deshace eso para el ausente y le suma un voto de 0
+    estrellas. Así `Partido` no sabe nada de votaciones ni de puntuaciones:
+    solo avisa (`clases.md`, sección 3).
+
+    Como `NotificadorPartido`, deja los cambios en la sesión del pedido y
+    los guarda el commit de la ruta, junto con el cambio de estado.
+    """
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def actualizar(self, evento: EventoPartido) -> None:
+        """Atiende `partido_jugado` y `no_show_marcado`; ignora el resto."""
+        if evento.tipo == TipoEvento.partido_jugado:
+            self.cerrar_partido(evento.partido)
+        elif evento.tipo == TipoEvento.no_show_marcado:
+            self.aplicar_no_show(evento.partido, evento.postulacion.jugador)
+
+    def cerrar_partido(self, partido: Partido) -> None:
+        """Suma el partido jugado y crea las votaciones pendientes.
+
+        Cada participante vota a los demás participantes y al complejo
+        (`requerimientos.md`). Las votaciones se suman a la lista del emisor
+        (`Usuario.votaciones`), y con eso SQLAlchemy las guarda en el commit.
+        """
+        # Como en `NotificadorPartido`: `flush` manda a la base lo pendiente,
+        # sin confirmarlo. SQLAlchemy no carga las relaciones de un objeto
+        # que todavía no se mandó (el jugador de una postulación recién
+        # aceptada), y acá hacen falta para saber quiénes participaron.
+        self.session.flush()
+        participantes = partido.participantes()
+        ahora = ahora_argentina()
+        for emisor in participantes:
+            emisor.sumar_partido_jugado()
+            for receptor in participantes:
+                if receptor is not emisor:
+                    emisor.votaciones.append(
+                        Votacion(
+                            partido_id=partido.id,
+                            emisor_id=emisor.id,
+                            created_at=ahora,
+                            receptor_usuario_id=receptor.id,
+                        )
+                    )
+            emisor.votaciones.append(
+                Votacion(
+                    partido_id=partido.id,
+                    emisor_id=emisor.id,
+                    created_at=ahora,
+                    receptor_complejo_id=partido.complejo_id,
+                )
+            )
+
+    def aplicar_no_show(self, partido: Partido, ausente: Usuario) -> None:
+        """Le resta el partido jugado al ausente y le suma un voto de 0.
+
+        También borra las votaciones pendientes de este partido en las que
+        el ausente vota o es votado: no jugó, y el no-show ya cuenta como su
+        voto (decisión del equipo del 2026-11-11). Las ya emitidas quedan.
+        Para borrarlas se sacan de la lista de su emisor (`delete-orphan`).
+        """
+        ausente.restar_partido_jugado()
+        ausente.registrar_puntuacion(0)
+        pendientes = self.session.scalars(
+            select(Votacion).where(
+                Votacion.partido_id == partido.id,
+                Votacion.estado == EstadoVotacion.pendiente,
+                or_(
+                    Votacion.emisor_id == ausente.id,
+                    Votacion.receptor_usuario_id == ausente.id,
+                ),
+            )
+        ).all()
+        for votacion in pendientes:
+            votacion.emisor.votaciones.remove(votacion)

@@ -1,5 +1,13 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Límite X del bloqueo por deuda (RQ8): un usuario con votaciones pendientes
+# en más partidos que este no puede publicar partidos ni postularse. Es un
+# valor fijo y no una variable de entorno: es una regla del negocio, igual en
+# local, en el CI y en producción, y el admin no lo edita en el MVP
+# (`docs/requerimientos.md`). Por eso vive fuera de `Settings`: los modelos
+# lo importan sin tener que leer el `.env`.
+LIMITE_DEUDA = 3
+
 
 class Settings(BaseSettings):
     """Configuración de la app, leída de variables de entorno o de `.env`.

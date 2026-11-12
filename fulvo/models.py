@@ -1,8 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 
+from sqlalchemy import CheckConstraint, ForeignKey, UniqueConstraint
 from sqlalchemy import Enum as EnumSQL
-from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import (
     Mapped,
     mapped_as_dataclass,
@@ -14,6 +14,7 @@ from sqlalchemy.orm import (
 
 from fulvo.errores import ReglaDeNegocioError
 from fulvo.eventos import EventoPartido, ObservadorPartido, TipoEvento
+from fulvo.settings import LIMITE_DEUDA
 
 # Registro de todos los modelos: guarda las tablas (`table_registry.metadata`)
 # para que Alembic y los tests puedan crearlas.
@@ -62,10 +63,26 @@ class Complejo:
     sitio_web: Mapped[str | None] = mapped_column(default=None)
     calificacion_maps: Mapped[float | None] = mapped_column(default=None)
     link_maps: Mapped[str | None] = mapped_column(default=None)
+    # Calculadas con las votaciones de la app (RQ8), como las del usuario.
+    # No se mezclan con `calificacion_maps`, que es la de Google Maps.
+    puntuacion_promedio: Mapped[float | None] = mapped_column(default=None)
+    cantidad_puntuaciones: Mapped[int] = mapped_column(default=0)
 
     # Se carga sola a partir de zona_id: al crear un Complejo se pasa
     # `zona_id`, no `zona`. Solo en este sentido (muchos a uno).
     zona: Mapped[Zona] = relationship(init=False)
+
+    def registrar_puntuacion(self, estrellas: int) -> None:
+        """Suma un voto y recalcula el promedio (RQ8).
+
+        Es el mismo cálculo que `Usuario.registrar_puntuacion`, repetido a
+        propósito: son cuatro líneas y cada clase se lee sola, sin una clase
+        base `Puntuable` (`clases.md`).
+        """
+        cantidad = self.cantidad_puntuaciones + 1
+        suma = (self.puntuacion_promedio or 0) * self.cantidad_puntuaciones
+        self.puntuacion_promedio = (suma + estrellas) / cantidad
+        self.cantidad_puntuaciones = cantidad
 
 
 # Nombres de los roles base. Se crean con la carga inicial (no hay endpoint
@@ -125,6 +142,19 @@ class Usuario:
     # Se carga sola a partir de rol_id: al crear un Usuario se pasa
     # `rol_id`, no `rol` (mismo criterio que Complejo.zona).
     rol: Mapped[Rol] = relationship(init=False)
+    # Las votaciones que el usuario tiene que emitir o ya emitió (RQ8).
+    # `foreign_keys` dice cuál de las dos columnas de `votaciones` que apuntan
+    # a usuarios es la de esta lista: el emisor (la otra es el receptor). Con
+    # `delete-orphan`, sacar una votación de la lista la borra de la base: una
+    # votación no existe sin su emisor. Por eso también se crean sumándolas a
+    # esta lista, como las postulaciones de un partido.
+    votaciones: Mapped[list['Votacion']] = relationship(
+        init=False,
+        back_populates='emisor',
+        foreign_keys='Votacion.emisor_id',
+        cascade='all, delete-orphan',
+        order_by='Votacion.id',
+    )
 
     def edad(self, hoy: date) -> int:
         """Devuelve los años cumplidos a la fecha `hoy`.
@@ -141,6 +171,66 @@ class Usuario:
     def tiene_rol(self, nombre: str) -> bool:
         """Dice si el rol del usuario es `nombre`: único punto de permisos."""
         return self.rol.nombre == nombre
+
+    def registrar_puntuacion(self, estrellas: int) -> None:
+        """Suma un voto y recalcula el promedio (RQ8).
+
+        Los votos no se guardan uno por uno en el usuario: la suma de los
+        anteriores es el promedio por la cantidad, así que alcanza con esas
+        dos columnas. Un no-show cuenta como un voto de 0 (`clases.md`).
+        """
+        cantidad = self.cantidad_puntuaciones + 1
+        suma = (self.puntuacion_promedio or 0) * self.cantidad_puntuaciones
+        self.puntuacion_promedio = (suma + estrellas) / cantidad
+        self.cantidad_puntuaciones = cantidad
+
+    def sumar_partido_jugado(self) -> None:
+        """Suma 1 a los partidos jugados: al pasar un partido a jugado."""
+        self.partidos_jugados += 1
+
+    def restar_partido_jugado(self) -> None:
+        """Resta 1 a los partidos jugados: al marcarle un no-show."""
+        self.partidos_jugados -= 1
+
+    def votaciones_pendientes(self) -> list['Votacion']:
+        """Votaciones que todavía tiene que emitir, de cualquier partido."""
+        return [
+            votacion
+            for votacion in self.votaciones
+            if votacion.estado == EstadoVotacion.pendiente
+        ]
+
+    def deuda(self) -> int:
+        """Cuenta los partidos en los que le queda alguna votación pendiente.
+
+        La deuda cuenta por partido y no por votación (`clases.md`): un
+        partido con cinco votos pendientes suma 1, igual que uno con uno solo.
+        """
+        return len({v.partido_id for v in self.votaciones_pendientes()})
+
+    def habilitado(self) -> bool:
+        """Dice si puede publicar y postularse: si la deuda no supera X."""
+        return self.deuda() <= LIMITE_DEUDA
+
+    def exigir_habilitado(self) -> None:
+        """Levanta `ReglaDeNegocioError` (409) si la deuda no lo deja seguir.
+
+        El mensaje dice en cuántos partidos debe votos, cuántos tiene que
+        completar para volver a estar habilitado y cuántas votaciones le
+        faltan en total (decisión del equipo del 2026-11-11). Lo usan
+        `Partido.postular` y la ruta que publica partidos.
+        """
+        if self.habilitado():
+            return
+        deuda = self.deuda()
+        a_completar = deuda - LIMITE_DEUDA
+        partidos = 'partido' if a_completar == 1 else 'partidos'
+        raise ReglaDeNegocioError(
+            f'Tenés votaciones pendientes en {deuda} partidos y el máximo es '
+            f'{LIMITE_DEUDA}: completá las de al menos {a_completar} '
+            f'{partidos} para publicar o postularte (te faltan '
+            f'{len(self.votaciones_pendientes())} votaciones).'
+        )
 
 
 # Argentina usa un solo huso horario (UTC-3) y no cambia la hora en verano
@@ -291,6 +381,19 @@ class Partido:
         """Dice si el partido sigue vigente: abierto o completo."""
         return self.estado in {EstadoPartido.abierto, EstadoPartido.completo}
 
+    def participantes(self) -> list[Usuario]:
+        """El organizador y los jugadores aceptados: los que juegan (RQ8).
+
+        No es una clase aparte: sale de las postulaciones (`clases.md`). Son
+        los que suman el partido jugado y se votan entre sí.
+        """
+        aceptados = [
+            postulacion.jugador
+            for postulacion in self.postulaciones
+            if postulacion.estado == EstadoPostulacion.aceptada
+        ]
+        return [self.organizador, *aceptados]
+
     def actualizar_estado(self, ahora: datetime) -> bool:
         """Pasa el partido a jugado si ya terminó, y dice si cambió.
 
@@ -313,8 +416,8 @@ class Partido:
         El partido tiene que estar abierto y sin empezar, el jugador no
         puede ser el organizador y no puede tener otra postulación a este
         partido, aunque la anterior se haya retirado o rechazado (decisión
-        del equipo del 2026-11-11). El bloqueo por votaciones pendientes
-        llega con RQ8.
+        del equipo del 2026-11-11). Tampoco puede deber votaciones en más
+        de X partidos (bloqueo por deuda, RQ8).
         """
         exigir(
             self.estado == EstadoPartido.abierto, 'El partido no está abierto'
@@ -328,6 +431,7 @@ class Partido:
             all(p.jugador_id != jugador.id for p in self.postulaciones),
             'El jugador ya se postuló a este partido',
         )
+        jugador.exigir_habilitado()
         postulacion = Postulacion(
             partido_id=self.id, jugador_id=jugador.id, created_at=ahora
         )
@@ -400,6 +504,23 @@ class Partido:
         self.estado = EstadoPartido.cancelado
         self.avisar(TipoEvento.partido_cancelado)
 
+    def marcar_no_show(self, postulacion: 'Postulacion') -> None:
+        """Marca que un jugador aceptado no vino al partido (RQ8).
+
+        Solo con el partido ya jugado: antes no hay votaciones ni partido
+        jugado que deshacer (decisión del equipo del 2026-11-11). Que lo
+        haga solo el organizador lo controla la ruta, como al aceptar. Las
+        consecuencias (restarle el partido jugado, el voto de 0 y borrar
+        votaciones pendientes) las aplica `ProcesadorPostPartido` al recibir
+        `no_show_marcado`: el partido solo avisa.
+        """
+        exigir(
+            self.estado == EstadoPartido.jugado,
+            'Solo se puede marcar un no-show en un partido jugado',
+        )
+        postulacion.marcar_no_show()
+        self.avisar(TipoEvento.no_show_marcado, postulacion)
+
 
 class EstadoPostulacion(str, Enum):
     """Estados de una postulación (`docs/requerimientos.md`, sección 4)."""
@@ -437,6 +558,8 @@ class Postulacion:
     )
     # Cuándo respondió el organizador: al aceptar, rechazar o revocar.
     respondida_at: Mapped[datetime | None] = mapped_column(default=None)
+    # El organizador marcó que el jugador aceptado no vino (RQ8).
+    no_show: Mapped[bool] = mapped_column(default=False)
 
     partido: Mapped[Partido] = relationship(
         init=False, back_populates='postulaciones'
@@ -492,6 +615,15 @@ class Postulacion:
             'Solo se puede retirar una postulación en espera o aceptada',
         )
 
+    def marcar_no_show(self) -> None:
+        """Marca que el jugador no vino: solo si estaba aceptado, una vez."""
+        exigir(
+            self.estado == EstadoPostulacion.aceptada,
+            'Solo se puede marcar el no-show de un jugador aceptado',
+        )
+        exigir(not self.no_show, 'El no-show ya estaba marcado')
+        self.no_show = True
+
     def whatsapp_visible(self) -> bool:
         """Dice si el organizador y el jugador se ven el WhatsApp.
 
@@ -508,9 +640,9 @@ class Postulacion:
 class TipoNotificacion(str, Enum):
     """Tipos de notificación (`docs/requerimientos.md`, sección 4).
 
-    Están los que generan las postulaciones y los partidos. "Votaciones
-    pendientes" se suma con las votaciones (RQ8) y "reclamo resuelto" con
-    los reclamos (RQ11).
+    Están los que generan las postulaciones y los partidos, y el aviso de
+    votaciones pendientes (RQ8). "Reclamo resuelto" se suma con los reclamos
+    (RQ11).
     """
 
     postulacion_recibida = 'postulacion_recibida'
@@ -520,6 +652,7 @@ class TipoNotificacion(str, Enum):
     postulacion_retirada = 'postulacion_retirada'
     revocacion = 'revocacion'
     partido_cancelado = 'partido_cancelado'
+    votaciones_pendientes = 'votaciones_pendientes'
 
 
 @mapped_as_dataclass(table_registry)
@@ -553,3 +686,106 @@ class Notificacion:
     def marcar_leida(self) -> None:
         """Marca la notificación como leída. Repetirlo no cambia nada."""
         self.leida = True
+
+
+# Un voto va de 0 a 5 estrellas (RQ8).
+ESTRELLAS_MAXIMAS = 5
+
+
+class EstadoVotacion(str, Enum):
+    """Estados de una votación: la crea el sistema y la completa el emisor."""
+
+    pendiente = 'pendiente'
+    emitida = 'emitida'
+
+
+@mapped_as_dataclass(table_registry)
+class Votacion:
+    """Voto de un participante a otro o al complejo de un partido (RQ8).
+
+    Las crea pendientes `ProcesadorPostPartido` cuando el partido pasa a
+    jugado: cada participante vota a los demás y al complejo. El emisor la
+    completa con `emitir`. El receptor se guarda con dos referencias
+    opcionales, a un usuario o a un complejo, y exactamente una tiene valor:
+    no hay subclases por tipo de receptor (`clases.md`).
+    """
+
+    __tablename__ = 'votaciones'
+    __table_args__ = (
+        # Exactamente un receptor: "es nulo" tiene que dar distinto en las
+        # dos columnas. Si las dos fueran nulas, o las dos tuvieran valor,
+        # darían lo mismo y la base rechazaría la fila.
+        CheckConstraint(
+            '(receptor_usuario_id IS NULL) <> (receptor_complejo_id IS NULL)',
+            name='un_solo_receptor',
+        ),
+        # Un voto por emisor y receptor en cada partido. En SQL dos nulos no
+        # son iguales, así que los votos al complejo (sin usuario) no chocan
+        # entre sí en la primera restricción, ni los votos a usuarios en la
+        # segunda.
+        UniqueConstraint('partido_id', 'emisor_id', 'receptor_usuario_id'),
+        UniqueConstraint('partido_id', 'emisor_id', 'receptor_complejo_id'),
+        # Las votaciones pendientes se borran (no-show), y SQLite reutiliza
+        # el id de la última fila borrada; con esto no, igual que PostgreSQL
+        # (mismo criterio que `Complejo`). Un reclamo (RQ11) va a apuntar a
+        # una votación por su id.
+        {'sqlite_autoincrement': True},
+    )
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    partido_id: Mapped[int] = mapped_column(ForeignKey('partidos.id'))
+    emisor_id: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
+    created_at: Mapped[datetime]
+    receptor_usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey('usuarios.id'), default=None
+    )
+    receptor_complejo_id: Mapped[int | None] = mapped_column(
+        ForeignKey('complejos.id'), default=None
+    )
+    estado: Mapped[EstadoVotacion] = mapped_column(
+        EnumSQL(EstadoVotacion, native_enum=False),
+        default=EstadoVotacion.pendiente,
+    )
+    # Vacías mientras la votación está pendiente.
+    estrellas: Mapped[int | None] = mapped_column(default=None)
+    emitida_at: Mapped[datetime | None] = mapped_column(default=None)
+
+    partido: Mapped[Partido] = relationship(init=False)
+    # Dos columnas apuntan a usuarios: `foreign_keys` dice cuál usa cada
+    # relación.
+    emisor: Mapped[Usuario] = relationship(
+        init=False, back_populates='votaciones', foreign_keys=[emisor_id]
+    )
+    receptor_usuario: Mapped[Usuario | None] = relationship(
+        init=False, foreign_keys=[receptor_usuario_id]
+    )
+    receptor_complejo: Mapped[Complejo | None] = relationship(init=False)
+
+    def receptor(self) -> Usuario | Complejo:
+        """Devuelve a quién va el voto: el usuario o el complejo.
+
+        Los dos tienen `registrar_puntuacion`, así que quien lo usa no
+        necesita saber cuál de los dos es.
+        """
+        if self.receptor_usuario_id is not None:
+            return self.receptor_usuario
+        return self.receptor_complejo
+
+    def emitir(self, estrellas: int, ahora: datetime) -> None:
+        """Completa la votación y le suma el voto al receptor (RQ8).
+
+        Solo una vez: un voto emitido no se cambia. Recibe `ahora` para
+        poder probarla con fechas fijas, como `Partido.aceptar`.
+        """
+        exigir(
+            0 <= estrellas <= ESTRELLAS_MAXIMAS,
+            f'Las estrellas van de 0 a {ESTRELLAS_MAXIMAS}',
+        )
+        exigir(
+            self.estado == EstadoVotacion.pendiente,
+            'La votación ya fue emitida',
+        )
+        self.estado = EstadoVotacion.emitida
+        self.estrellas = estrellas
+        self.emitida_at = ahora
+        self.receptor().registrar_puntuacion(estrellas)

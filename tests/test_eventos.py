@@ -197,3 +197,30 @@ def test_el_pase_a_jugado_emite_partido_jugado_una_sola_vez(
     partido.actualizar_estado(despues_del_fin)
 
     assert observador.tipos() == [TipoEvento.partido_jugado]
+
+
+def test_marcar_no_show_emite_no_show_marcado_con_la_postulacion(
+    otro_usuario, partido, observador
+):
+    ahora = ahora_argentina()
+    postulacion = partido.postular(otro_usuario, ahora)
+    partido.aceptar(postulacion, ahora)
+    partido.actualizar_estado(partido.fin() + timedelta(minutes=1))
+
+    partido.marcar_no_show(postulacion)
+
+    assert observador.tipos()[-1] == TipoEvento.no_show_marcado
+    assert observador.eventos[-1].postulacion is postulacion
+
+
+def test_un_no_show_rechazado_no_emite_eventos(
+    otro_usuario, partido, observador
+):
+    postulacion = partido.postular(otro_usuario, ahora_argentina())
+    observador.eventos.clear()
+
+    # El partido todavía no se jugó.
+    with pytest.raises(ReglaDeNegocioError):
+        partido.marcar_no_show(postulacion)
+
+    assert observador.eventos == []

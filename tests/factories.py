@@ -2,7 +2,15 @@ from datetime import timedelta
 
 import factory
 
-from fulvo.models import Partido, TipoPartido, Usuario, ahora_argentina
+from fulvo.models import (
+    EstadoPostulacion,
+    Partido,
+    Postulacion,
+    TipoPartido,
+    Usuario,
+    ahora_argentina,
+)
+from fulvo.observadores import ProcesadorPostPartido
 from fulvo.security import hashear_contrasena
 from tests.datos import CONTRASENA, hoy_menos_anios
 
@@ -64,5 +72,47 @@ def guardar_partido(session, organizador, **cambios) -> Partido:
     datos = {'organizador_id': organizador.id, 'complejo_id': 1} | cambios
     partido = PartidoFactory(**datos)
     session.add(partido)
+    session.commit()
+    return partido
+
+
+def guardar_aceptado(session, partido, jugador) -> Postulacion:
+    """Guarda la postulación del jugador al partido, ya aceptada.
+
+    No pasa por `Partido.postular`, así sirve también para partidos que ya
+    empezaron, a los que nadie se puede postular.
+    """
+    postulacion = Postulacion(
+        partido_id=partido.id,
+        jugador_id=jugador.id,
+        created_at=partido.inicio - timedelta(days=1),
+        estado=EstadoPostulacion.aceptada,
+    )
+    partido.postulaciones.append(postulacion)
+    session.commit()
+    return postulacion
+
+
+def guardar_partido_jugado(
+    session, organizador, aceptados=(), **cambios
+) -> Partido:
+    """Guarda un partido que terminó hace una hora, ya pasado a jugado (RQ8).
+
+    Queda como si alguien lo hubiera consultado: cada participante (el
+    organizador y los `aceptados`) suma el partido jugado y tiene sus
+    votaciones pendientes, creadas por `ProcesadorPostPartido`.
+    """
+    inicio = ahora_argentina() - timedelta(hours=2)
+    datos = {'inicio': inicio} | cambios
+    partido = guardar_partido(session, organizador, **datos)
+    for jugador in aceptados:
+        guardar_aceptado(session, partido, jugador)
+    # Solo con el procesador: las notificaciones no hacen falta acá. Después
+    # se lo quita, para que las rutas le sumen sus propios observadores
+    # (`preparar_partido` no los suma si el partido ya tiene alguno).
+    procesador = ProcesadorPostPartido(session)
+    partido.agregar_observador(procesador)
+    partido.actualizar_estado(ahora_argentina())
+    partido.quitar_observador(procesador)
     session.commit()
     return partido

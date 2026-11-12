@@ -206,7 +206,7 @@ def test_sin_token_devuelve_no_autenticado(client, metodo, ruta, cuerpo):
     assert respuesta.status_code == HTTPStatus.UNAUTHORIZED
 
 
-def test_consultar_un_partido_terminado_todavia_no_avisa(
+def test_consultar_un_partido_terminado_avisa_las_votaciones_pendientes(
     client, session, usuario
 ):
     terminado = guardar_partido(
@@ -215,7 +215,11 @@ def test_consultar_un_partido_terminado_todavia_no_avisa(
 
     client.get(f'/partidos/{terminado.id}', headers=con_token(usuario))
 
-    assert leer(client, usuario) == []
+    avisos = leer(client, usuario)
+    assert [a['tipo'] for a in avisos] == ['votaciones_pendientes']
+    assert avisos[0]['referencia_tipo'] == 'partido'
+    assert avisos[0]['referencia_id'] == terminado.id
+    assert avisos[0]['mensaje'].startswith('Terminó el partido del ')
 
 
 def test_mis_postulaciones_ponen_al_dia_sus_partidos(

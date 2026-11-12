@@ -73,6 +73,7 @@ def test_hay_una_plantilla_por_cada_tipo_de_notificacion():
         (TipoNotificacion.postulacion_retirada, 'Beto retiró su postulación'),
         (TipoNotificacion.revocacion, 'te sacó del partido'),
         (TipoNotificacion.partido_cancelado, 'Se canceló el partido'),
+        (TipoNotificacion.votaciones_pendientes, 'votaciones pendientes'),
     ],
 )
 def test_la_fabrica_arma_cada_tipo_con_su_texto(
@@ -216,10 +217,24 @@ def test_cancelar_avisa_solo_a_los_que_esperaban_y_a_los_aceptados(
         )
 
 
-def test_el_pase_a_jugado_todavia_no_avisa_a_nadie(session, partido):
+def test_el_pase_a_jugado_avisa_las_votaciones_solo_a_los_participantes(
+    session, usuario, partido, jugador
+):
+    ahora = ahora_argentina()
+    en_espera = guardar_usuario_comun(session, usuario.rol_id)
+    partido.aceptar(partido.postular(jugador, ahora), ahora)
+    partido.postular(en_espera, ahora)
+
     partido.actualizar_estado(partido.fin() + timedelta(minutes=1))
 
-    assert list(session.scalars(select(Notificacion))) == []
+    for participante in (usuario, jugador):
+        aviso = notificaciones_de(session, participante)[-1]
+        assert aviso.tipo == TipoNotificacion.votaciones_pendientes
+        assert aviso.referencia_tipo == 'partido'
+        assert aviso.referencia_id == partido.id
+    assert TipoNotificacion.votaciones_pendientes not in tipos_de(
+        session, en_espera
+    )
 
 
 def test_un_evento_sin_notificacion_no_crea_nada(session, partido):
