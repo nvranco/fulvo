@@ -1,0 +1,54 @@
+# API + PostgreSQL en contenedores, para desarrollo: docker compose up --build
+#
+# Los valores ${...} los completa Docker Compose con el archivo `.env` de la
+# raíz (o con variables de la terminal). Así los secretos no se escriben en
+# este archivo, que sí se commitea.
+
+services:
+  fulvo_database:
+    # Versión fija: con `postgres` a secas cada `docker pull` podría traer
+    # una versión mayor nueva, incompatible con los datos ya guardados.
+    image: postgres:16
+    environment:
+      # Credenciales de la base local de desarrollo, como en la cátedra. No
+      # son secretas: la base no se publica (no hay `ports`) y solo la ve la
+      # app dentro de la red de Compose. Producción (Fly.io) usa las suyas.
+      POSTGRES_USER: fulvo
+      POSTGRES_PASSWORD: fulvo
+      POSTGRES_DB: fulvo
+    volumes:
+      # Volumen con nombre: los datos sobreviven a `docker compose down`.
+      # Solo se borran con `docker compose down -v`.
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # "Sano" recién cuando acepta conexiones. Arrancar el contenedor no
+      # alcanza: Postgres tarda unos segundos en estar listo.
+      test: ['CMD-SHELL', 'pg_isready -U fulvo -d fulvo']
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  fulvo_app:
+    build: .
+    ports:
+      - '8000:8000'
+    depends_on:
+      fulvo_database:
+        # Espera al healthcheck y no solo a que el contenedor exista. Si no,
+        # `alembic upgrade head` (entrypoint.sh) puede correr antes de que
+        # Postgres acepte conexiones, y con `set -e` la app no arranca.
+        condition: service_healthy
+    environment:
+      # El host es el nombre del servicio: Compose arma una red interna
+      # donde cada servicio se encuentra por su nombre.
+      DATABASE_URL: postgresql+psycopg://fulvo:fulvo@fulvo_database:5432/fulvo
+      # `:?` hace fallar `docker compose up` con ese mensaje si falta en
+      # `.env`: sin clave no hay tokens válidos.
+      SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en .env}
+      # Opcionales: si faltan llegan vacías y la carga inicial no crea el
+      # admin (lo avisa en los logs del arranque).
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+
+volumes:
+  pgdata:
