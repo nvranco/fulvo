@@ -180,3 +180,82 @@ def test_el_no_show_no_toca_las_votaciones_ya_emitidas(
     assert ausente.puntuacion_promedio == sum(votos_del_ausente) / 2
     assert ausente.cantidad_puntuaciones == len(votos_del_ausente)
     assert usuario.puntuacion_promedio == del_ausente.estrellas
+
+
+def test_anular_el_no_show_le_devuelve_el_partido_y_le_quita_el_cero(
+    session, partido, jugadores
+):
+    ausente = jugadores[0]
+    jugar(session, partido)
+    postulacion = partido.postulaciones[0]
+    partido.marcar_no_show(postulacion)
+
+    partido.quitar_no_show(postulacion)
+
+    assert ausente.partidos_jugados == 1
+    assert ausente.puntuacion_promedio is None
+    assert ausente.cantidad_puntuaciones == 0
+
+
+def test_anular_el_no_show_repone_las_votaciones_del_ausente_y_hacia_el(
+    session, usuario, partido, jugadores
+):
+    ausente, presente = jugadores
+    jugar(session, partido)
+    postulacion = partido.postulaciones[0]
+    partido.marcar_no_show(postulacion)
+
+    partido.quitar_no_show(postulacion)
+    session.flush()
+
+    # Las repuestas van al final de cada lista: primero el complejo del
+    # ausente, y después las de cada presente con él.
+    assert receptores(ausente) == [partido.complejo, usuario, presente]
+    assert receptores(usuario) == [presente, partido.complejo, ausente]
+    assert receptores(presente) == [usuario, partido.complejo, ausente]
+    participantes = len(jugadores) + 1
+    votaciones = todas_las_votaciones(session)
+    assert len(votaciones) == participantes * participantes
+    assert {v.estado for v in votaciones} == {EstadoVotacion.pendiente}
+    assert ausente.deuda() == 1
+
+
+def test_anular_el_no_show_no_repite_las_votaciones_ya_emitidas(
+    session, usuario, partido, jugadores
+):
+    ausente = jugadores[0]
+    jugar(session, partido)
+    al_ausente = usuario.votaciones[0]
+    al_ausente.emitir(4, ahora_argentina())
+    del_ausente = ausente.votaciones[0]
+    del_ausente.emitir(5, ahora_argentina())
+    postulacion = partido.postulaciones[0]
+    partido.marcar_no_show(postulacion)
+
+    partido.quitar_no_show(postulacion)
+    session.flush()
+
+    hacia_el = [v for v in usuario.votaciones if v.receptor() is ausente]
+    de_el = [v for v in ausente.votaciones if v.receptor() is usuario]
+    assert hacia_el == [al_ausente]
+    assert de_el == [del_ausente]
+    participantes = len(jugadores) + 1
+    assert len(todas_las_votaciones(session)) == participantes * participantes
+
+
+def test_anular_un_no_show_no_repone_votaciones_con_otro_ausente(
+    session, usuario, partido, jugadores
+):
+    primero, segundo = jugadores
+    jugar(session, partido)
+    del_primero, del_segundo = partido.postulaciones
+    partido.marcar_no_show(del_primero)
+    partido.marcar_no_show(del_segundo)
+
+    partido.quitar_no_show(del_primero)
+    session.flush()
+
+    assert receptores(primero) == [partido.complejo, usuario]
+    assert receptores(usuario) == [partido.complejo, primero]
+    assert segundo.votaciones == []
+    assert segundo.partidos_jugados == 0
