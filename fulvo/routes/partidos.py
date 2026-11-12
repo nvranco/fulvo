@@ -199,6 +199,45 @@ def poner_al_dia_partidos_de(session: Session, usuario: Usuario) -> None:
         preparar_partido(session, partido)
 
 
+def sacar_de_partidos_por_jugar(session: Session, usuario: Usuario) -> None:
+    """Cancela los partidos del usuario y retira sus postulaciones (RQ10).
+
+    La usa el bloqueo: un usuario bloqueado ya no entra a la app, así que no
+    podría aceptar jugadores ni coordinar (decisión del equipo del
+    2026-11-12). Solo toca partidos que todavía no empezaron: los que ya
+    empezaron o se jugaron quedan como están, con sus votaciones. Cada
+    cambio pasa por los métodos de `Partido`, así los afectados reciben los
+    avisos de siempre (partido cancelado, postulación retirada) y el patrón
+    Observer no cambia. Desbloquear no deshace nada de esto.
+    """
+    por_jugar = (
+        Partido.estado.in_([EstadoPartido.abierto, EstadoPartido.completo]),
+        Partido.inicio > ahora_argentina(),
+    )
+    organizados = session.scalars(
+        select(Partido).where(Partido.organizador_id == usuario.id, *por_jugar)
+    ).all()
+    for partido in organizados:
+        preparar_partido(session, partido)
+        partido.cancelar()
+
+    postulaciones = session.scalars(
+        select(Postulacion)
+        .join(Postulacion.partido)
+        .where(
+            Postulacion.jugador_id == usuario.id,
+            Postulacion.estado.in_([
+                EstadoPostulacion.en_espera,
+                EstadoPostulacion.aceptada,
+            ]),
+            *por_jugar,
+        )
+    ).all()
+    for postulacion in postulaciones:
+        preparar_partido(session, postulacion.partido)
+        postulacion.partido.retirar(postulacion)
+
+
 def buscar_partido(session: Session, partido_id: int) -> Partido:
     """Devuelve el partido con ese id, preparado, o levanta 404.
 
