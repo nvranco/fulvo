@@ -37,8 +37,11 @@ Decisiones:
 - La deuda se calcula en `Usuario`, no en un servicio aparte. `Partido.postular` solo pregunta si está habilitado.
 - En el código (RQ8), `deuda()` y `habilitado()` tienen dos ayudantes: `votaciones_pendientes()`, que filtra la lista de votaciones del usuario, y `exigir_habilitado()`, que levanta el 409 con el detalle de la deuda. Lo usan `Partido.postular` y la ruta que publica partidos, así el mensaje se arma en un solo lugar.
 - Las votaciones que emite el usuario son una lista (`Usuario.votaciones`), como las postulaciones de un partido. Se crean sumándolas a esa lista y se borran sacándolas (`delete-orphan`): así la lista en memoria nunca queda vieja y `deuda()` no consulta la base.
-- `quitar_puntuacion` llega con los reclamos (RQ11), que son los que la usan.
+- `quitar_puntuacion` llegó con los reclamos (RQ11), que son los que la usan: al anular una votación y al anular un no-show. Si era el único voto, el promedio vuelve a quedar vacío.
 - El bloqueo lo hace `Usuario.bloquear(...)`, que crea la `Sancion`. `Sancion.cerrar()` pone la fecha de fin.
+- En el código (RQ10), `bloquear(admin, motivo, ahora)` devuelve la sanción y levanta `ReglaDeNegocioError` (409) si el usuario es admin, incluido uno mismo, o si ya está bloqueado (decisión del equipo del 2026-11-12). Con RQ11 recibe también el reclamo de origen, opcional, y la sanción guarda su `reclamo_id`. `desbloquear(sancion, ahora)` recibe la sanción que se cierra, porque la API la nombra por su id. Las dos reciben `ahora` para probarlas con fechas fijas, como `Votacion.emitir`.
+- Las sanciones son una lista del usuario (`Usuario.sanciones`) que nunca se borra: es su historial. `bloquear` suma la nueva a esa lista, como las votaciones.
+- Lo que pasa con sus partidos al bloquearlo no vive en `Usuario`: cancelar los partidos que organiza y retirar sus postulaciones necesita buscarlos en la base, así que lo hace `sacar_de_partidos_por_jugar` (`fulvo/routes/partidos.py`), siempre con los métodos de `Partido`. Los avisos salen por el Observer, igual que cuando cancela o se baja una persona, y el patrón no cambia.
 - El contacto del usuario se llama `whatsapp`.
 - El `apellido` no se muestra en el perfil público.
 
@@ -116,9 +119,11 @@ Métodos:
 | `revocar(postulacion)` | Suma 1 cupo y reabre el partido si estaba completo. | `revocacion` |
 | `retirar(postulacion)` | El jugador se baja. Si estaba aceptado, suma 1 cupo y reabre el partido. | `postulacion_retirada` |
 | `marcar_no_show(postulacion)` | Solo el organizador, sobre un aceptado y con el partido jugado. Llama a `postulacion.marcar_no_show()`. | `no_show_marcado` |
+| `quitar_no_show(postulacion)` | Lo usa el reclamo resuelto (RQ11). Llama a `postulacion.quitar_no_show()`. | `no_show_anulado` |
 | `cancelar()` | Pasa a cancelado. | `partido_cancelado` |
 | `actualizar_estado(ahora)` | Si ya pasó `fin()`, pasa a jugado. Se llama al consultar el partido. | `partido_jugado` |
 | `participantes()` | Devuelve el organizador y los jugadores aceptados. Lo usan los dos observadores al pasar a jugado. | — |
+| `presentes()` | Los participantes sin un no-show marcado (RQ11). Lo usan los dos observadores al anularse un no-show. | — |
 | `agregar_observador(o)`, `quitar_observador(o)`, `notificar(evento)` | Mecánica del Observer. | — |
 
 **Postulacion**
@@ -143,7 +148,7 @@ Métodos. `Postulacion` es dueña de sus propias transiciones de estado, y `Part
 
 Una transición inválida levanta una excepción (por ejemplo, aceptar una postulación ya rechazada). La regla de estados queda en un solo lugar. `Postulacion` no emite eventos.
 
-En el código, `marcar_no_show` llegó con las votaciones (RQ8) y `quitar_no_show` llega con los reclamos (RQ11), que son quienes lo usan.
+En el código, `marcar_no_show` llegó con las votaciones (RQ8) y `quitar_no_show` con los reclamos (RQ11), que son quienes lo usan.
 
 ### Gestión post-partido
 
@@ -151,7 +156,7 @@ En el código, `marcar_no_show` llegó con las votaciones (RQ8) y `quitar_no_sho
 
 - `id`, `partido`, `emisor`
 - `receptor_usuario` o `receptor_complejo`: exactamente uno tiene valor
-- `estado` (pendiente, emitida), `estrellas` (0 a 5, vacío mientras está pendiente)
+- `estado` (pendiente, emitida, anulada), `estrellas` (0 a 5, vacío mientras está pendiente)
 - `emitida_at`, `created_at`
 
 Métodos:
@@ -159,7 +164,7 @@ Métodos:
 | Método | Qué hace |
 |---|---|
 | `emitir(estrellas)` | Valida 0 a 5 y que esté pendiente, guarda `emitida_at` y le suma el voto al receptor con `registrar_puntuacion`. |
-| `anular()` | Quita el voto de la puntuación del receptor con `quitar_puntuacion`. Lo usa el reclamo resuelto. |
+| `anular()` | Pasa a anulada y quita el voto de la puntuación del receptor con `quitar_puntuacion`. Lo usa el reclamo resuelto. |
 | `receptor()` | Devuelve el receptor que tenga valor (usuario o complejo). Los dos responden a `registrar_puntuacion`. |
 
 Decisión: el receptor se modela con dos referencias opcionales, de las que exactamente una tiene valor. No se arman subclases `VotacionUsuario` y `VotacionComplejo`.
@@ -168,7 +173,8 @@ Decisiones del código (RQ8):
 
 - **La base controla el receptor.** Una restricción CHECK (`un_solo_receptor`) rechaza una votación sin receptor o con los dos. Dos restricciones `UNIQUE` impiden votar dos veces al mismo receptor en un partido.
 - **Un voto emitido no se cambia.** `emitir` levanta `ReglaDeNegocioError` (409) si la votación ya se emitió o si las estrellas no van de 0 a 5. Recibe `ahora`, como los métodos de `Partido`.
-- **`anular()` llega con RQ11**, que es quien la usa al resolver un reclamo.
+- **`anular()` llegó con RQ11**, que es quien la usa al resolver un reclamo. La votación queda anulada, con sus estrellas, en lugar de borrarse, así el reclamo sigue apuntando a ella (decisión del equipo del 2026-11-12). Solo se anula una emitida.
+- **Votos recibidos (RQ11).** `GET /votaciones?recibidas=true` lista los votos emitidos o anulados hacia el usuario, sin decir quién votó: el voto es anónimo para quien lo recibe (decisión del equipo del 2026-11-12). Los necesita para reclamar uno.
 
 **Reclamo**
 
@@ -190,9 +196,9 @@ Medida al resolver:
 
 | `tipo_objetivo` | Qué es `objetivo_id` | Medida |
 |---|---|---|
-| no-show | Postulación marcada | Quita la marca con `Postulacion.quitar_no_show()`, suma 1 partido jugado y quita el voto de 0 estrellas. |
+| no-show | Postulación marcada | Quita la marca con `Postulacion.quitar_no_show()`, suma 1 partido jugado, quita el voto de 0 estrellas y repone las votaciones que se habían borrado (decisión del 2026-11-12). |
 | votación | Votación | La anula con `Votacion.anular()`. |
-| usuario | Usuario denunciado | El admin puede bloquearlo con `Usuario.bloquear()`. |
+| usuario | Usuario denunciado | Si el admin lo pide al resolver, lo bloquea con `Usuario.bloquear()`, y la sanción queda unida al reclamo (decisión del 2026-11-12). |
 | complejo | Complejo denunciado | Ninguna automática. El admin edita sus datos por el endpoint. |
 
 Decisiones:
@@ -201,6 +207,15 @@ Decisiones:
 - **Validación al crear.** El endpoint busca el objetivo según `tipo_objetivo` y `objetivo_id`, y responde 404 si no existe. Después le pasa el objeto cargado a `Reclamo.abrir`, que valida que el no-show o la votación afecten al autor. La regla vive en la clase, se prueba con tests unitarios sin base de datos y no suma métodos a otras clases.
 - **Reclamo duplicado.** No se acepta un reclamo si el mismo autor ya tiene uno abierto sobre el mismo objetivo. Esta regla necesita consultar la base, que las clases de dominio no hacen, así que la comprueba el endpoint antes de llamar a `Reclamo.abrir`.
 - **Notificación de reclamos.** Solo se notifica el reclamo resuelto (al autor), y se pide directamente a `FabricaNotificaciones` desde la lógica del reclamo. El admin no recibe aviso por un reclamo nuevo: ve los abiertos en su listado. `Reclamo` no es sujeto del Observer, que queda solo para `Partido`.
+
+Decisiones del código (RQ11):
+
+- **Las reglas en la clase, las consultas en la ruta.** `abrir(autor, tipo_objetivo, objetivo, motivo, ahora)` y `resolver(admin, resolucion, objetivo, ahora, bloquear)` reciben el objetivo ya cargado: lo busca la ruta según `tipo_objetivo`. La votación tiene que estar emitida para reclamarla: una pendiente todavía no tiene estrellas.
+- **El no-show se anula por el Observer.** `resolver` llama a `Partido.quitar_no_show`, que emite `no_show_anulado`. `ProcesadorPostPartido` le devuelve el partido jugado, le quita el voto de 0 y repone las votaciones borradas, solo entre presentes y sin repetir las que ya existen. `NotificadorPartido` les avisa a los presentes que vuelven a tener votaciones (aviso "votaciones repuestas"). Así el reclamo no repite la lógica de las votaciones.
+- **Primero la medida, después el estado.** Si la medida no se puede aplicar (por ejemplo, el denunciado ya está bloqueado), el reclamo sigue abierto.
+- **`bloquear` solo en denuncias a usuarios.** En otro reclamo da 409, y pedirlo al rechazar es un 422 del schema. La sanción usa la respuesta del admin como motivo.
+- **La respuesta llega en los dos casos.** Resuelto o rechazado, el autor recibe "reclamo resuelto", con el resultado y la respuesta del admin, como en el diagrama 06. Lo pide la ruta, porque `models.py` no puede importar la fábrica.
+- **El partido en la respuesta.** La API muestra `partido_id`, calculado desde el objetivo en los reclamos por no-show y por votación, para que el admin pueda revisar el partido.
 
 **Sancion**
 
@@ -213,6 +228,8 @@ Métodos:
 |---|---|
 | `cerrar()` | Guarda `hasta` con la fecha actual. Lo llama `Usuario.desbloquear()`. |
 | `activa()` | Verdadero si `hasta` está vacío. |
+
+En el código (RQ10), `cerrar(ahora)` recibe la fecha y levanta `ReglaDeNegocioError` (409) si la sanción ya estaba cerrada. `reclamo` se sumó con RQ11 como `reclamo_id`: la denuncia que originó el bloqueo, vacía si el admin bloqueó directo. La API muestra `activa` como un campo más, calculado con este método.
 
 ## 2. Decisiones de modelado
 
@@ -242,14 +259,15 @@ Cómo se conectan: el partido cambia, el observador recibe el evento, y la fábr
 Decisiones sobre el Observer:
 
 - **Un solo sujeto: `Partido`.** Las acciones sobre postulaciones (postular, aceptar, rechazar, revocar, retirar) pasan por métodos de `Partido`. Motivo: `Partido` ya maneja los cupos y el estado, así que esas acciones lo modifican igual. `Postulacion` no emite eventos.
-- **Eventos de `Partido`:** `postulacion_recibida`, `postulacion_aceptada`, `postulacion_rechazada`, `partido_completo`, `revocacion`, `postulacion_retirada`, `partido_cancelado`, `partido_jugado`, `no_show_marcado`.
+- **Eventos de `Partido`:** `postulacion_recibida`, `postulacion_aceptada`, `postulacion_rechazada`, `partido_completo`, `revocacion`, `postulacion_retirada`, `partido_cancelado`, `partido_jugado`, `no_show_marcado` y, con los reclamos (RQ11), `no_show_anulado`.
 - **Dos observadores**, que implementan la interfaz `ObservadorPartido` (método `actualizar(evento)`):
-  - `NotificadorPartido`: crea la notificación de cada evento usando la Factory. Con `partido_jugado` crea el aviso de votaciones pendientes.
-  - `ProcesadorPostPartido`: reacciona a dos eventos.
+  - `NotificadorPartido`: crea la notificación de cada evento usando la Factory. Con `partido_jugado` crea el aviso de votaciones pendientes, y con `no_show_anulado`, el de votaciones repuestas.
+  - `ProcesadorPostPartido`: reacciona a tres eventos.
     - `partido_jugado`: suma 1 partido jugado a cada participante y crea las votaciones pendientes.
     - `no_show_marcado`: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes y las que los demás tenían hacia él (decisión del 2026-11-11). Las ya emitidas quedan.
+    - `no_show_anulado` (RQ11): vuelve todo atrás. Le devuelve el partido jugado, le quita el voto de 0 y repone las votaciones borradas, solo entre presentes y sin repetir las que existen (decisión del 2026-11-12).
 - Motivo de usar un segundo observador: los efectos de pasar a jugado y de marcar un no-show no viven dentro de `Partido`. `Partido` solo avisa y no sabe quién reacciona. Agregar otra reacción no lo modifica.
-- **`EventoPartido`:** lo que recibe `actualizar(evento)`. Lleva `tipo` (uno de los 9 eventos), `partido` y `postulacion` (opcional, solo en los eventos que nacen de una postulación). `Partido` lo crea al emitir. Así cada observador sabe qué partido y qué postulación originaron el aviso, sin buscarlos.
+- **`EventoPartido`:** lo que recibe `actualizar(evento)`. Lleva `tipo` (uno de los 10 eventos), `partido` y `postulacion` (opcional, solo en los eventos que nacen de una postulación). `Partido` lo crea al emitir. Así cada observador sabe qué partido y qué postulación originaron el aviso, sin buscarlos.
 - **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`. Los observadores concretos y la fábrica están en `fulvo/observadores.py`: necesitan los modelos, y `models.py` ya importa `eventos.py`, así que juntos se importarían mutuamente. `Partido`, `Postulacion` y `Notificacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, y cada pedido suma los dos observadores en `preparar_partido`. Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron, porque las votaciones se crean recién cuando alguien consulta el partido.
 - **Las relaciones de un objeto sin guardar.** SQLAlchemy no carga las relaciones de un objeto que todavía no se mandó a la base (por ejemplo, el jugador de una postulación recién aceptada). Por eso los dos observadores hacen `flush` antes de leerlas: manda los cambios pendientes sin confirmarlos.
 - **Fechas.** Los métodos que guardan o comparan una fecha (`postular`, `aceptar`, `rechazar`, `revocar` y `actualizar_estado`) reciben `ahora`, para poder probarlos con fechas fijas, como `edad(hoy)`. El diagrama no lo muestra.
@@ -271,8 +289,9 @@ Decisiones sobre la Factory:
 | `partido_cancelado` | Postulantes y aceptados | partido cancelado |
 | `partido_jugado` | Participantes | votaciones pendientes |
 | `no_show_marcado` | — | No se notifica |
+| `no_show_anulado` | Presentes (incluido el que había quedado ausente) | votaciones repuestas |
 
-- La notificación de reclamo resuelto la pide la lógica del reclamo a la misma fábrica, sin pasar por el Observer.
+- La notificación de reclamo resuelto la pide la lógica del reclamo a la misma fábrica, sin pasar por el Observer: la ruta `PATCH /reclamos/{id}`, tanto si lo resuelve como si lo rechaza.
 - **Sin WhatsApp en el texto (2026-11-11).** El aviso de aceptación dice que el WhatsApp está en las postulaciones, pero no incluye el número: lo que se guarda no se puede ocultar después si se revoca al jugador o se cancela el partido.
 - **La referencia** es la postulación si el evento nace de una, y si no, el partido. Para que una postulación recién creada ya tenga id, `NotificadorPartido` hace `flush` antes de pedir las notificaciones.
 

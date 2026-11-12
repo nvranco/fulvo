@@ -146,3 +146,8 @@ def exigir_admin(usuario: UsuarioActual) -> Usuario:
             detail='Esta acción es solo para administradores',
         )
     return usuario
+
+
+# Alias para las rutas que necesitan al admin y no solo el permiso: por
+# ejemplo, para guardar quién aplicó una sanción (RQ10).
+AdminActual = Annotated[Usuario, Depends(exigir_admin)]

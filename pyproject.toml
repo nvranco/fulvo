@@ -92,6 +92,10 @@ presentes = 'presentes'
 receptores = 'receptores'
 terminaron = 'terminaron'
 validador = 'validador'
+coordinar = 'coordinar'
+historial = 'historial'
+autor = 'autor'
+resolucion = 'resolucion'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.

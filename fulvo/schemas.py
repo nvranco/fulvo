@@ -17,8 +17,10 @@ from fulvo.models import (
     HORA_ARGENTINA,
     EstadoPartido,
     EstadoPostulacion,
+    EstadoReclamo,
     EstadoVotacion,
     TipoNotificacion,
+    TipoObjetivo,
     TipoPartido,
 )
 
@@ -418,12 +420,130 @@ class ListaVotaciones(BaseModel):
 
 
 class FiltroVotaciones(Paginacion):
-    """Filtro opcional por estado (pendiente o emitida), más la paginación."""
+    """Filtros opcionales de las votaciones, más la paginación.
+
+    `estado` filtra por pendiente, emitida o anulada. Con `recibidas` se ven
+    los votos que otros le dieron al usuario, en lugar de los que él emite:
+    los necesita para reclamar uno (RQ11).
+    """
 
     estado: EstadoVotacion | None = None
+    recibidas: bool = False
 
 
 class VotacionEmision(BaseModel):
     """El voto que completa una votación: de 0 a 5 estrellas (RQ8)."""
 
     estrellas: Annotated[int, Field(ge=0, le=ESTRELLAS_MAXIMAS)]
+
+
+class SancionEntrada(BaseModel):
+    """Lo que manda el admin para bloquear a un usuario: el motivo (RQ10).
+
+    El admin que la aplica sale del token y la fecha la pone el servidor,
+    así que no se reciben.
+    """
+
+    motivo: Texto
+
+
+class SancionCierre(BaseModel):
+    """Lo único que se puede cambiar de una sanción: cerrarla (RQ10).
+
+    Cerrarla desbloquea al usuario. Solo `false` es válido: para volver a
+    bloquear se crea otra sanción, así cada bloqueo queda registrado aparte.
+    """
+
+    activa: Literal[False]
+
+
+class SancionPublica(BaseModel):
+    """Sanción como la ve el admin (RQ10).
+
+    `aplicada_por` es el admin que bloqueó, con su perfil público. `hasta`
+    está vacía mientras la sanción sigue activa, y `activa` lo dice directo.
+    `reclamo_id` es la denuncia que originó el bloqueo, si la hay (RQ11).
+    """
+
+    id: int
+    usuario_id: int
+    motivo: str
+    desde: datetime
+    hasta: datetime | None
+    activa: bool
+    aplicada_por: UsuarioPublico
+    reclamo_id: int | None
+
+
+class ListaSanciones(BaseModel):
+    """Historial de sanciones de un usuario, envuelto como en la cátedra."""
+
+    sanciones: list[SancionPublica]
+
+
+class ReclamoEntrada(BaseModel):
+    """Lo que manda un usuario para abrir un reclamo (RQ11).
+
+    `objetivo_id` es el id de la postulación con el no-show, de la votación
+    recibida, del usuario o del complejo, según `tipo_objetivo`. El autor
+    sale del token.
+    """
+
+    tipo_objetivo: TipoObjetivo
+    objetivo_id: int
+    motivo: Texto
+
+
+class ReclamoResolucion(BaseModel):
+    """La respuesta del admin a un reclamo abierto (RQ11).
+
+    `bloquear` solo sirve al resolver una denuncia a un usuario: el admin
+    elige si además lo bloquea (decisión del equipo del 2026-11-12). Que el
+    reclamo sea una denuncia a un usuario lo revisa el modelo, porque
+    depende del reclamo guardado.
+    """
+
+    estado: Literal['resuelto', 'rechazado']
+    resolucion: Texto
+    bloquear: bool = False
+
+    @model_validator(mode='after')
+    def bloquear_solo_al_resolver(self) -> Self:
+        """422 si se pide bloquear y a la vez rechazar el reclamo."""
+        if self.bloquear and self.estado != 'resuelto':
+            raise ValueError('"bloquear" solo vale al resolver un reclamo')
+        return self
+
+
+class ReclamoPublico(BaseModel):
+    """Reclamo como lo ven su autor y el admin (RQ11).
+
+    `partido_id` sale del objetivo, para que el admin pueda revisar el
+    partido de un no-show o de una votación: el reclamo no lo guarda
+    (`clases.md`). Queda vacío en las denuncias. La resolución, quién la
+    dio y cuándo quedan vacíos mientras el reclamo está abierto.
+    """
+
+    id: int
+    tipo_objetivo: TipoObjetivo
+    objetivo_id: int
+    partido_id: int | None
+    motivo: str
+    estado: EstadoReclamo
+    created_at: datetime
+    autor: UsuarioPublico
+    resolucion: str | None
+    resuelto_at: datetime | None
+    resuelto_por: UsuarioPublico | None
+
+
+class ListaReclamos(BaseModel):
+    """Reclamos, envueltos como en la cátedra."""
+
+    reclamos: list[ReclamoPublico]
+
+
+class FiltroReclamos(Paginacion):
+    """Filtro opcional por estado (abierto, resuelto o rechazado)."""
+
+    estado: EstadoReclamo | None = None

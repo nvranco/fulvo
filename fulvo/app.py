@@ -10,6 +10,8 @@ from fulvo.routes import (
     notificaciones,
     partidos,
     postulaciones,
+    reclamos,
+    sanciones,
     usuarios,
     votaciones,
     zonas,
@@ -24,6 +26,8 @@ app.include_router(partidos.router)
 app.include_router(postulaciones.router)
 app.include_router(notificaciones.router)
 app.include_router(votaciones.router)
+app.include_router(sanciones.router)
+app.include_router(reclamos.router)
 
 
 @app.exception_handler(ReglaDeNegocioError)

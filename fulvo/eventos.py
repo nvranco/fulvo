@@ -24,7 +24,8 @@ if TYPE_CHECKING:
 
 
 class TipoEvento(str, Enum):
-    """Lo que le puede pasar a un partido: los 9 eventos de `clases.md`."""
+    """Lo que le puede pasar a un partido: los 9 eventos de `clases.md`,
+    más `no_show_anulado`, que llega con los reclamos (RQ11)."""
 
     postulacion_recibida = 'postulacion_recibida'
     postulacion_aceptada = 'postulacion_aceptada'
@@ -35,6 +36,7 @@ class TipoEvento(str, Enum):
     partido_cancelado = 'partido_cancelado'
     partido_jugado = 'partido_jugado'
     no_show_marcado = 'no_show_marcado'
+    no_show_anulado = 'no_show_anulado'
 
 
 @dataclass(frozen=True)
