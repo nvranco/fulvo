@@ -99,6 +99,8 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - Partidos jugados: al pasar el partido a jugado se suma 1 a cada participante. Si el organizador marca no-show, se resta 1 al ausente y se eliminan sus votaciones pendientes y también las que los demás tenían hacia él: no jugó, y el no-show ya cuenta como su voto (decisión del 2026-11-11). Las votaciones ya emitidas quedan.
 - Puntuación promedio se recalcula con cada voto, tanto la del usuario como la del complejo.
 - Cada votación guarda cuándo se emitió.
+- Cada usuario ve los votos que recibió (emitidos o anulados), con las estrellas y el partido, pero sin saber quién votó (decisión del 2026-11-12). Los necesita para reclamar uno (RQ11).
+- Si el admin le da la razón a un reclamo por una votación, el voto queda anulado: deja de contar en la puntuación, pero no se borra (decisión del 2026-11-12).
 
 **Bloqueo por deuda**
 
@@ -118,24 +120,30 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
   - Revocación (al jugador).
   - Partido cancelado (a postulantes y aceptados).
   - Votaciones pendientes.
+  - Votaciones repuestas (a los presentes, cuando un reclamo anula un no-show).
   - Reclamo resuelto (al autor).
 - Cada usuario ve solo sus notificaciones, de la más nueva a la más vieja, y las marca como leídas de a una.
 - El texto nunca incluye el WhatsApp: si después se revoca al jugador o se cancela el partido, el número no queda guardado en la notificación (decisión del 2026-11-11). El aviso de aceptación dice dónde verlo.
-- "Votaciones pendientes" se crea al pasar el partido a jugado, para cada participante (RQ8). "Reclamo resuelto" llega con los reclamos (RQ11).
+- "Votaciones pendientes" se crea al pasar el partido a jugado, para cada participante (RQ8).
+- "Votaciones repuestas" se crea cuando un reclamo anula un no-show, para los participantes que vinieron, incluido el que había quedado como ausente: vuelven a deber votos de ese partido (decisión del 2026-11-12). No dice quién era el ausente.
+- "Reclamo resuelto" le avisa al autor que el admin respondió, tanto si lo resolvió como si lo rechazó (como en el diagrama 06): dice cómo terminó y la respuesta del admin.
 
 **Reclamo**
 
 - Lo crea un usuario sobre un no-show recibido, una votación recibida, otro usuario (denuncia) o un complejo (denuncia).
+- El no-show tiene que ser del autor y estar marcado. La votación tiene que haberla recibido el autor y estar emitida: una pendiente todavía no tiene estrellas.
 - No se puede denunciar a uno mismo.
-- No se puede abrir un reclamo sobre un objetivo que ya tiene un reclamo abierto del mismo autor.
+- No se puede abrir un reclamo sobre un objetivo que ya tiene un reclamo abierto del mismo autor. Uno resuelto o rechazado no cuenta: se puede volver a reclamar.
 - Datos: autor, objetivo (tipo y referencia: no-show, votación, usuario o complejo), motivo, estado, resolución, admin que resolvió. El partido se obtiene desde el objetivo.
 - Estados: abierto, resuelto, rechazado.
+- Cada usuario ve sus reclamos. El admin ve los de todos y los puede filtrar por estado (decisión del 2026-11-12).
 - El admin no recibe aviso por un reclamo nuevo: ve los reclamos abiertos en su listado.
 - Resolver como resuelto aplica una medida según el objetivo:
-  - No-show: suma 1 partido jugado, quita la marca, quita el voto de 0 estrellas y recalcula la puntuación.
-  - Votación: la elimina y recalcula la puntuación.
-  - Usuario: el admin puede bloquearlo (queda una sanción).
-  - Complejo: el admin puede editar sus datos.
+  - No-show: suma 1 partido jugado, quita la marca, quita el voto de 0 estrellas y recalcula la puntuación. Además se reponen las votaciones que se habían borrado al marcarlo: él vuelve a deber las suyas y los demás presentes pueden votarlo, como si el no-show no hubiera existido (decisión del 2026-11-12).
+  - Votación: queda anulada y deja de contar en la puntuación. No se borra: el reclamo sigue apuntando a ella (decisión del 2026-11-12).
+  - Usuario: al resolver, el admin elige si lo bloquea. Si lo bloquea, la sanción queda unida al reclamo, con la respuesta del admin como motivo, y pasa lo mismo que en cualquier bloqueo (decisión del 2026-11-12).
+  - Complejo: ninguna medida automática; el admin puede editar sus datos.
+- Rechazar no aplica ninguna medida. Un reclamo resuelto o rechazado no se vuelve a responder.
 - Solo el admin resuelve.
 
 **Sanción**

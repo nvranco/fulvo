@@ -224,3 +224,33 @@ def test_un_no_show_rechazado_no_emite_eventos(
         partido.marcar_no_show(postulacion)
 
     assert observador.eventos == []
+
+
+def test_quitar_no_show_emite_no_show_anulado_con_la_postulacion(
+    otro_usuario, partido, observador
+):
+    ahora = ahora_argentina()
+    postulacion = partido.postular(otro_usuario, ahora)
+    partido.aceptar(postulacion, ahora)
+    partido.actualizar_estado(partido.fin() + timedelta(minutes=1))
+    partido.marcar_no_show(postulacion)
+
+    partido.quitar_no_show(postulacion)
+
+    assert observador.tipos()[-1] == TipoEvento.no_show_anulado
+    assert observador.eventos[-1].postulacion is postulacion
+    assert postulacion.no_show is False
+
+
+def test_quitar_un_no_show_que_no_estaba_no_emite_eventos(
+    otro_usuario, partido, observador
+):
+    postulacion = partido.postular(otro_usuario, ahora_argentina())
+    observador.eventos.clear()
+
+    with pytest.raises(
+        ReglaDeNegocioError, match='no tiene un no-show marcado'
+    ):
+        partido.quitar_no_show(postulacion)
+
+    assert observador.eventos == []

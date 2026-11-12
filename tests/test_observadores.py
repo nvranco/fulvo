@@ -4,7 +4,14 @@ import pytest
 from sqlalchemy import select
 
 from fulvo.eventos import EventoPartido, TipoEvento
-from fulvo.models import Notificacion, TipoNotificacion, ahora_argentina
+from fulvo.models import (
+    EstadoReclamo,
+    Notificacion,
+    Reclamo,
+    TipoNotificacion,
+    TipoObjetivo,
+    ahora_argentina,
+)
 from fulvo.observadores import (
     FabricaNotificaciones,
     NotificadorPartido,
@@ -74,6 +81,7 @@ def test_hay_una_plantilla_por_cada_tipo_de_notificacion():
         (TipoNotificacion.revocacion, 'te sacó del partido'),
         (TipoNotificacion.partido_cancelado, 'Se canceló el partido'),
         (TipoNotificacion.votaciones_pendientes, 'votaciones pendientes'),
+        (TipoNotificacion.votaciones_repuestas, 'Se anuló un no-show'),
     ],
 )
 def test_la_fabrica_arma_cada_tipo_con_su_texto(
@@ -253,3 +261,77 @@ def test_si_la_ruta_no_confirma_no_queda_ninguna_notificacion(
     session.rollback()
 
     assert notificaciones_de(session, usuario) == []
+
+
+def test_hay_un_texto_por_cada_objetivo_y_resultado_de_un_reclamo():
+    assert set(FabricaNotificaciones.OBJETIVOS) == set(TipoObjetivo)
+    assert set(FabricaNotificaciones.RESULTADOS) == {
+        EstadoReclamo.resuelto,
+        EstadoReclamo.rechazado,
+    }
+
+
+@pytest.mark.parametrize(
+    ('estado', 'resultado'),
+    [
+        (EstadoReclamo.resuelto, 'aceptado'),
+        (EstadoReclamo.rechazado, 'rechazado'),
+    ],
+)
+def test_la_respuesta_a_un_reclamo_dice_como_termino(
+    session, usuario, estado, resultado
+):
+    reclamo = Reclamo(
+        autor_id=usuario.id,
+        tipo_objetivo=TipoObjetivo.complejo,
+        objetivo_id=1,
+        motivo='Las canchas están rotas',
+        created_at=ahora_argentina(),
+        estado=estado,
+        resolucion='Lo revisamos con el complejo',
+    )
+    session.add(reclamo)
+    session.commit()
+
+    notificacion = FabricaNotificaciones().crear(
+        TipoNotificacion.reclamo_resuelto, usuario, reclamo
+    )
+
+    assert notificacion.mensaje == (
+        f'Tu reclamo sobre el complejo fue {resultado}. Respuesta del '
+        'admin: Lo revisamos con el complejo'
+    )
+    assert notificacion.usuario_id == usuario.id
+    assert notificacion.referencia_tipo == 'reclamo'
+    assert notificacion.referencia_id == reclamo.id
+
+
+def test_anular_un_no_show_avisa_a_los_presentes(session, usuario):
+    ahora = ahora_argentina()
+    partido = guardar_partido(
+        session, usuario, inicio=INICIO, cupos_faltantes=3
+    )
+    partido.agregar_observador(NotificadorPartido(session))
+    presente, ausente, sigue_ausente = (
+        guardar_usuario_comun(session, usuario.rol_id) for _ in range(3)
+    )
+    postulaciones = [
+        partido.postular(jugador, ahora)
+        for jugador in (presente, ausente, sigue_ausente)
+    ]
+    for postulacion in postulaciones:
+        partido.aceptar(postulacion, ahora)
+    partido.actualizar_estado(partido.fin() + timedelta(minutes=1))
+    partido.marcar_no_show(postulaciones[1])
+    partido.marcar_no_show(postulaciones[2])
+
+    partido.quitar_no_show(postulaciones[1])
+
+    for avisado in (usuario, presente, ausente):
+        aviso = notificaciones_de(session, avisado)[-1]
+        assert aviso.tipo == TipoNotificacion.votaciones_repuestas
+        assert aviso.referencia_tipo == 'postulacion'
+        assert aviso.referencia_id == postulaciones[1].id
+    assert TipoNotificacion.votaciones_repuestas not in tipos_de(
+        session, sigue_ausente
+    )

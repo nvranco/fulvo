@@ -11,7 +11,9 @@ dos lo importa a él. Si estuvieran en el mismo archivo, `models.py` y
 Hay dos observadores: `NotificadorPartido` (RQ9), que crea los avisos con la
 fábrica `FabricaNotificaciones` (patrón Factory), y `ProcesadorPostPartido`
 (RQ8), que suma los partidos jugados, crea las votaciones pendientes y aplica
-los no-shows.
+los no-shows (y los deshace cuando un reclamo los anula, RQ11). La fábrica
+también arma la respuesta a un reclamo, que la ruta le pide directo, sin
+pasar por el Observer (`clases.md`).
 """
 
 from sqlalchemy import or_, select
@@ -20,11 +22,14 @@ from sqlalchemy.orm import Session
 from fulvo.eventos import EventoPartido, ObservadorPartido, TipoEvento
 from fulvo.models import (
     EstadoPostulacion,
+    EstadoReclamo,
     EstadoVotacion,
     Notificacion,
     Partido,
     Postulacion,
+    Reclamo,
     TipoNotificacion,
+    TipoObjetivo,
     Usuario,
     Votacion,
     ahora_argentina,
@@ -78,31 +83,59 @@ class FabricaNotificaciones:
             'Terminó el partido del {partido}. Tenés votaciones pendientes: '
             'puntuá a los demás jugadores y al complejo.'
         ),
+        # No dice quién era el ausente: a los demás les alcanza con saber
+        # que tienen votaciones para revisar.
+        TipoNotificacion.votaciones_repuestas: (
+            'Se anuló un no-show del partido del {partido}: revisá tus '
+            'votaciones pendientes.'
+        ),
+        TipoNotificacion.reclamo_resuelto: (
+            'Tu reclamo sobre {objetivo} fue {resultado}. Respuesta del '
+            'admin: {resolucion}'
+        ),
+    }
+
+    # Para la respuesta a un reclamo: sobre qué era y cómo terminó.
+    OBJETIVOS = {
+        TipoObjetivo.no_show: 'el no-show',
+        TipoObjetivo.votacion: 'la votación',
+        TipoObjetivo.usuario: 'el usuario',
+        TipoObjetivo.complejo: 'el complejo',
+    }
+    RESULTADOS = {
+        EstadoReclamo.resuelto: 'aceptado',
+        EstadoReclamo.rechazado: 'rechazado',
     }
 
     def crear(
         self,
         tipo: TipoNotificacion,
         destinatario: Usuario,
-        referencia: Partido | Postulacion,
+        referencia: Partido | Postulacion | Reclamo,
     ) -> Notificacion:
         """Devuelve la notificación para `destinatario`, sin guardarla.
 
-        `referencia` es lo que originó el aviso: una postulación o un
-        partido. De ahí salen los datos del mensaje y la referencia que se
-        guarda, así que tiene que tener id.
+        `referencia` es lo que originó el aviso: una postulación, un
+        partido o un reclamo. De ahí salen los datos del mensaje y la
+        referencia que se guarda, así que tiene que tener id.
         """
-        if isinstance(referencia, Postulacion):
-            partido = referencia.partido
-            jugador = referencia.jugador.nombre
+        if isinstance(referencia, Reclamo):
+            datos = {
+                'objetivo': self.OBJETIVOS[referencia.tipo_objetivo],
+                'resultado': self.RESULTADOS[referencia.estado],
+                'resolucion': referencia.resolucion,
+            }
+            referencia_tipo = 'reclamo'
+        elif isinstance(referencia, Postulacion):
+            datos = {
+                'partido': describir_partido(referencia.partido),
+                'jugador': referencia.jugador.nombre,
+            }
             referencia_tipo = 'postulacion'
         else:
-            partido = referencia
-            jugador = None
+            datos = {'partido': describir_partido(referencia)}
             referencia_tipo = 'partido'
-        mensaje = self.PLANTILLAS[tipo].format(
-            partido=describir_partido(partido), jugador=jugador
-        )
+        mensaje = self.PLANTILLAS[tipo].format(**datos)
         return Notificacion(
             usuario_id=destinatario.id,
             tipo=tipo,
@@ -146,6 +179,12 @@ NOTIFICACIONES_POR_EVENTO = {
         TipoNotificacion.votaciones_pendientes,
         'participantes',
     ),
+    # Los que vuelven a deber votos: el jugador y los demás presentes
+    # (decisión del equipo del 2026-11-12).
+    TipoEvento.no_show_anulado: (
+        TipoNotificacion.votaciones_repuestas,
+        'presentes',
+    ),
 }
 
 
@@ -184,8 +223,8 @@ class NotificadorPartido(ObservadorPartido):
         """Quiénes reciben el aviso, según la tabla de arriba.
 
         El organizador, el jugador de la postulación, los participantes (al
-        terminar el partido) o, si se cancela el partido, los que estaban en
-        espera y los aceptados.
+        terminar el partido), los presentes (al anularse un no-show) o, si se
+        cancela el partido, los que estaban en espera y los aceptados.
         """
         if para == 'organizador':
             return [evento.partido.organizador]
@@ -193,6 +232,8 @@ class NotificadorPartido(ObservadorPartido):
             return [evento.postulacion.jugador]
         if para == 'participantes':
             return evento.partido.participantes()
+        if para == 'presentes':
+            return evento.partido.presentes()
         activas = {EstadoPostulacion.en_espera, EstadoPostulacion.aceptada}
         return [
             postulacion.jugador
@@ -204,11 +245,12 @@ class NotificadorPartido(ObservadorPartido):
 class ProcesadorPostPartido(ObservadorPartido):
     """Observador que aplica lo que pasa después del partido (RQ8).
 
-    Reacciona a dos eventos. Con `partido_jugado` suma un partido jugado a
+    Reacciona a tres eventos. Con `partido_jugado` suma un partido jugado a
     cada participante y crea sus votaciones pendientes. Con
     `no_show_marcado` deshace eso para el ausente y le suma un voto de 0
-    estrellas. Así `Partido` no sabe nada de votaciones ni de puntuaciones:
-    solo avisa (`clases.md`, sección 3).
+    estrellas. Con `no_show_anulado` (RQ11) vuelve todo atrás. Así `Partido`
+    no sabe nada de votaciones ni de puntuaciones: solo avisa (`clases.md`,
+    sección 3).
 
     Como `NotificadorPartido`, deja los cambios en la sesión del pedido y
     los guarda el commit de la ruta, junto con el cambio de estado.
@@ -218,11 +260,13 @@ class ProcesadorPostPartido(ObservadorPartido):
         self.session = session
 
     def actualizar(self, evento: EventoPartido) -> None:
-        """Atiende `partido_jugado` y `no_show_marcado`; ignora el resto."""
+        """Atiende el pase a jugado y los no-shows; ignora el resto."""
         if evento.tipo == TipoEvento.partido_jugado:
             self.cerrar_partido(evento.partido)
         elif evento.tipo == TipoEvento.no_show_marcado:
             self.aplicar_no_show(evento.partido, evento.postulacion.jugador)
+        elif evento.tipo == TipoEvento.no_show_anulado:
+            self.anular_no_show(evento.partido, evento.postulacion.jugador)
 
     def cerrar_partido(self, partido: Partido) -> None:
         """Suma el partido jugado y crea las votaciones pendientes.
@@ -281,3 +325,42 @@ class ProcesadorPostPartido(ObservadorPartido):
         ).all()
         for votacion in pendientes:
             votacion.emisor.votaciones.remove(votacion)
+
+    def anular_no_show(self, partido: Partido, jugador: Usuario) -> None:
+        """Vuelve atrás un no-show que anuló un reclamo (RQ11).
+
+        Le devuelve el partido jugado, le quita el voto de 0 y repone las
+        votaciones pendientes que se habían borrado: las suyas y las de los
+        demás hacia él, como si el no-show no hubiera existido (decisión del
+        equipo del 2026-11-12). Solo entre los presentes: con alguien que
+        sigue marcado como ausente no se vota. Una votación que ya existe,
+        por ejemplo porque se emitió antes del no-show, no se repite.
+        """
+        jugador.sumar_partido_jugado()
+        jugador.quitar_puntuacion(0)
+        existentes = {
+            (v.emisor_id, v.receptor_usuario_id, v.receptor_complejo_id)
+            for v in self.session.scalars(
+                select(Votacion).where(Votacion.partido_id == partido.id)
+            )
+        }
+        # (emisor, usuario votado, complejo votado): uno de los dos votados
+        # queda vacío, como en la tabla.
+        faltantes = [(jugador, None, partido.complejo_id)]
+        for otro in partido.presentes():
+            if otro.id != jugador.id:
+                faltantes.append((jugador, otro.id, None))
+                faltantes.append((otro, jugador.id, None))
+        ahora = ahora_argentina()
+        for emisor, usuario_id, complejo_id in faltantes:
+            if (emisor.id, usuario_id, complejo_id) in existentes:
+                continue
+            emisor.votaciones.append(
+                Votacion(
+                    partido_id=partido.id,
+                    emisor_id=emisor.id,
+                    created_at=ahora,
+                    receptor_usuario_id=usuario_id,
+                    receptor_complejo_id=complejo_id,
+                )
+            )

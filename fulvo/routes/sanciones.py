@@ -44,6 +44,7 @@ def sancion_publica(sancion: Sancion) -> SancionPublica:
         hasta=sancion.hasta,
         activa=sancion.activa(),
         aplicada_por=UsuarioPublico.model_validate(sancion.aplicada_por),
+        reclamo_id=sancion.reclamo_id,
     )
 
 

@@ -89,6 +89,8 @@ def test_bloquear_devuelve_la_sancion_activa(client, usuario, admin):
     assert sancion['activa'] is True
     assert sancion['hasta'] is None
     assert sancion['aplicada_por']['id'] == admin.id
+    # Bloqueo directo del admin: no sale de ningún reclamo (RQ11).
+    assert sancion['reclamo_id'] is None
     assert antes <= datetime.fromisoformat(sancion['desde'])
     assert datetime.fromisoformat(sancion['desde']) <= ahora_argentina()
 

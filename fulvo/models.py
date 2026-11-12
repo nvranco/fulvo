@@ -84,6 +84,20 @@ class Complejo:
         self.puntuacion_promedio = (suma + estrellas) / cantidad
         self.cantidad_puntuaciones = cantidad
 
+    def quitar_puntuacion(self, estrellas: int) -> None:
+        """Deshace un voto y recalcula el promedio (RQ11).
+
+        Es la cuenta inversa de `registrar_puntuacion`, repetida a propósito
+        como esa. Si era el único voto, el promedio vuelve a quedar vacío.
+        """
+        cantidad = self.cantidad_puntuaciones - 1
+        if cantidad == 0:
+            self.puntuacion_promedio = None
+        else:
+            suma = self.puntuacion_promedio * self.cantidad_puntuaciones
+            self.puntuacion_promedio = (suma - estrellas) / cantidad
+        self.cantidad_puntuaciones = cantidad
+
 
 # Nombres de los roles base. Se crean con la carga inicial (no hay endpoint
 # que los cree) y ningún endpoint público asigna el rol admin.
@@ -194,6 +208,21 @@ class Usuario:
         self.puntuacion_promedio = (suma + estrellas) / cantidad
         self.cantidad_puntuaciones = cantidad
 
+    def quitar_puntuacion(self, estrellas: int) -> None:
+        """Deshace un voto y recalcula el promedio (RQ11).
+
+        Lo usan los reclamos: al anular una votación, o un no-show, que
+        contaba como un voto de 0 (`clases.md`). Si era el único voto, el
+        promedio vuelve a quedar vacío, como antes del primero.
+        """
+        cantidad = self.cantidad_puntuaciones - 1
+        if cantidad == 0:
+            self.puntuacion_promedio = None
+        else:
+            suma = self.puntuacion_promedio * self.cantidad_puntuaciones
+            self.puntuacion_promedio = (suma - estrellas) / cantidad
+        self.cantidad_puntuaciones = cantidad
+
     def sumar_partido_jugado(self) -> None:
         """Suma 1 a los partidos jugados: al pasar un partido a jugado."""
         self.partidos_jugados += 1
@@ -243,7 +272,11 @@ class Usuario:
         )
 
     def bloquear(
-        self, admin: 'Usuario', motivo: str, ahora: datetime
+        self,
+        admin: 'Usuario',
+        motivo: str,
+        ahora: datetime,
+        reclamo: 'Reclamo | None' = None,
     ) -> 'Sancion':
         """Bloquea al usuario y registra la sanción, y la devuelve (RQ10).
 
@@ -251,9 +284,9 @@ class Usuario:
         otro, o a sí mismo, la app podría quedarse sin nadie que desbloquee,
         porque un bloqueado no inicia sesión (decisión del equipo del
         2026-11-12). Tampoco se bloquea dos veces: hay una sola sanción
-        activa por usuario. El reclamo de origen, opcional, se suma con los
-        reclamos (RQ11). Recibe `ahora` para poder probarlo con fechas fijas,
-        como `Votacion.emitir`.
+        activa por usuario. `reclamo` es la denuncia que originó el bloqueo,
+        si la hay (RQ11). Recibe `ahora` para poder probarlo con fechas
+        fijas, como `Votacion.emitir`.
         """
         exigir(
             not self.tiene_rol(ROL_ADMIN),
@@ -265,6 +298,7 @@ class Usuario:
             aplicada_por_id=admin.id,
             motivo=motivo,
             desde=ahora,
+            reclamo_id=None if reclamo is None else reclamo.id,
         )
         self.sanciones.append(sancion)
         self.bloqueado = True
@@ -442,6 +476,21 @@ class Partido:
         ]
         return [self.organizador, *aceptados]
 
+    def presentes(self) -> list[Usuario]:
+        """Los participantes que vinieron: todos menos los no-show (RQ11).
+
+        Son los que se votan entre sí. Lo usa la reposición de votaciones
+        cuando un reclamo anula un no-show: con alguien que sigue marcado
+        como ausente no se vota.
+        """
+        ausentes = {
+            postulacion.jugador_id
+            for postulacion in self.postulaciones
+            if postulacion.estado == EstadoPostulacion.aceptada
+            and postulacion.no_show
+        }
+        return [u for u in self.participantes() if u.id not in ausentes]
+
     def actualizar_estado(self, ahora: datetime) -> bool:
         """Pasa el partido a jugado si ya terminó, y dice si cambió.
 
@@ -569,6 +618,18 @@ class Partido:
         postulacion.marcar_no_show()
         self.avisar(TipoEvento.no_show_marcado, postulacion)
 
+    def quitar_no_show(self, postulacion: 'Postulacion') -> None:
+        """Anula un no-show, cuando el admin le da la razón al jugador (RQ11).
+
+        Como al marcarlo, el partido solo avisa: devolverle el partido
+        jugado, quitarle el voto de 0 y reponer las votaciones lo hace
+        `ProcesadorPostPartido` al recibir `no_show_anulado`. No hace falta
+        revisar el estado del partido: un no-show solo existe en un partido
+        jugado, y un partido jugado ya no cambia.
+        """
+        postulacion.quitar_no_show()
+        self.avisar(TipoEvento.no_show_anulado, postulacion)
+
 
 class EstadoPostulacion(str, Enum):
     """Estados de una postulación (`docs/requerimientos.md`, sección 4)."""
@@ -672,6 +733,11 @@ class Postulacion:
         exigir(not self.no_show, 'El no-show ya estaba marcado')
         self.no_show = True
 
+    def quitar_no_show(self) -> None:
+        """Quita la marca de no-show: solo si estaba marcada (RQ11)."""
+        exigir(self.no_show, 'La postulación no tiene un no-show marcado')
+        self.no_show = False
+
     def whatsapp_visible(self) -> bool:
         """Dice si el organizador y el jugador se ven el WhatsApp.
 
@@ -688,9 +754,10 @@ class Postulacion:
 class TipoNotificacion(str, Enum):
     """Tipos de notificación (`docs/requerimientos.md`, sección 4).
 
-    Están los que generan las postulaciones y los partidos, y el aviso de
-    votaciones pendientes (RQ8). "Reclamo resuelto" se suma con los reclamos
-    (RQ11).
+    Están los que generan las postulaciones y los partidos, el aviso de
+    votaciones pendientes (RQ8) y los de los reclamos (RQ11): la respuesta
+    al autor y el aviso a los que vuelven a deber votos cuando se anula un
+    no-show (decisión del equipo del 2026-11-12).
     """
 
     postulacion_recibida = 'postulacion_recibida'
@@ -701,6 +768,8 @@ class TipoNotificacion(str, Enum):
     revocacion = 'revocacion'
     partido_cancelado = 'partido_cancelado'
     votaciones_pendientes = 'votaciones_pendientes'
+    votaciones_repuestas = 'votaciones_repuestas'
+    reclamo_resuelto = 'reclamo_resuelto'
 
 
 @mapped_as_dataclass(table_registry)
@@ -725,7 +794,7 @@ class Notificacion:
         EnumSQL(TipoNotificacion, native_enum=False, length=30)
     )
     mensaje: Mapped[str]
-    # "postulacion" o "partido".
+    # "postulacion", "partido" o "reclamo".
     referencia_tipo: Mapped[str]
     referencia_id: Mapped[int]
     created_at: Mapped[datetime]
@@ -741,10 +810,16 @@ ESTRELLAS_MAXIMAS = 5
 
 
 class EstadoVotacion(str, Enum):
-    """Estados de una votación: la crea el sistema y la completa el emisor."""
+    """Estados de una votación: la crea el sistema y la completa el emisor.
+
+    Una emitida pasa a anulada si el admin le da la razón a un reclamo del
+    receptor (RQ11). Como texto entra en la misma columna: el largo lo da
+    "pendiente", que sigue siendo el valor más largo.
+    """
 
     pendiente = 'pendiente'
     emitida = 'emitida'
+    anulada = 'anulada'
 
 
 @mapped_as_dataclass(table_registry)
@@ -838,6 +913,20 @@ class Votacion:
         self.emitida_at = ahora
         self.receptor().registrar_puntuacion(estrellas)
 
+    def anular(self) -> None:
+        """Deja sin efecto un voto emitido: sale del promedio (RQ11).
+
+        La usa el reclamo resuelto. La votación no se borra: queda anulada,
+        con sus estrellas, y el reclamo sigue apuntando a ella (decisión del
+        equipo del 2026-11-12).
+        """
+        exigir(
+            self.estado == EstadoVotacion.emitida,
+            'Solo se puede anular una votación emitida',
+        )
+        self.estado = EstadoVotacion.anulada
+        self.receptor().quitar_puntuacion(self.estrellas)
+
 
 @mapped_as_dataclass(table_registry)
 class Sancion:
@@ -847,9 +936,8 @@ class Sancion:
     fin. Nunca se borra: así queda el historial de quién bloqueó a quién,
     cuándo y por qué (`requerimientos.md`). No se crea a mano: la crea
     `Usuario.bloquear` y la cierra `Usuario.desbloquear`, que además
-    mantienen al día `Usuario.bloqueado`, que es lo que mira el login. El
-    reclamo de origen, opcional, se suma con RQ11, cuando exista la tabla
-    `reclamos`.
+    mantienen al día `Usuario.bloqueado`, que es lo que mira el login. Si el
+    bloqueo salió de una denuncia, `reclamo_id` la guarda (RQ11).
     """
 
     __tablename__ = 'sanciones'
@@ -863,6 +951,11 @@ class Sancion:
     desde: Mapped[datetime]
     # Vacía mientras la sanción está activa: se completa al desbloquear.
     hasta: Mapped[datetime | None] = mapped_column(default=None)
+    # La denuncia que originó el bloqueo, si la hay (RQ11). Vacía cuando el
+    # admin bloquea directo, con `POST /usuarios/{id}/sanciones`.
+    reclamo_id: Mapped[int | None] = mapped_column(
+        ForeignKey('reclamos.id'), default=None
+    )
 
     # Dos columnas apuntan a usuarios: `foreign_keys` dice cuál usa cada
     # relación, como en `Votacion`.
@@ -881,3 +974,174 @@ class Sancion:
         """Le pone la fecha de fin. Lo usa `Usuario.desbloquear`."""
         exigir(self.activa(), 'La sanción ya estaba cerrada')
         self.hasta = ahora
+
+
+class TipoObjetivo(str, Enum):
+    """Sobre qué es un reclamo (RQ11): un no-show o una votación que recibió
+    el autor, o una denuncia a otro usuario o a un complejo."""
+
+    no_show = 'no_show'
+    votacion = 'votacion'
+    usuario = 'usuario'
+    complejo = 'complejo'
+
+
+class EstadoReclamo(str, Enum):
+    """Estados de un reclamo: lo abre un usuario y lo cierra el admin."""
+
+    abierto = 'abierto'
+    resuelto = 'resuelto'
+    rechazado = 'rechazado'
+
+
+@mapped_as_dataclass(table_registry)
+class Reclamo:
+    """Reclamo de un usuario, que el admin resuelve o rechaza (RQ11).
+
+    El objetivo se guarda como tipo e id, sin clave foránea, igual que la
+    referencia de `Notificacion`: puede ser una postulación (la del
+    no-show), una votación, un usuario o un complejo (`clases.md`). La ruta
+    busca el objeto según el tipo y se lo pasa a `abrir` y a `resolver`:
+    las reglas viven acá, pero las consultas a la base no.
+    """
+
+    __tablename__ = 'reclamos'
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    autor_id: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
+    tipo_objetivo: Mapped[TipoObjetivo] = mapped_column(
+        EnumSQL(TipoObjetivo, native_enum=False)
+    )
+    # El id de la postulación (no-show), la votación, el usuario o el
+    # complejo, según `tipo_objetivo`.
+    objetivo_id: Mapped[int]
+    motivo: Mapped[str]
+    created_at: Mapped[datetime]
+    estado: Mapped[EstadoReclamo] = mapped_column(
+        EnumSQL(EstadoReclamo, native_enum=False),
+        default=EstadoReclamo.abierto,
+    )
+    # Vacíos mientras el reclamo está abierto.
+    resolucion: Mapped[str | None] = mapped_column(default=None)
+    resuelto_por_id: Mapped[int | None] = mapped_column(
+        ForeignKey('usuarios.id'), default=None
+    )
+    resuelto_at: Mapped[datetime | None] = mapped_column(default=None)
+
+    # Dos columnas apuntan a usuarios: `foreign_keys` dice cuál usa cada
+    # relación, como en `Votacion` y `Sancion`.
+    autor: Mapped[Usuario] = relationship(init=False, foreign_keys=[autor_id])
+    resuelto_por: Mapped[Usuario | None] = relationship(
+        init=False, foreign_keys=[resuelto_por_id]
+    )
+
+    @classmethod
+    def abrir(
+        cls,
+        autor: Usuario,
+        tipo_objetivo: TipoObjetivo,
+        objetivo: Postulacion | Votacion | Usuario | Complejo,
+        motivo: str,
+        ahora: datetime,
+    ) -> 'Reclamo':
+        """Crea el reclamo abierto, si el objetivo lo permite (RQ11).
+
+        Un no-show tiene que ser del autor y estar marcado. Una votación
+        tiene que haberla recibido el autor y estar emitida: una pendiente
+        todavía no tiene estrellas. Nadie se denuncia a sí mismo. Que el
+        objetivo exista (404) y que el autor no tenga otro reclamo abierto
+        sobre el mismo objetivo lo controla la ruta, porque hay que consultar
+        la base (`clases.md`).
+        """
+        if tipo_objetivo == TipoObjetivo.no_show:
+            exigir(
+                objetivo.jugador_id == autor.id,
+                'Solo podés reclamar un no-show tuyo',
+            )
+            exigir(
+                objetivo.no_show,
+                'Esa postulación no tiene un no-show marcado',
+            )
+        elif tipo_objetivo == TipoObjetivo.votacion:
+            exigir(
+                objetivo.receptor_usuario_id == autor.id,
+                'Solo podés reclamar una votación que recibiste',
+            )
+            exigir(
+                objetivo.estado == EstadoVotacion.emitida,
+                'Solo se puede reclamar una votación emitida',
+            )
+        elif tipo_objetivo == TipoObjetivo.usuario:
+            exigir(objetivo.id != autor.id, 'No podés denunciarte a vos mismo')
+        return cls(
+            autor_id=autor.id,
+            tipo_objetivo=tipo_objetivo,
+            objetivo_id=objetivo.id,
+            motivo=motivo,
+            created_at=ahora,
+        )
+
+    def resolver(
+        self,
+        admin: Usuario,
+        resolucion: str,
+        objetivo: Postulacion | Votacion | Usuario | None,
+        ahora: datetime,
+        bloquear: bool = False,
+    ) -> 'Sancion | None':
+        """Le da la razón al autor y aplica la medida del objetivo (RQ11).
+
+        - No-show: el partido le quita la marca, y `ProcesadorPostPartido`
+          le devuelve el partido jugado, le quita el voto de 0 y repone las
+          votaciones (decisión del equipo del 2026-11-12).
+        - Votación: queda anulada y sale del promedio del autor.
+        - Usuario: si el admin lo pide (`bloquear`), lo bloquea con una
+          sanción unida a este reclamo, y la devuelve.
+        - Complejo: ninguna medida automática; el admin edita sus datos con
+          `PUT /complejos/{id}` (`clases.md`).
+
+        Primero aplica la medida y después cambia el estado: si la medida no
+        se puede aplicar (por ejemplo, el usuario ya está bloqueado), el
+        reclamo sigue abierto.
+        """
+        self.exigir_abierto()
+        exigir(
+            not bloquear or self.tipo_objetivo == TipoObjetivo.usuario,
+            'Solo se puede bloquear al resolver una denuncia a un usuario',
+        )
+        sancion = None
+        if self.tipo_objetivo == TipoObjetivo.no_show:
+            objetivo.partido.quitar_no_show(objetivo)
+        elif self.tipo_objetivo == TipoObjetivo.votacion:
+            objetivo.anular()
+        elif bloquear:
+            sancion = objetivo.bloquear(admin, resolucion, ahora, self)
+        self.cerrar(EstadoReclamo.resuelto, admin, resolucion, ahora)
+        return sancion
+
+    def rechazar(
+        self, admin: Usuario, resolucion: str, ahora: datetime
+    ) -> None:
+        """No le da la razón al autor: no aplica ninguna medida (RQ11)."""
+        self.exigir_abierto()
+        self.cerrar(EstadoReclamo.rechazado, admin, resolucion, ahora)
+
+    def exigir_abierto(self) -> None:
+        """Levanta `ReglaDeNegocioError` (409) si el reclamo ya se cerró."""
+        exigir(
+            self.estado == EstadoReclamo.abierto,
+            'El reclamo ya fue resuelto o rechazado',
+        )
+
+    def cerrar(
+        self,
+        estado: EstadoReclamo,
+        admin: Usuario,
+        resolucion: str,
+        ahora: datetime,
+    ) -> None:
+        """Guarda la respuesta del admin: el estado final, quién y cuándo."""
+        self.estado = estado
+        self.resolucion = resolucion
+        self.resuelto_por_id = admin.id
+        self.resuelto_at = ahora
