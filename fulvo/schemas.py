@@ -427,3 +427,45 @@ class VotacionEmision(BaseModel):
     """El voto que completa una votación: de 0 a 5 estrellas (RQ8)."""
 
     estrellas: Annotated[int, Field(ge=0, le=ESTRELLAS_MAXIMAS)]
+
+
+class SancionEntrada(BaseModel):
+    """Lo que manda el admin para bloquear a un usuario: el motivo (RQ10).
+
+    El admin que la aplica sale del token y la fecha la pone el servidor,
+    así que no se reciben.
+    """
+
+    motivo: Texto
+
+
+class SancionCierre(BaseModel):
+    """Lo único que se puede cambiar de una sanción: cerrarla (RQ10).
+
+    Cerrarla desbloquea al usuario. Solo `false` es válido: para volver a
+    bloquear se crea otra sanción, así cada bloqueo queda registrado aparte.
+    """
+
+    activa: Literal[False]
+
+
+class SancionPublica(BaseModel):
+    """Sanción como la ve el admin (RQ10).
+
+    `aplicada_por` es el admin que bloqueó, con su perfil público. `hasta`
+    está vacía mientras la sanción sigue activa, y `activa` lo dice directo.
+    """
+
+    id: int
+    usuario_id: int
+    motivo: str
+    desde: datetime
+    hasta: datetime | None
+    activa: bool
+    aplicada_por: UsuarioPublico
+
+
+class ListaSanciones(BaseModel):
+    """Historial de sanciones de un usuario, envuelto como en la cátedra."""
+
+    sanciones: list[SancionPublica]

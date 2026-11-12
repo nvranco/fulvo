@@ -74,7 +74,7 @@ Detalle completo en `docs/requerimientos.md`, diagramas de secuencia en `docs/di
 | RQ7 | Cancelar postulación, baja de un aceptado, revocación y cancelación del partido. | `PATCH /postulaciones/{id}` (retirarse o bajarse), `PATCH /partidos/{id}/postulaciones/{id}` (revocar), `PATCH /partidos/{id}` (cancelar) | `tests/test_postulaciones.py`, `tests/test_postulaciones_modelo.py` | hecho |
 | RQ8 | Votar después del partido, no-show y bloqueo por votaciones pendientes. | `GET /votaciones` (las propias, filtro `estado`), `PATCH /votaciones/{id}` (emitir, de 0 a 5 estrellas), `PATCH /partidos/{id}/postulaciones/{id}` con `{"no_show": true}` (el organizador, con el partido jugado). Las votaciones las crea `ProcesadorPostPartido` al pasar el partido a jugado. La deuda se ve en `GET /usuarios/yo` y bloquea publicar y postularse (409) | `tests/test_votaciones.py`, `tests/test_votaciones_modelo.py`, `tests/test_procesador.py` | hecho |
 | RQ9 | Notificaciones dentro de la app. | `GET /notificaciones` (las propias, filtro `leida`), `PATCH /notificaciones/{id}` (marcar como leída). Las crea `NotificadorPartido` al pasar algo en un partido | `tests/test_notificaciones.py`, `tests/test_observadores.py` | hecho; "reclamo resuelto" llega con RQ11 |
-| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}` (409 si el complejo tiene partidos). Bloqueo: `TODO` | `tests/test_complejos.py`, `tests/test_permisos_admin.py`, `tests/test_partidos.py` | parcial: zonas y complejos hechos (solo admin, `exigir_admin`); falta el bloqueo de usuarios |
+| RQ10 | Admin: bloquear usuarios (con sanción registrada) y editar zonas y complejos. | Zonas y complejos: `POST /zonas`, `PUT /zonas/{id}`, `POST /complejos`, `PUT /complejos/{id}`, `DELETE /complejos/{id}` (409 si el complejo tiene partidos). Bloqueo: `POST /usuarios/{id}/sanciones` (bloquear), `PATCH /usuarios/{id}/sanciones/{id}` con `{"activa": false}` (desbloquear) y `GET /usuarios/{id}/sanciones` (historial). Al bloquear se cancelan sus partidos y se retiran sus postulaciones, solo en partidos que no empezaron | `tests/test_complejos.py`, `tests/test_permisos_admin.py`, `tests/test_partidos.py`, `tests/test_sanciones.py`, `tests/test_sanciones_modelo.py` | hecho: todo solo para admin (`exigir_admin`), y no se bloquea a un admin |
 | RQ11 | Reclamos por no-show, votación, usuario o complejo, resueltos por el admin. | `TODO` | | pendiente |
 
 Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientras la postulación está aceptada y el partido no se canceló (`Postulacion.whatsapp_visible()`). No debe aparecer en listados públicos ni en otros endpoints; la única excepción es el perfil propio (`GET /usuarios/yo`), donde cada usuario ve su propio número. Monetización (comisiones, suscripciones, pagos), reservas, amigos, chat y torneos están fuera del MVP.
@@ -243,6 +243,8 @@ Van separados porque `models.py` importa `eventos.py` (para emitir eventos) y lo
 
 La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Cada pedido suma los observadores en `preparar_partido` (`fulvo/routes/partidos.py`), una sola vez por partido, antes de cualquier acción. Los dos observadores suman sus cambios (notificaciones, partidos jugados, votaciones) a la sesión del pedido, y el commit de la ruta los guarda junto con el cambio que los originó. Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron: si nadie los consultó, todavía no tienen votaciones.
 
+El bloqueo de un usuario (RQ10) usa el Observer sin modificarlo: `sacar_de_partidos_por_jugar` (`fulvo/routes/partidos.py`) cancela sus partidos y retira sus postulaciones con los métodos de `Partido`, así los avisos salen igual que si lo hubiera hecho una persona.
+
 ## 9. Testing
 
 - Mínimo exigido: **10 tests unitarios**. Objetivo real: cubrir cada endpoint, sus caminos felices y sus errores.
@@ -283,6 +285,8 @@ La lista de observadores no es una columna: la arma `__post_init__` en los parti
 - **Nunca** commitear `.env` ni secretos. Mantener un `.env.example` sin valores reales.
 - Contraseñas siempre hasheadas (argon2 vía `pwdlib`), nunca guardadas ni logueadas en claro.
 - Las rutas protegidas usan la dependencia de usuario actual. Un usuario solo puede tocar sus propios recursos (`403` si no).
+- Las rutas de admin usan `exigir_admin`: en el decorador o en el router si solo necesitan el permiso, o con el alias `AdminActual` si necesitan al admin (por ejemplo, para guardar quién bloqueó a un usuario).
+- Un usuario bloqueado no puede iniciar sesión, y el token que ya tenía deja de servir en el pedido siguiente (`403`), porque el usuario se vuelve a leer de la base en cada pedido.
 - Mensajes de login genéricos (no revelar si falló el usuario o la contraseña).
 
 ## 12. Entregables (checklist)

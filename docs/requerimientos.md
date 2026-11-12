@@ -142,7 +142,10 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 
 - Cada bloqueo de usuario queda registrado: usuario, admin que lo aplicó, motivo, fecha de inicio y reclamo de origen (opcional).
 - Bloquear crea la sanción y marca al usuario como bloqueado. Desbloquear cierra la sanción con su fecha de fin.
-- Un usuario bloqueado no puede iniciar sesión.
+- Un usuario bloqueado no puede iniciar sesión, y el token que ya tenía deja de servir en ese momento: la API vuelve a leer al usuario en cada pedido.
+- Solo el admin bloquea y desbloquea, y solo a usuarios comunes: bloquear a un admin, incluido uno mismo, da 409, porque la app podría quedarse sin nadie que desbloquee (decisión del 2026-11-12).
+- Un usuario tiene una sola sanción activa: bloquearlo de nuevo da 409. Si se lo desbloquea y después se lo vuelve a bloquear, se crea otra sanción, así cada bloqueo queda registrado aparte. El admin ve el historial de cada usuario, de la sanción más nueva a la más vieja.
+- Al bloquear se cancelan los partidos que organiza y se retiran sus postulaciones en espera o aceptadas, solo en partidos que todavía no empezaron: un bloqueado ya no puede aceptar jugadores ni coordinar. Los afectados reciben las notificaciones de siempre (partido cancelado y postulación retirada). Los partidos que ya empezaron o se jugaron no cambian, y desbloquear no restaura nada (decisión del 2026-11-12).
 
 **Roles**
 

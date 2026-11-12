@@ -155,6 +155,16 @@ class Usuario:
         cascade='all, delete-orphan',
         order_by='Votacion.id',
     )
+    # El historial de bloqueos del usuario (RQ10). Como en `votaciones`, dos
+    # columnas de `sanciones` apuntan a usuarios: esta lista es la del
+    # sancionado (la otra es el admin que la aplicó). Las sanciones nunca se
+    # borran: se cierran al desbloquear y quedan como historial.
+    sanciones: Mapped[list['Sancion']] = relationship(
+        init=False,
+        back_populates='usuario',
+        foreign_keys='Sancion.usuario_id',
+        order_by='Sancion.id',
+    )
 
     def edad(self, hoy: date) -> int:
         """Devuelve los años cumplidos a la fecha `hoy`.
@@ -231,6 +241,44 @@ class Usuario:
             f'{partidos} para publicar o postularte (te faltan '
             f'{len(self.votaciones_pendientes())} votaciones).'
         )
+
+    def bloquear(
+        self, admin: 'Usuario', motivo: str, ahora: datetime
+    ) -> 'Sancion':
+        """Bloquea al usuario y registra la sanción, y la devuelve (RQ10).
+
+        Solo se bloquea a usuarios comunes: si un admin pudiera bloquear a
+        otro, o a sí mismo, la app podría quedarse sin nadie que desbloquee,
+        porque un bloqueado no inicia sesión (decisión del equipo del
+        2026-11-12). Tampoco se bloquea dos veces: hay una sola sanción
+        activa por usuario. El reclamo de origen, opcional, se suma con los
+        reclamos (RQ11). Recibe `ahora` para poder probarlo con fechas fijas,
+        como `Votacion.emitir`.
+        """
+        exigir(
+            not self.tiene_rol(ROL_ADMIN),
+            'No se puede bloquear a un administrador',
+        )
+        exigir(not self.bloqueado, 'El usuario ya está bloqueado')
+        sancion = Sancion(
+            usuario_id=self.id,
+            aplicada_por_id=admin.id,
+            motivo=motivo,
+            desde=ahora,
+        )
+        self.sanciones.append(sancion)
+        self.bloqueado = True
+        return sancion
+
+    def desbloquear(self, sancion: 'Sancion', ahora: datetime) -> None:
+        """Cierra la sanción que lo tiene bloqueado y le quita el bloqueo.
+
+        Recibe la sanción porque la API la nombra por su id
+        (`PATCH /usuarios/{id}/sanciones/{id}`). Si ya estaba cerrada,
+        `Sancion.cerrar` levanta el error: no hay nada que desbloquear.
+        """
+        sancion.cerrar(ahora)
+        self.bloqueado = False
 
 
 # Argentina usa un solo huso horario (UTC-3) y no cambia la hora en verano
@@ -789,3 +837,47 @@ class Votacion:
         self.estrellas = estrellas
         self.emitida_at = ahora
         self.receptor().registrar_puntuacion(estrellas)
+
+
+@mapped_as_dataclass(table_registry)
+class Sancion:
+    """Registro de un bloqueo de usuario (RQ10).
+
+    Bloquear crea una sanción activa y desbloquear la cierra con su fecha de
+    fin. Nunca se borra: así queda el historial de quién bloqueó a quién,
+    cuándo y por qué (`requerimientos.md`). No se crea a mano: la crea
+    `Usuario.bloquear` y la cierra `Usuario.desbloquear`, que además
+    mantienen al día `Usuario.bloqueado`, que es lo que mira el login. El
+    reclamo de origen, opcional, se suma con RQ11, cuando exista la tabla
+    `reclamos`.
+    """
+
+    __tablename__ = 'sanciones'
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    # El usuario bloqueado.
+    usuario_id: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
+    # El admin que lo bloqueó.
+    aplicada_por_id: Mapped[int] = mapped_column(ForeignKey('usuarios.id'))
+    motivo: Mapped[str]
+    desde: Mapped[datetime]
+    # Vacía mientras la sanción está activa: se completa al desbloquear.
+    hasta: Mapped[datetime | None] = mapped_column(default=None)
+
+    # Dos columnas apuntan a usuarios: `foreign_keys` dice cuál usa cada
+    # relación, como en `Votacion`.
+    usuario: Mapped[Usuario] = relationship(
+        init=False, back_populates='sanciones', foreign_keys=[usuario_id]
+    )
+    aplicada_por: Mapped[Usuario] = relationship(
+        init=False, foreign_keys=[aplicada_por_id]
+    )
+
+    def activa(self) -> bool:
+        """Dice si la sanción sigue vigente: lo está hasta que se cierra."""
+        return self.hasta is None
+
+    def cerrar(self, ahora: datetime) -> None:
+        """Le pone la fecha de fin. Lo usa `Usuario.desbloquear`."""
+        exigir(self.activa(), 'La sanción ya estaba cerrada')
+        self.hasta = ahora
