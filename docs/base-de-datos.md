@@ -2,7 +2,7 @@
 
 Documento de trabajo del esquema de la base de datos. Igual que [`clases.md`](clases.md), se arma de a poco y cada decisión queda anotada acá.
 
-**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos`, `postulaciones`, `notificaciones`, `votaciones` y `sanciones`**, que son las entidades que ya tienen endpoints (RQ1 a RQ10). La última clase de [`clases.md`](clases.md), `Reclamo`, todavía no tiene tabla: se agrega con su migración de Alembic cuando se hagan sus endpoints (RQ11).
+**Alcance de hoy: `zonas`, `complejos`, `roles`, `usuarios`, `partidos`, `postulaciones`, `notificaciones`, `votaciones`, `sanciones` y `reclamos`**, que son las entidades que tienen endpoints (RQ1 a RQ11). Con `reclamos`, todas las clases de [`clases.md`](clases.md) que se guardan ya tienen su tabla, cada una con su migración de Alembic.
 
 Diagrama: [`diagramas/base-de-datos.drawio`](diagramas/base-de-datos.drawio) (editable en draw.io) y [`diagramas/base-de-datos.svg`](diagramas/base-de-datos.svg).
 
@@ -143,7 +143,7 @@ Migración: `9617090e26bf` (crear notificaciones), sobre `120c063df0c0`.
 | `created_at` | fecha y hora | obligatorio, hora de Argentina: cuándo se creó pendiente |
 | `receptor_usuario_id` | entero | opcional, clave foránea a `usuarios.id` |
 | `receptor_complejo_id` | entero | opcional, clave foránea a `complejos.id` |
-| `estado` | texto | obligatorio: `pendiente` (por defecto) o `emitida` |
+| `estado` | texto | obligatorio: `pendiente` (por defecto), `emitida` o `anulada` (RQ11) |
 | `estrellas` | entero | opcional: de 0 a 5, vacío mientras está pendiente |
 | `emitida_at` | fecha y hora | opcional: cuándo se emitió |
 
@@ -164,8 +164,26 @@ Migración: `ded49d3ddd2a` (crear votaciones), sobre `9617090e26bf`. La misma mi
 | `motivo` | texto | obligatorio |
 | `desde` | fecha y hora | obligatorio, hora de Argentina: cuándo se bloqueó |
 | `hasta` | fecha y hora | opcional: cuándo se desbloqueó, vacía mientras la sanción está activa |
+| `reclamo_id` | entero | opcional, clave foránea a `reclamos.id` (la denuncia que originó el bloqueo, RQ11) |
 
-Migración: `8c64cf074cd1` (crear sanciones), sobre `ded49d3ddd2a`.
+Migración: `8c64cf074cd1` (crear sanciones), sobre `ded49d3ddd2a`. `reclamo_id` llega con la migración de reclamos.
+
+### `reclamos`
+
+| Columna | Tipo | Restricciones |
+|---|---|---|
+| `id` | entero | clave primaria |
+| `autor_id` | entero | obligatorio, clave foránea a `usuarios.id` |
+| `tipo_objetivo` | texto | obligatorio: `no_show`, `votacion`, `usuario` o `complejo` |
+| `objetivo_id` | entero | obligatorio, sin clave foránea: la postulación, la votación, el usuario o el complejo, según el tipo |
+| `motivo` | texto | obligatorio |
+| `created_at` | fecha y hora | obligatorio, hora de Argentina |
+| `estado` | texto | obligatorio: `abierto` (por defecto), `resuelto` o `rechazado` |
+| `resolucion` | texto | opcional: la respuesta del admin, vacía mientras está abierto |
+| `resuelto_por_id` | entero | opcional, clave foránea a `usuarios.id` (el admin que respondió) |
+| `resuelto_at` | fecha y hora | opcional: cuándo respondió el admin |
+
+Migración: `5acd3d483e8e` (crear reclamos), sobre `8c64cf074cd1`. La misma migración suma `sanciones.reclamo_id`.
 
 ### Relaciones
 
@@ -179,6 +197,8 @@ Migración: `8c64cf074cd1` (crear sanciones), sobre `ded49d3ddd2a`.
 - Un partido tiene muchas votaciones (`votaciones.partido_id` apunta a `partidos.id`).
 - Un usuario emite muchas votaciones (`votaciones.emisor_id` apunta a `usuarios.id`) y puede recibir muchas (`votaciones.receptor_usuario_id`). Un complejo también recibe muchas (`votaciones.receptor_complejo_id` apunta a `complejos.id`).
 - Un usuario puede tener muchas sanciones, una por cada vez que lo bloquearon (`sanciones.usuario_id` apunta a `usuarios.id`), y un admin puede aplicar muchas (`sanciones.aplicada_por_id` también apunta a `usuarios.id`).
+- Un usuario abre muchos reclamos (`reclamos.autor_id` apunta a `usuarios.id`), y un admin responde muchos (`reclamos.resuelto_por_id` también apunta a `usuarios.id`). El objetivo del reclamo se guarda como referencia genérica, sin clave foránea (ver decisiones).
+- Una denuncia puede originar una sanción (`sanciones.reclamo_id` apunta a `reclamos.id`).
 
 ## 3. Decisiones
 
@@ -245,7 +265,15 @@ Sanciones:
 - **Una fila por bloqueo, que nunca se borra.** Desbloquear completa `hasta` en lugar de borrar la fila, así queda el historial de quién bloqueó a quién, cuándo y por qué. Volver a bloquear crea otra fila. Como no se borran filas, un id no se puede reutilizar y no hace falta `sqlite_autoincrement`.
 - **Dos claves foráneas a `usuarios`.** `usuario_id` es el bloqueado y `aplicada_por_id` el admin, como `emisor_id` y `receptor_usuario_id` en `votaciones`. El modelo dice con `foreign_keys` cuál usa cada relación.
 - **Una sola sanción activa por usuario, controlada por el modelo.** `Usuario.bloquear` responde 409 si el usuario ya está bloqueado. La base no lo garantiza por su cuenta: dos bloqueos al mismo usuario exactamente a la vez podrían dejar dos sanciones activas. Como lo hace solo el admin, para el MVP se acepta, igual que el promedio de las votaciones.
-- **Sin el reclamo de origen por ahora.** `clases.md` prevé un reclamo opcional en cada sanción, pero la tabla `reclamos` llega con RQ11: `reclamo_id` se suma con esa migración.
+- **El reclamo de origen llegó con RQ11.** `reclamo_id` es opcional: queda vacío cuando el admin bloquea directo. Su clave foránea tiene nombre (`fk_sanciones_reclamo_id`) para que la migración la pueda borrar al bajar: sin nombre, Alembic no sabe cuál borrar. En SQLite, sumar la columna recrea la tabla, y al bajar las dos claves foráneas viejas pueden quedar en otro orden: son las mismas.
+
+Reclamos:
+
+- **Objetivo genérico, sin clave foránea.** `tipo_objetivo` y `objetivo_id` dicen sobre qué es el reclamo: una postulación (el no-show), una votación, un usuario o un complejo, como decide `clases.md`. Una clave foránea solo puede apuntar a una tabla. El costo es que la base no verifica el id: lo busca la ruta según el tipo, y responde 404 si no existe.
+- **Un reclamo abierto por autor y objetivo, controlado por la ruta.** La ruta consulta si ya hay uno abierto antes de crearlo (409). Uno resuelto o rechazado no cuenta. Como en las sanciones, dos pedidos exactamente a la vez podrían crear dos: para el MVP se acepta.
+- **`estado` y `tipo_objetivo` son enums guardados como texto**, como en las demás tablas. La respuesta del admin, quién respondió y cuándo quedan vacíos mientras el reclamo está abierto.
+- **El partido no se guarda.** Se obtiene desde el objetivo (`clases.md`): la API lo muestra en los reclamos por no-show y por votación.
+- **La votación anulada no necesita migración.** Su estado se guarda como texto, y `anulada` entra en el largo de la columna, que lo da `pendiente`.
 
 ## 4. Configuración y datos iniciales
 
@@ -256,5 +284,5 @@ Sanciones:
 
 ## 5. Pendiente
 
-- La tabla de `Reclamo` (RQ11), con su migración, y la columna `sanciones.reclamo_id`, que apunta a ella. Este documento y el diagrama se amplían en ese paso.
+- Ninguna tabla del MVP: con `reclamos` (RQ11) ya tienen tabla todas las clases que se guardan. Si se suma algo post-MVP, este documento y el diagrama se amplían con su migración.
 - Datos de prueba: los tests de rutas cargan los roles y el CSV completo (8 zonas y 51 complejos) con la fixture `datos_iniciales`. Los usuarios y los partidos de prueba salen de `UsuarioFactory` y `PartidoFactory` (`tests/factories.py`, con `factory-boy`, como la cátedra).
