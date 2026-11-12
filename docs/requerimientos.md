@@ -63,7 +63,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - El listado de partidos abiertos muestra solo los que todavía no empezaron, del más próximo al más lejano. El listado y el detalle piden sesión iniciada, porque muestran el perfil público del organizador.
 - El grupo del organizador no son usuarios del sistema. Solo se guarda cuántos faltan.
 - Un partido publicado no se edita: se cancela y se crea otro.
-- El pase a jugado se revisa cada vez que se consulta el partido. No hay tarea periódica.
+- El pase a jugado se revisa cada vez que se consulta el partido. No hay tarea periódica. También se revisan los partidos de un usuario que ya terminaron antes de listar sus votaciones o de calcular su deuda: si nadie los consultó, todavía no tienen votaciones.
 - Se permite postularse a partidos que se solapan en horario.
 - No se puede postular a un partido que ya empezó.
 - Organizador no puede postularse a su propio partido.
@@ -92,18 +92,20 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 **Votación**
 
 - Participantes del partido: organizador y aceptados.
-- Cada participante vota a los demás participantes y al complejo, de 0 a 5 estrellas.
-- Solo el organizador puede marcar no-show a un aceptado. El no-show cuenta como un voto de 0 estrellas en la puntuación del ausente y no suma partido jugado.
-- Sin ventana de votación: se puede votar en cualquier momento.
-- Partidos jugados: al pasar el partido a jugado se suma 1 a cada participante. Si el organizador marca no-show, se resta 1 al ausente y se eliminan sus votaciones pendientes.
+- Cada participante vota a los demás participantes y al complejo, de 0 a 5 estrellas. Las votaciones se crean pendientes al pasar el partido a jugado.
+- Un voto emitido no se cambia.
+- Solo el organizador puede marcar no-show a un aceptado, y solo con el partido ya jugado: antes no hay votaciones ni partido jugado que deshacer (decisión del 2026-11-11). El no-show cuenta como un voto de 0 estrellas en la puntuación del ausente y no suma partido jugado. El organizador no lo puede desmarcar: eso se pide con un reclamo (RQ11).
+- Sin ventana de votación: se puede votar en cualquier momento. El no-show tampoco tiene límite de tiempo.
+- Partidos jugados: al pasar el partido a jugado se suma 1 a cada participante. Si el organizador marca no-show, se resta 1 al ausente y se eliminan sus votaciones pendientes y también las que los demás tenían hacia él: no jugó, y el no-show ya cuenta como su voto (decisión del 2026-11-11). Las votaciones ya emitidas quedan.
 - Puntuación promedio se recalcula con cada voto, tanto la del usuario como la del complejo.
 - Cada votación guarda cuándo se emitió.
 
 **Bloqueo por deuda**
 
-- Deuda = cantidad de partidos jugados con votaciones sin completar.
-- Si deuda es mayor que X, el usuario no puede publicar partidos ni postularse. La respuesta informa cuántas votaciones debe completar.
-- X = 3. Valor fijo en configuración, no editable desde admin en el MVP.
+- Deuda = cantidad de partidos jugados con votaciones sin completar. Cuenta por partido: un partido con varios votos pendientes suma 1.
+- Si deuda es mayor que X, el usuario no puede publicar partidos ni postularse. La API responde 409, como las demás reglas del dominio, con un mensaje que dice en cuántos partidos debe votos, en cuántos tiene que completarlos para volver a estar habilitado y cuántas votaciones le faltan en total (decisión del 2026-11-11). Por ejemplo: "Tenés votaciones pendientes en 4 partidos y el máximo es 3: completá las de al menos 1 partido para publicar o postularte (te faltan 9 votaciones)."
+- El perfil propio muestra la deuda y si el usuario está habilitado para publicar y postularse.
+- X = 3. Valor fijo en configuración (`LIMITE_DEUDA`, en `fulvo/settings.py`), no editable desde admin en el MVP.
 
 **Notificación**
 
@@ -119,7 +121,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
   - Reclamo resuelto (al autor).
 - Cada usuario ve solo sus notificaciones, de la más nueva a la más vieja, y las marca como leídas de a una.
 - El texto nunca incluye el WhatsApp: si después se revoca al jugador o se cancela el partido, el número no queda guardado en la notificación (decisión del 2026-11-11). El aviso de aceptación dice dónde verlo.
-- "Votaciones pendientes" se crea con las votaciones (RQ8) y "reclamo resuelto" con los reclamos (RQ11).
+- "Votaciones pendientes" se crea al pasar el partido a jugado, para cada participante (RQ8). "Reclamo resuelto" llega con los reclamos (RQ11).
 
 **Reclamo**
 

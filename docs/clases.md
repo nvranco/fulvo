@@ -34,7 +34,10 @@ Métodos:
 Decisiones:
 
 - El no-show cuenta como un voto de 0 estrellas: `registrar_puntuacion(0)`. Anularlo usa `quitar_puntuacion(0)`.
-- La deuda se calcula en `Usuario`, no en un servicio aparte. `Partido.postular` solo pregunta `jugador.habilitado()`.
+- La deuda se calcula en `Usuario`, no en un servicio aparte. `Partido.postular` solo pregunta si está habilitado.
+- En el código (RQ8), `deuda()` y `habilitado()` tienen dos ayudantes: `votaciones_pendientes()`, que filtra la lista de votaciones del usuario, y `exigir_habilitado()`, que levanta el 409 con el detalle de la deuda. Lo usan `Partido.postular` y la ruta que publica partidos, así el mensaje se arma en un solo lugar.
+- Las votaciones que emite el usuario son una lista (`Usuario.votaciones`), como las postulaciones de un partido. Se crean sumándolas a esa lista y se borran sacándolas (`delete-orphan`): así la lista en memoria nunca queda vieja y `deuda()` no consulta la base.
+- `quitar_puntuacion` llega con los reclamos (RQ11), que son los que la usan.
 - El bloqueo lo hace `Usuario.bloquear(...)`, que crea la `Sancion`. `Sancion.cerrar()` pone la fecha de fin.
 - El contacto del usuario se llama `whatsapp`.
 - El `apellido` no se muestra en el perfil público.
@@ -112,9 +115,10 @@ Métodos:
 | `rechazar(postulacion)` | Marca la postulación rechazada. | `postulacion_rechazada` |
 | `revocar(postulacion)` | Suma 1 cupo y reabre el partido si estaba completo. | `revocacion` |
 | `retirar(postulacion)` | El jugador se baja. Si estaba aceptado, suma 1 cupo y reabre el partido. | `postulacion_retirada` |
-| `marcar_no_show(postulacion)` | Solo el organizador, sobre un aceptado. Llama a `postulacion.marcar_no_show()`. | `no_show_marcado` |
+| `marcar_no_show(postulacion)` | Solo el organizador, sobre un aceptado y con el partido jugado. Llama a `postulacion.marcar_no_show()`. | `no_show_marcado` |
 | `cancelar()` | Pasa a cancelado. | `partido_cancelado` |
 | `actualizar_estado(ahora)` | Si ya pasó `fin()`, pasa a jugado. Se llama al consultar el partido. | `partido_jugado` |
+| `participantes()` | Devuelve el organizador y los jugadores aceptados. Lo usan los dos observadores al pasar a jugado. | — |
 | `agregar_observador(o)`, `quitar_observador(o)`, `notificar(evento)` | Mecánica del Observer. | — |
 
 **Postulacion**
@@ -139,6 +143,8 @@ Métodos. `Postulacion` es dueña de sus propias transiciones de estado, y `Part
 
 Una transición inválida levanta una excepción (por ejemplo, aceptar una postulación ya rechazada). La regla de estados queda en un solo lugar. `Postulacion` no emite eventos.
 
+En el código, `marcar_no_show` llegó con las votaciones (RQ8) y `quitar_no_show` llega con los reclamos (RQ11), que son quienes lo usan.
+
 ### Gestión post-partido
 
 **Votacion**
@@ -157,6 +163,12 @@ Métodos:
 | `receptor()` | Devuelve el receptor que tenga valor (usuario o complejo). Los dos responden a `registrar_puntuacion`. |
 
 Decisión: el receptor se modela con dos referencias opcionales, de las que exactamente una tiene valor. No se arman subclases `VotacionUsuario` y `VotacionComplejo`.
+
+Decisiones del código (RQ8):
+
+- **La base controla el receptor.** Una restricción CHECK (`un_solo_receptor`) rechaza una votación sin receptor o con los dos. Dos restricciones `UNIQUE` impiden votar dos veces al mismo receptor en un partido.
+- **Un voto emitido no se cambia.** `emitir` levanta `ReglaDeNegocioError` (409) si la votación ya se emitió o si las estrellas no van de 0 a 5. Recibe `ahora`, como los métodos de `Partido`.
+- **`anular()` llega con RQ11**, que es quien la usa al resolver un reclamo.
 
 **Reclamo**
 
@@ -235,10 +247,11 @@ Decisiones sobre el Observer:
   - `NotificadorPartido`: crea la notificación de cada evento usando la Factory. Con `partido_jugado` crea el aviso de votaciones pendientes.
   - `ProcesadorPostPartido`: reacciona a dos eventos.
     - `partido_jugado`: suma 1 partido jugado a cada participante y crea las votaciones pendientes.
-    - `no_show_marcado`: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes.
+    - `no_show_marcado`: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes y las que los demás tenían hacia él (decisión del 2026-11-11). Las ya emitidas quedan.
 - Motivo de usar un segundo observador: los efectos de pasar a jugado y de marcar un no-show no viven dentro de `Partido`. `Partido` solo avisa y no sabe quién reacciona. Agregar otra reacción no lo modifica.
 - **`EventoPartido`:** lo que recibe `actualizar(evento)`. Lleva `tipo` (uno de los 9 eventos), `partido` y `postulacion` (opcional, solo en los eventos que nacen de una postulación). `Partido` lo crea al emitir. Así cada observador sabe qué partido y qué postulación originaron el aviso, sin buscarlos.
-- **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`. Los observadores concretos y la fábrica están en `fulvo/observadores.py`: necesitan los modelos, y `models.py` ya importa `eventos.py`, así que juntos se importarían mutuamente. `Partido`, `Postulacion` y `Notificacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, y cada pedido suma los observadores en `preparar_partido`.
+- **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`. Los observadores concretos y la fábrica están en `fulvo/observadores.py`: necesitan los modelos, y `models.py` ya importa `eventos.py`, así que juntos se importarían mutuamente. `Partido`, `Postulacion` y `Notificacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, y cada pedido suma los dos observadores en `preparar_partido`. Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron, porque las votaciones se crean recién cuando alguien consulta el partido.
+- **Las relaciones de un objeto sin guardar.** SQLAlchemy no carga las relaciones de un objeto que todavía no se mandó a la base (por ejemplo, el jugador de una postulación recién aceptada). Por eso los dos observadores hacen `flush` antes de leerlas: manda los cambios pendientes sin confirmarlos.
 - **Fechas.** Los métodos que guardan o comparan una fecha (`postular`, `aceptar`, `rechazar`, `revocar` y `actualizar_estado`) reciben `ahora`, para poder probarlos con fechas fijas, como `edad(hoy)`. El diagrama no lo muestra.
 - **Errores.** Una transición inválida levanta `ReglaDeNegocioError` (`fulvo/errores.py`), que la API responde como 409.
 
@@ -256,7 +269,7 @@ Decisiones sobre la Factory:
 | `revocacion` | Jugador de la postulación | revocación |
 | `postulacion_retirada` | Organizador | postulación retirada |
 | `partido_cancelado` | Postulantes y aceptados | partido cancelado |
-| `partido_jugado` | Participantes | votaciones pendientes (se suma con RQ8) |
+| `partido_jugado` | Participantes | votaciones pendientes |
 | `no_show_marcado` | — | No se notifica |
 
 - La notificación de reclamo resuelto la pide la lógica del reclamo a la misma fábrica, sin pasar por el Observer.
@@ -267,7 +280,7 @@ Decisiones sobre la Factory:
 
 - El pase a `jugado` se revisa cada vez que se consulta el partido, no con una tarea periódica. Ahí se dispara el aviso del Observer.
 - El orden de la lista de espera (puntuación descendente, sin puntuación al final, desempate por llegada) se calcula al consultar. No se guarda.
-- La deuda del usuario se calcula por partido con votaciones pendientes. Si supera X (3, en `settings.py`), no puede publicar ni postularse.
+- La deuda del usuario se calcula por partido con votaciones pendientes. Si supera X (3, `LIMITE_DEUDA` en `settings.py`), no puede publicar ni postularse.
 - El WhatsApp solo se expone mientras la postulación está aceptada.
 
 ## 6. Diagrama

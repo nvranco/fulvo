@@ -78,6 +78,18 @@ imposible = 'imposible'
 Notificacion = 'Notificacion'
 notificacion = 'notificacion'
 dependencias = 'dependencias'
+Emision = 'Emision'
+LIMITE = 'LIMITE'
+calcular = 'calcular'
+columnas = 'columnas'
+diagrama = 'diagrama'
+importan = 'importan'
+participante = 'participante'
+participantes = 'participantes'
+presentes = 'presentes'
+receptores = 'receptores'
+terminaron = 'terminaron'
+validador = 'validador'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.

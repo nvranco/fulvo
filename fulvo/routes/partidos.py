@@ -3,7 +3,7 @@ from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
@@ -18,7 +18,7 @@ from fulvo.models import (
     Usuario,
     ahora_argentina,
 )
-from fulvo.observadores import NotificadorPartido
+from fulvo.observadores import NotificadorPartido, ProcesadorPostPartido
 from fulvo.routes.complejos import buscar_complejo, complejo_publico
 from fulvo.routes.zonas import buscar_zona
 from fulvo.schemas import (
@@ -100,11 +100,15 @@ def publicar_partido(
     """Publica un partido abierto, con el usuario como organizador (RQ4).
 
     422 si el inicio ya pasó o los cupos no entran en el tipo, y 404 si el
-    complejo no existe. El bloqueo por votaciones pendientes llega con RQ8.
+    complejo no existe. 409 si debe votaciones en más de X partidos
+    (bloqueo por deuda, RQ8): antes se ponen al día sus partidos, para que
+    la deuda incluya los que ya terminaron.
     """
     rechazar_inicio_pasado(datos.inicio)
     rechazar_cupos_de_mas(datos.tipo, datos.cupos_faltantes)
     buscar_complejo(session, datos.complejo_id)
+    poner_al_dia_partidos_de(session, organizador)
+    organizador.exigir_habilitado()
     partido = Partido(organizador_id=organizador.id, **datos.model_dump())
     session.add(partido)
     session.commit()
@@ -153,16 +157,46 @@ def preparar_partido(session: Session, partido: Partido) -> None:
 
     Los observadores no se guardan en la base: cada pedido los suma, antes
     de que pase cualquier cosa. Si el partido ya los tiene (porque ya está
-    en memoria en esta sesión), no se repiten: si no, cada evento se
-    notificaría dos veces. Con las votaciones (RQ8) se suma acá
-    `ProcesadorPostPartido`.
+    en memoria en esta sesión), no se repiten: si no, cada evento llegaría
+    dos veces. Son dos: `NotificadorPartido` (RQ9) y `ProcesadorPostPartido`
+    (RQ8).
 
     Después revisa si ya terminó: es el pase a jugado al consultar que pide
     `docs/requerimientos.md`. El commit de cada ruta guarda el cambio.
     """
     if not partido.observadores:
         partido.agregar_observador(NotificadorPartido(session))
+        partido.agregar_observador(ProcesadorPostPartido(session))
     partido.actualizar_estado(ahora_argentina())
+
+
+def poner_al_dia_partidos_de(session: Session, usuario: Usuario) -> None:
+    """Pasa a jugado los partidos del usuario que ya terminaron (RQ8).
+
+    La deuda se cuenta con las votaciones pendientes, y esas se crean
+    recién cuando alguien consulta el partido terminado. Si nadie lo
+    consultó, el usuario todavía no tendría sus votaciones. Por eso, antes
+    de listar sus votaciones o de calcular su deuda, se preparan los
+    partidos en los que juega (como organizador o aceptado) que siguen en
+    juego y ya empezaron. Cuáles terminaron lo decide `actualizar_estado`.
+    """
+    en_juego = [EstadoPartido.abierto, EstadoPartido.completo]
+    aceptado = select(Postulacion.partido_id).where(
+        Postulacion.jugador_id == usuario.id,
+        Postulacion.estado == EstadoPostulacion.aceptada,
+    )
+    partidos = session.scalars(
+        select(Partido).where(
+            Partido.estado.in_(en_juego),
+            Partido.inicio <= ahora_argentina(),
+            or_(
+                Partido.organizador_id == usuario.id,
+                Partido.id.in_(aceptado),
+            ),
+        )
+    ).all()
+    for partido in partidos:
+        preparar_partido(session, partido)
 
 
 def buscar_partido(session: Session, partido_id: int) -> Partido:
@@ -202,6 +236,7 @@ def postulacion_del_partido(postulacion: Postulacion) -> PostulacionDelPartido:
         estado=postulacion.estado,
         created_at=postulacion.created_at,
         respondida_at=postulacion.respondida_at,
+        no_show=postulacion.no_show,
         jugador=UsuarioPublico.model_validate(jugador),
         whatsapp_jugador=jugador.whatsapp if visible else None,
     )
@@ -219,6 +254,7 @@ def mi_postulacion(postulacion: Postulacion) -> MiPostulacion:
         estado=postulacion.estado,
         created_at=postulacion.created_at,
         respondida_at=postulacion.respondida_at,
+        no_show=postulacion.no_show,
         partido=partido_publico(partido),
         whatsapp_organizador=partido.organizador.whatsapp if visible else None,
     )
@@ -286,10 +322,12 @@ def cancelar_partido(
 def postularse(partido_id: int, jugador: UsuarioActual, session: Session):
     """El usuario se postula al partido y queda en espera (RQ5).
 
-    409 si el partido no está abierto o ya empezó, si es el organizador o
-    si ya se había postulado antes.
+    409 si el partido no está abierto o ya empezó, si es el organizador,
+    si ya se había postulado antes o si debe votaciones en más de X
+    partidos (RQ8). Antes se ponen al día sus partidos, por la deuda.
     """
     partido = buscar_partido(session, partido_id)
+    poner_al_dia_partidos_de(session, jugador)
     postulacion = partido.postular(jugador, ahora_argentina())
     session.commit()
     return mi_postulacion(postulacion)
@@ -334,11 +372,13 @@ def responder_postulacion(
     organizador: UsuarioActual,
     session: Session,
 ):
-    """El organizador acepta, rechaza o revoca una postulación (RQ6 y RQ7).
+    """El organizador responde una postulación (RQ6 a RQ8).
 
-    403 si no es el organizador, 404 si la postulación no es de este
-    partido y 409 si el cambio no se puede hacer desde el estado actual.
-    Al aceptar, la respuesta ya trae el WhatsApp del jugador.
+    Acepta, rechaza o revoca (`{"estado": ...}`), o marca que el jugador
+    aceptado no vino (`{"no_show": true}`), que solo se puede con el partido
+    jugado. 403 si no es el organizador, 404 si la postulación no es de este
+    partido y 409 si el cambio no se puede hacer desde el estado actual. Al
+    aceptar, la respuesta ya trae el WhatsApp del jugador.
     """
     partido = buscar_partido(session, partido_id)
     exigir_organizador(partido, organizador)
@@ -349,7 +389,9 @@ def responder_postulacion(
             detail='Postulación no encontrada',
         )
     ahora = ahora_argentina()
-    if datos.estado == EstadoPostulacion.aceptada:
+    if datos.no_show:
+        partido.marcar_no_show(postulacion)
+    elif datos.estado == EstadoPostulacion.aceptada:
         partido.aceptar(postulacion, ahora)
     elif datos.estado == EstadoPostulacion.rechazada:
         partido.rechazar(postulacion, ahora)
