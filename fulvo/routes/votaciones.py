@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
-from fulvo.models import Votacion, ahora_argentina
+from fulvo.models import EstadoVotacion, Votacion, ahora_argentina
 from fulvo.routes.complejos import complejo_publico
 from fulvo.routes.partidos import partido_publico, poner_al_dia_partidos_de
 from fulvo.schemas import (
@@ -63,10 +63,21 @@ def listar_mis_votaciones(
     Van de la más nueva a la más vieja. Con `estado=pendiente` se ve lo que
     debe. Antes se ponen al día sus partidos: si uno terminó y nadie lo
     consultó, recién ahí se crean sus votaciones.
+
+    Con `recibidas=true` muestra los votos que otros le dieron, para que
+    pueda reclamar uno (RQ11). Solo los emitidos o anulados: uno pendiente
+    todavía no tiene estrellas. La respuesta no dice quién votó (decisión
+    del equipo del 2026-11-12): el esquema no tiene al emisor.
     """
     poner_al_dia_partidos_de(session, usuario)
     session.commit()
-    consulta = select(Votacion).where(Votacion.emisor_id == usuario.id)
+    if filtro.recibidas:
+        consulta = select(Votacion).where(
+            Votacion.receptor_usuario_id == usuario.id,
+            Votacion.estado != EstadoVotacion.pendiente,
+        )
+    else:
+        consulta = select(Votacion).where(Votacion.emisor_id == usuario.id)
     if filtro.estado is not None:
         consulta = consulta.where(Votacion.estado == filtro.estado)
     consulta = (
