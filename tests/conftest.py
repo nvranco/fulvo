@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
+from testcontainers.community.postgres import PostgresContainer
 
 from fulvo.app import app
 from fulvo.carga_inicial import cargar, cargar_roles
@@ -13,27 +13,42 @@ from tests.datos import EMAIL, EMAIL_ADMIN, EMAIL_OTRO
 from tests.factories import UsuarioFactory
 
 
-@pytest.fixture
-def session():
-    """Sesión sobre una base SQLite en memoria, nueva para cada test.
+@pytest.fixture(scope='session')
+def engine():
+    """Engine síncrono sobre un PostgreSQL de verdad, uno para toda la corrida.
 
-    `StaticPool` y `check_same_thread=False` hacen que todas las conexiones
-    usen la misma base en memoria, también cuando la usan otros hilos (las
-    rutas `def` de FastAPI corren en un pool de hilos). Las tablas se crean
-    antes y se borran después, así los tests no se afectan entre sí.
+    Los tests usan la misma base que producción (PostgreSQL 16, como en
+    compose.yaml) y no SQLite: así una diferencia entre las dos bases no
+    aparece recién en el deploy. Testcontainers levanta el contenedor y le
+    pone un puerto libre; hace falta Docker corriendo.
+
+    `scope='session'` porque levantar el contenedor tarda varios segundos:
+    se hace una sola vez y cada test se aísla con sus propias tablas (ver
+    `session`). El `with` apaga y borra el contenedor al terminar, aunque
+    algún test falle. `driver='psycopg'` arma la URL con el driver
+    síncrono del proyecto (`postgresql+psycopg://...`).
     """
-    engine = create_engine(
-        'sqlite:///:memory:',
-        connect_args={'check_same_thread': False},
-        poolclass=StaticPool,
-    )
+    with PostgresContainer('postgres:16', driver='psycopg') as postgres:
+        engine = create_engine(postgres.get_connection_url())
+        yield engine
+        engine.dispose()
+
+
+@pytest.fixture
+def session(engine):
+    """Sesión síncrona sobre el PostgreSQL de prueba, nueva para cada test.
+
+    Las tablas se crean antes y se borran después, así los tests no se
+    afectan entre sí aunque compartan el contenedor. La sesión se cierra
+    (fin del `with`) antes del `drop_all`: una transacción abierta
+    bloquearía el borrado de las tablas en PostgreSQL.
+    """
     table_registry.metadata.create_all(engine)
 
     with Session(engine) as session:
         yield session
 
     table_registry.metadata.drop_all(engine)
-    engine.dispose()
 
 
 @pytest.fixture
