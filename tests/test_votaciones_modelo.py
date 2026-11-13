@@ -275,7 +275,10 @@ def test_la_base_no_deja_votar_dos_veces_al_mismo_receptor(
         )
     )
 
-    with pytest.raises(IntegrityError, match='UNIQUE'):
+    # Sin distinguir mayúsculas, para que valga con el mensaje de las dos
+    # bases: "violates unique constraint" en PostgreSQL (la de los tests) y
+    # "UNIQUE constraint failed" en SQLite.
+    with pytest.raises(IntegrityError, match='(?i)unique constraint'):
         session.commit()
 
 

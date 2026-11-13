@@ -91,7 +91,8 @@ Se sigue el stack de la cátedra, con **un desvío: SQLAlchemy síncrono** (ver 
 | Migraciones | `alembic` |
 | Validación y esquemas | `pydantic` y `pydantic-settings` |
 | Auth | JWT con `pyjwt`, hash de contraseñas con `pwdlib[argon2]` |
-| BD en desarrollo y tests locales | SQLite con el módulo `sqlite3` de Python (sin `aiosqlite`) |
+| BD en desarrollo local (`poetry serve`) | SQLite con el módulo `sqlite3` de Python (sin `aiosqlite`), valor por defecto de `DATABASE_URL` |
+| BD en tests | PostgreSQL 16 real en un contenedor, levantado por `testcontainers` (ya no SQLite en memoria) |
 | BD en contenedor, CI y producción | PostgreSQL con `psycopg[binary]` |
 | Tests | `pytest`, `pytest-cov`, `pytest-random-order`, `factory-boy`, `freezegun`, `testcontainers`, `httpx2` |
 | Lint y formato | `ruff` |
@@ -103,7 +104,7 @@ Se sigue el stack de la cátedra, con **un desvío: SQLAlchemy síncrono** (ver 
 
 Python: **3.13**, una sola versión en todos lados (`.python-version`, `requires-python = ">=3.13,<4.0"` en `pyproject.toml`, `Dockerfile` y workflow de CI). Decidido porque ya estaba instalada en las máquinas del grupo y evita diferencias entre local, contenedor y CI (la cátedra usa 3.12 en CI y 3.14 en Docker).
 
-Entorno: `pipx` instala Poetry; Poetry crea el venv en `.venv/` (`poetry config virtualenvs.in-project true`, configuración global por máquina). `package-mode = false` porque es una app. Pasos completos para replicar en otra máquina: `docs/entorno.md`. Mantener ese archivo al día si cambia algo del entorno.
+Entorno: `pipx` instala Poetry; Poetry crea el venv en `.venv/` (`poetry config virtualenvs.in-project true`, configuración global por máquina). Sin `package-mode = false`: el proyecto se arma como paquete para que el Dockerfile pueda instalarlo con `pip install .` (decisión del 2026-11-12). Poetry instala además el paquete `fulvo` en el `.venv`, sin efecto práctico. **Docker es obligatorio** para desarrollar y testear: `poetry test` levanta un PostgreSQL en un contenedor, y sin Docker Desktop corriendo de fondo los tests fallan al arrancar. Pasos completos para replicar en otra máquina: `docs/entorno.md`. Mantener ese archivo al día si cambia algo del entorno.
 
 Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock` de `codigo_aulas/13`, sin `aiosqlite`, sin `pytest-asyncio` y con `sqlalchemy` en vez de `sqlalchemy[asyncio]`. No actualizar dependencias sin avisar.
 
@@ -116,7 +117,7 @@ Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock`
 - `database.py`: `create_engine(Settings().DATABASE_URL)` y `get_session` con `with Session(engine) as session: yield session`. Nada de `create_async_engine` ni `AsyncSession`.
 - Rutas: siempre `def`. **Nunca `async def` con una session sync**: bloquearía el event loop. FastAPI corre las rutas `def` en un pool de hilos.
 - Alias de la dependencia: como en `codigo_aulas/07`, cada archivo de `routes/` que usa la base define `Session = Annotated[Session, Depends(get_session)]` debajo de sus imports (importando `Session` de `sqlalchemy.orm` y `get_session` de `fulvo.database`). El alias reutiliza el nombre `Session` a propósito, igual que la cátedra: en las rutas se escribe `session: Session`. No se define en `database.py`.
-- Tests: `session` con `create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False}, poolclass=StaticPool)`, `create_all` antes y `drop_all` y `dispose()` después. `client` reemplaza `get_session` con `app.dependency_overrides`. Se usa `TestClient`, sin `pytest-asyncio` ni `pytest_asyncio.fixture`.
+- Tests: la fixture `engine` (`scope='session'`) levanta `PostgresContainer('postgres:16', driver='psycopg')` de `testcontainers.community.postgres` una sola vez por corrida y crea un engine síncrono con `create_engine`. La fixture `session(engine)` hace `create_all` antes de cada test y `drop_all` después, con la sesión ya cerrada (una transacción abierta bloquearía el borrado en PostgreSQL). `client` reemplaza `get_session` con `app.dependency_overrides`. Se usa `TestClient`, sin `pytest-asyncio` ni `pytest_asyncio.fixture`.
 - Relaciones: el lazy loading funciona, no hace falta `selectinload` ni `joinedload` (en async sí, o falla con `MissingGreenlet`).
 - Código copiado de `codigo_aulas/08` a `13`: se **traduce a sync** (quitar `async` y `await`, `AsyncSession` pasa a `Session`, `pytest_asyncio.fixture` pasa a `pytest.fixture`, `expire_on_commit=False` no hace falta). Nunca se copia tal cual.
 - Docker y CI: el driver de PostgreSQL es `psycopg[binary]` en modo sync, la URL es `postgresql+psycopg://...`.
@@ -254,6 +255,7 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 - Nombres de tests en español y descriptivos: `test_crear_usuario_con_email_repetido_devuelve_conflicto`.
 - Fixtures compartidas en `tests/conftest.py`: `client`, `session`, `user`, `token`, etc. Datos de prueba con `factory-boy` en `tests/factories.py`.
 - Cada test se aísla: las tablas se crean y se borran por test.
+- **Los tests corren contra PostgreSQL real, no SQLite en memoria** (decisión del 2026-11-12). `testcontainers` levanta un `postgres:16`, la misma versión de `compose.yaml`, una vez por corrida, y lo apaga al terminar. Así las diferencias entre bases (mensajes de error, restricciones, tipos) aparecen en los tests y no en el deploy. Requisito: **Docker corriendo de fondo**. Costo: la suite tarda unos 5 minutos en vez de 2.
 - Cobertura de ramas activada (`--cov-branch`). Revisar el reporte html para ver qué falta.
 - Los tests corren en orden aleatorio (`pytest-random-order`): no pueden depender unos de otros.
 

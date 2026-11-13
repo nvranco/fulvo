@@ -6,7 +6,8 @@ Guía para dejar la máquina lista y que el proyecto corra igual en cualquier co
 
 - **Python 3.13** en todos lados (`.python-version`, `requires-python`, Dockerfile y CI). Se eligió una sola versión para evitar diferencias entre máquinas, contenedor y CI. La cátedra usa 3.12 en CI y 3.14 en el Dockerfile; acá se unifica.
 - **Entorno virtual dentro del proyecto** (`.venv/`): el editor lo detecta solo y es fácil de borrar y recrear.
-- `package-mode = false` en `pyproject.toml`: fulvo es una aplicación, no una librería que se publica.
+- Sin `package-mode = false` en `pyproject.toml`: aunque fulvo es una aplicación y no se publica, se arma como paquete para que el `Dockerfile` la instale con `pip install .`. Por eso `poetry install` también instala `fulvo` dentro del `.venv`.
+- **Tests contra PostgreSQL real, no SQLite en memoria.** `testcontainers` levanta un `postgres:16` (la misma versión de `compose.yaml`) en un contenedor al empezar `poetry test` y lo borra al terminar. Por eso **Docker es obligatorio** para desarrollar y testear. Para `poetry serve` en local se sigue usando SQLite (`fulvo.db`).
 - **Configuración local en `.env`**, que no se commitea. Cada máquina tiene su propia `SECRET_KEY` (paso 7).
 
 ## Prerrequisitos
@@ -16,7 +17,7 @@ Guía para dejar la máquina lista y que el proyecto corra igual en cualquier co
 | Python 3.13 | lenguaje | https://www.python.org/downloads/ o `poetry python install 3.13` (ver abajo) |
 | Git | control de versiones | `winget install Git.Git` |
 | GitHub CLI (opcional) | PRs y repo desde la terminal | `winget install GitHub.cli` |
-| Docker Desktop | contenedores (se usa más adelante) | `winget install -e --id Docker.DockerDesktop` |
+| Docker Desktop | **obligatorio**: los tests levantan PostgreSQL en un contenedor, y `docker compose` corre la API con PostgreSQL. Tiene que estar abierto (corriendo de fondo) | `winget install -e --id Docker.DockerDesktop` |
 | pipx | instalar Poetry aislado | ver abajo |
 | Poetry | dependencias y entorno | ver abajo |
 
@@ -146,6 +147,7 @@ Instaladas en el grupo `dev` de Poetry (`poetry add --group dev pytest pytest-co
 | Ruff | linter y formateador (línea de 79, comillas simples, reglas `I F E W PL PT`) | `[tool.ruff*]` |
 | Typos | revisa ortografía en inglés; excluye `*.md`, `docs`, `poetry.lock` y `migrations` porque están en español | `[tool.typos.files]` |
 | pytest + pytest-cov | tests con cobertura del paquete `fulvo`, incluidas las ramas (`--cov-branch`) | `[tool.pytest]` |
+| testcontainers | levanta un PostgreSQL 16 en Docker para los tests (fixture `engine` de `tests/conftest.py`) | `tests/conftest.py` |
 | pytest-random-order | corre los tests en orden aleatorio (`--random-order`) para detectar tests que dependen de otros; imprime la semilla para repetir un orden | `[tool.pytest]` |
 | Poe the Poet | tareas cortas | `[tool.poe.tasks]` |
 
@@ -159,6 +161,8 @@ poetry test     # lint + pytest con cobertura + reporte html (htmlcov/index.html
 ```
 
 Los tests siguen el patrón AAA (Organizar, Actuar, Afirmar). La fixture `client` vive en `tests/conftest.py` y el primer test (`tests/test_app.py`) comprueba la ruta `/`.
+
+Antes de `poetry test`, Docker Desktop tiene que estar corriendo: la fixture `engine` levanta un PostgreSQL en un contenedor (la primera vez descarga la imagen `postgres:16`). Las tablas se crean y se borran en cada test, por eso la suite tarda unos 5 minutos.
 
 Los tests no necesitan el `.env`: `tests/__init__.py` define una `SECRET_KEY` falsa antes de importar `fulvo`, y los tests de `Settings` lo ignoran con `_env_file=None`. Por eso el CI corre sin secrets.
 
@@ -178,6 +182,7 @@ La cátedra usa `poetry new --flat fast_zero`. Acá el repositorio ya existía, 
 - `poetry: command not found` tras instalar: no se reinició la terminal después de `pipx ensurepath`.
 - Poetry usa otro Python: correr `poetry env use 3.13` y verificar con `poetry env info`.
 - `docker: command not found`: abrir Docker Desktop una vez y reiniciar la terminal.
+- `poetry test` falla al empezar con un error de conexión a Docker (por ejemplo `Error while fetching server API version` o `DockerException`): Docker Desktop no está abierto. Abrirlo, esperar a que diga que está corriendo y repetir.
 - `SECRET_KEY Field required`: no hay `.env` en la carpeta desde la que se corre el comando, o quedó guardado como `.env.txt`. Correr los comandos desde la raíz del proyecto y revisar con `git status --short --ignored .env` (paso 7).
 - Registrar un usuario da 500: faltan los roles. Correr `poetry run python -m fulvo.carga_inicial` (paso 8).
 - `Admin: no creado (faltan ADMIN_EMAIL y ADMIN_PASSWORD)`: esas líneas faltan o están vacías en el `.env`.

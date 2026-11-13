@@ -1,0 +1,29 @@
+# Lo que Docker NO manda al build. El Dockerfile ya copia archivo por
+# archivo; esto es una segunda protección y además achica el contexto
+# del build (no se suben cientos de MB de .venv a Docker).
+
+# Secretos: nunca dentro de una imagen.
+.env
+
+# Entorno local y control de versiones.
+.venv/
+.git/
+.gitignore
+.gitattributes
+
+# Bases SQLite locales.
+*.db
+
+# Caché y archivos generados por Python y las herramientas.
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Lo que no necesita la API para correr.
+tests/
+docs/
+.github/
+*.docx

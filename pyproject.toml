@@ -4,11 +4,7 @@ version = "0.1.0"
 description = "App para completar equipos de fútbol (TP final Programación 2, UNSAM)"
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
-dependencies = ["fastapi[standard] (>=0.161.1,<0.162.0)", "sqlalchemy (>=2.0.52,<3.0.0)", "alembic (>=1.19.2,<2.0.0)", "pydantic-settings (>=2.15.0,<3.0.0)", "psycopg[binary] (>=3.3.5,<4.0.0)", "pyjwt (>=2.15.1,<3.0.0)", "pwdlib[argon2] (>=0.3.1,<0.4.0)"]
-
-[tool.poetry]
-# Es una app, no una librería: no se publica como paquete.
-package-mode = false
+dependencies = ["fastapi[standard] (>=0.161.1,<0.162.0)", "sqlalchemy (>=2.0.52,<3.0.0)", "alembic (>=1.19.2,<2.0.0)", "pydantic-settings (>=2.15.0,<3.0.0)", "psycopg[binary] (>=3.3.8,<4.0.0)", "pyjwt (>=2.15.1,<3.0.0)", "pwdlib[argon2] (>=0.3.1,<0.4.0)"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -22,7 +18,8 @@ dev = [
     "typos (>=1.51.1,<2.0.0)",
     "pytest-random-order (>=1.2.0,<2.0.0)",
     "factory-boy (>=3.3.0,<4.0.0)",
-    "freezegun (>=1.5.0,<2.0.0)"
+    "freezegun (>=1.5.0,<2.0.0)",
+    "testcontainers (>=4.15.0,<5.0.0)"
 ]
 
 [tool.ruff]
@@ -60,6 +57,11 @@ configuracion = 'configuracion'
 falso = 'falso'
 calle = 'calle'
 Calle = 'Calle'
+oficial = 'oficial'
+principales = 'principales'
+reportes = 'reportes'
+secretas = 'secretas'
+secretos = 'secretos'
 mis = 'mis'
 recorre = 'recorre'
 ignora = 'ignora'

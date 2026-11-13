@@ -1,0 +1,4 @@
+# Los scripts de shell siempre con saltos de línea LF, también en Windows
+# con core.autocrlf=true. Con CRLF, bash dentro del contenedor no los puede
+# ejecutar y el arranque falla.
+*.sh text eol=lf
