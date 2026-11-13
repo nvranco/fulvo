@@ -74,9 +74,24 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 Para tener un usuario admin local, completar también `ADMIN_EMAIL` y `ADMIN_PASSWORD`: la carga inicial lo crea. El `.env` no se commitea (está en `.gitignore`). Los pasos detallados están en [`docs/entorno.md`](docs/entorno.md#7-crear-el-env).
 
-Otras tareas: `poetry lint`, `poetry format` y `poetry test`. Los tests no necesitan el `.env`: usan una clave falsa definida en `tests/__init__.py`.
+Otras tareas: `poetry lint`, `poetry format` y `poetry test`. **`poetry test` necesita Docker Desktop abierto**: los tests corren contra un PostgreSQL 16 que levanta `testcontainers` en un contenedor y borra al terminar (la suite tarda unos 5 minutos). Los tests no necesitan el `.env`: usan una clave falsa definida en `tests/__init__.py`.
 
 La API queda en http://127.0.0.1:8000 y la documentación automática en http://127.0.0.1:8000/docs.
+
+### Con Docker
+
+Levanta la API y un PostgreSQL 16 en contenedores, como en producción. Solo hace falta Docker Desktop abierto y el `.env` con `SECRET_KEY` (no hace falta Poetry):
+
+```bash
+cp .env.example .env         # y completar SECRET_KEY (ver arriba)
+docker compose up --build
+```
+
+- `compose.yaml` arma dos servicios: la base (`fulvo_database`), con un volumen para que los datos queden entre corridas, y la API (`fulvo_app`), que espera a que la base acepte conexiones.
+- Al arrancar, `entrypoint.sh` aplica las migraciones, corre la carga inicial (si ya estaba hecha, no duplica nada) y levanta la API en http://127.0.0.1:8000.
+- La `SECRET_KEY` sale del `.env`: si falta, `docker compose up` avisa y no arranca. Con `ADMIN_EMAIL` y `ADMIN_PASSWORD` la carga inicial crea el admin. La `DATABASE_URL` del `.env` no se usa acá: `compose.yaml` apunta a la base del contenedor.
+- `docker compose down` apaga los contenedores y conserva la base; `docker compose down -v` también la borra.
+- La imagen instala exactamente las versiones de `poetry.lock`, así corre lo mismo que se testea. Se arma en dos etapas: Poetry instala las dependencias en la primera, y la imagen final copia solo ese entorno, sin Poetry (ver los comentarios del `Dockerfile`).
 
 ## Créditos
 
