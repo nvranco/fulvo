@@ -6,7 +6,7 @@ Guía para dejar la máquina lista y que el proyecto corra igual en cualquier co
 
 - **Python 3.13** en todos lados (`.python-version`, `requires-python`, Dockerfile y CI). Se eligió una sola versión para evitar diferencias entre máquinas, contenedor y CI. La cátedra usa 3.12 en CI y 3.14 en el Dockerfile; acá se unifica.
 - **Entorno virtual dentro del proyecto** (`.venv/`): el editor lo detecta solo y es fácil de borrar y recrear.
-- Sin `package-mode = false` en `pyproject.toml`: aunque fulvo es una aplicación y no se publica, se arma como paquete para que el `Dockerfile` la instale con `pip install .`. Por eso `poetry install` también instala `fulvo` dentro del `.venv`.
+- `package-mode = false` en `pyproject.toml`: fulvo es una aplicación, no una librería, así que `poetry install` instala solo las dependencias. El `Dockerfile` también instala con Poetry, desde `poetry.lock`, para que la imagen tenga las mismas versiones que los tests.
 - **Tests contra PostgreSQL real, no SQLite en memoria.** `testcontainers` levanta un `postgres:16` (la misma versión de `compose.yaml`) en un contenedor al empezar `poetry test` y lo borra al terminar. Por eso **Docker es obligatorio** para desarrollar y testear. Para `poetry serve` en local se sigue usando SQLite (`fulvo.db`).
 - **Configuración local en `.env`**, que no se commitea. Cada máquina tiene su propia `SECRET_KEY` (paso 7).
 
