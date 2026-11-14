@@ -24,11 +24,14 @@ NO_JUGADO = 'Solo se puede marcar un no-show en un partido jugado'
 def deber_partidos(session, usuario, cantidad: int) -> None:
     """Deja al usuario con votaciones pendientes en `cantidad` partidos.
 
-    En cada partido jugado es el único participante, así que le queda un
-    solo voto pendiente: el del complejo.
+    En cada partido jugado juega con un aceptado, así que le quedan dos
+    votos pendientes: al aceptado y al complejo. Sin aceptados no le
+    quedaría ninguno: un partido en el que nadie se sumó no deja
+    votaciones.
     """
+    aceptado = guardar_usuario_comun(session, usuario.rol_id)
     for _ in range(cantidad):
-        guardar_partido_jugado(session, usuario)
+        guardar_partido_jugado(session, usuario, [aceptado])
 
 
 def voto_de(emisor, receptor) -> Votacion:
@@ -152,7 +155,7 @@ def test_exigir_habilitado_con_deuda_dice_cuanto_falta(session, usuario):
     assert str(error.value) == (
         'Tenés votaciones pendientes en 4 partidos y el máximo es 3: '
         'completá las de al menos 1 partido para publicar o postularte '
-        '(te faltan 4 votaciones).'
+        '(te faltan 8 votaciones).'
     )
 
 
@@ -283,7 +286,7 @@ def test_la_base_no_deja_votar_dos_veces_al_mismo_receptor(
 
 
 def test_el_id_de_una_votacion_borrada_no_se_reutiliza(
-    session, otro_usuario, jugado
+    session, usuario, otro_usuario, jugado
 ):
     # Se borra la última votación creada, como puede pasar con un no-show.
     ultima = otro_usuario.votaciones[-1]
@@ -291,7 +294,7 @@ def test_el_id_de_una_votacion_borrada_no_se_reutiliza(
     otro_usuario.votaciones.remove(ultima)
     session.commit()
 
-    guardar_partido_jugado(session, otro_usuario)
+    guardar_partido_jugado(session, otro_usuario, [usuario])
 
     assert otro_usuario.votaciones[-1].id > ultimo_id
 

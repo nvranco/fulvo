@@ -5,7 +5,12 @@ import pytest
 
 from fulvo.errores import ReglaDeNegocioError
 from fulvo.eventos import EventoPartido, ObservadorPartido, TipoEvento
-from fulvo.models import Partido, ahora_argentina
+from fulvo.models import (
+    EstadoPartido,
+    EstadoPostulacion,
+    Partido,
+    ahora_argentina,
+)
 from tests.factories import guardar_partido, guardar_usuario_comun
 
 
@@ -203,14 +208,41 @@ def test_cancelar_emite_partido_cancelado_sin_postulacion(partido, observador):
 
 
 def test_el_pase_a_jugado_emite_partido_jugado_una_sola_vez(
-    partido, observador
+    otro_usuario, partido, observador
 ):
+    ahora = ahora_argentina()
+    partido.aceptar(partido.postular(otro_usuario, ahora), ahora)
+    observador.eventos.clear()
     despues_del_fin = partido.fin() + timedelta(minutes=1)
 
     partido.actualizar_estado(despues_del_fin)
     partido.actualizar_estado(despues_del_fin)
 
     assert observador.tipos() == [TipoEvento.partido_jugado]
+
+
+@pytest.mark.parametrize(
+    'estado',
+    [
+        EstadoPostulacion.en_espera,
+        EstadoPostulacion.rechazada,
+        EstadoPostulacion.retirada,
+        EstadoPostulacion.revocada,
+    ],
+)
+def test_un_partido_que_termina_sin_aceptados_no_emite_eventos(
+    otro_usuario, partido, observador, estado
+):
+    # Hubo un postulante, pero al terminar no estaba aceptado.
+    postulacion = partido.postular(otro_usuario, ahora_argentina())
+    postulacion.estado = estado
+    observador.eventos.clear()
+
+    cambio = partido.actualizar_estado(partido.fin() + timedelta(minutes=1))
+
+    assert cambio is True
+    assert partido.estado == EstadoPartido.jugado
+    assert observador.eventos == []
 
 
 def test_marcar_no_show_emite_no_show_marcado_con_la_postulacion(

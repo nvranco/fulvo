@@ -506,12 +506,24 @@ class Partido:
         partido (`docs/requerimientos.md`). Solo cambian los abiertos y los
         completos: uno cancelado sigue cancelado aunque ya haya pasado su
         fecha. Recibe `ahora` en vez de leer el reloj para poder probarlo
-        con fechas fijas, como `Usuario.edad`. Si cambia, emite
-        `partido_jugado`.
+        con fechas fijas, como `Usuario.edad`.
+
+        Si tuvo aceptados, emite `partido_jugado`: los observadores suman
+        los partidos jugados, crean las votaciones y avisan. Si nadie se
+        sumó, no emite nada: el organizador no jugó con nadie de la app, así
+        que no hay a quién votar ni partido jugado que contar (decisión del
+        equipo del 2026-11-14). Si no, cada partido sin nadie le dejaba un
+        voto pendiente al complejo, y con cuatro quedaba bloqueado por
+        deuda.
         """
         if self.en_juego() and ahora >= self.fin():
             self.estado = EstadoPartido.jugado
-            self.avisar(TipoEvento.partido_jugado)
+            hubo_aceptados = any(
+                postulacion.estado == EstadoPostulacion.aceptada
+                for postulacion in self.postulaciones
+            )
+            if hubo_aceptados:
+                self.avisar(TipoEvento.partido_jugado)
             return True
         return False
 

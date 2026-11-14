@@ -109,7 +109,8 @@ def guardar_partido_jugado(
 
     Queda como si alguien lo hubiera consultado: cada participante (el
     organizador y los `aceptados`) suma el partido jugado y tiene sus
-    votaciones pendientes, creadas por `ProcesadorPostPartido`.
+    votaciones pendientes, creadas por `ProcesadorPostPartido`. Sin
+    `aceptados` pasa a jugado, pero sin nada de eso: nadie se sumó.
     """
     inicio = ahora_argentina() - timedelta(hours=2)
     datos = {'inicio': inicio} | cambios

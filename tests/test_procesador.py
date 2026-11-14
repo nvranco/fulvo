@@ -3,7 +3,12 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select
 
-from fulvo.models import EstadoVotacion, Votacion, ahora_argentina
+from fulvo.models import (
+    EstadoPartido,
+    EstadoVotacion,
+    Votacion,
+    ahora_argentina,
+)
 from fulvo.observadores import ProcesadorPostPartido
 from tests.factories import guardar_partido, guardar_usuario_comun
 
@@ -86,24 +91,29 @@ def test_las_votaciones_nacen_pendientes_y_sin_estrellas(
         assert votacion.partido_id == partido.id
 
 
-def test_sin_aceptados_el_organizador_solo_vota_al_complejo(
+def test_sin_aceptados_el_organizador_no_suma_el_partido_ni_vota(
     session, usuario, partido
 ):
+    # Nadie se sumó: el partido pasa a jugado, pero no hay a quién votar
+    # (decisión del equipo del 2026-11-14).
     jugar(session, partido)
 
-    assert receptores(usuario) == [partido.complejo]
-    assert usuario.partidos_jugados == 1
+    assert partido.estado == EstadoPartido.jugado
+    assert usuario.partidos_jugados == 0
+    assert todas_las_votaciones(session) == []
 
 
 def test_consultar_dos_veces_un_partido_terminado_no_duplica_nada(
-    session, usuario, partido
+    session, usuario, partido, jugadores
 ):
     jugar(session, partido)
 
     jugar(session, partido)
 
     assert usuario.partidos_jugados == 1
-    assert len(todas_las_votaciones(session)) == 1
+    participantes = len(jugadores) + 1
+    votaciones = todas_las_votaciones(session)
+    assert len(votaciones) == participantes * participantes
 
 
 def test_el_procesador_no_hace_nada_con_los_demas_eventos(
