@@ -5,46 +5,61 @@
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
                 <mxCell id="patron-observer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;" value="Patrón Observer" vertex="1">
-                    <mxGeometry height="1020" width="720" x="30" y="-530" as="geometry"/>
+                    <mxGeometry height="1130" width="760" x="30" y="-530" as="geometry"/>
                 </mxCell>
                 <mxCell id="patron-factory" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=13;" value="Patrón Simple Factory" vertex="1">
-                    <mxGeometry height="650" width="400" x="1260" y="-320" as="geometry"/>
+                    <mxGeometry height="650" width="400" x="1300" y="-320" as="geometry"/>
                 </mxCell>
-                <mxCell id="nota-procesador" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="partido_jugado: suma 1 partido jugado a cada participante y crea las votaciones pendientes.&#xa;no_show_marcado: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes." vertex="1">
-                    <mxGeometry height="120" width="300" x="60" y="-480" as="geometry"/>
+                <mxCell id="nota-procesador" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="partido_jugado: suma 1 partido jugado a cada&#xa;participante y crea las votaciones pendientes.&#xa;no_show_marcado: le resta 1 partido jugado al&#xa;ausente, le suma un voto de 0 estrellas y borra&#xa;sus votaciones pendientes y las de los demás&#xa;hacia él.&#xa;no_show_anulado: le devuelve el partido jugado,&#xa;le quita el voto de 0 y repone las votaciones,&#xa;solo entre presentes." vertex="1">
+                    <mxGeometry height="160" width="300" x="60" y="-480" as="geometry"/>
                 </mxCell>
-                <mxCell id="nota-notificador" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="Decide el destinatario de cada evento y pide la Notificacion a la fábrica. No notifica no_show_marcado. Con partido_jugado avisa votaciones pendientes a los participantes." vertex="1">
-                    <mxGeometry height="120" width="300" x="420" y="-480" as="geometry"/>
+                <mxCell id="nota-notificador" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="Decide el destinatario de cada evento y le pide&#xa;la Notificacion a la fábrica.&#xa;partido_jugado: votaciones pendientes, a los&#xa;participantes.&#xa;no_show_anulado: votaciones repuestas, a los&#xa;presentes.&#xa;no_show_marcado: no avisa nada." vertex="1">
+                    <mxGeometry height="128" width="320" x="440" y="-480" as="geometry"/>
                 </mxCell>
                 <mxCell id="procesador" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;" value="ProcesadorPostPartido" vertex="1">
-                    <mxGeometry height="50" width="300" x="60" y="-300" as="geometry"/>
+                    <mxGeometry height="130" width="300" x="60" y="-300" as="geometry"/>
                 </mxCell>
-                <mxCell id="procesador-metodos" parent="procesador" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ actualizar(evento: EventoPartido)" vertex="1">
+                <mxCell id="procesador-attrs" parent="procesador" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- session: Session" vertex="1">
                     <mxGeometry height="24" width="300" y="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="procesador-sep" parent="procesador" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+                    <mxGeometry height="8" width="300" y="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="procesador-metodos" parent="procesador" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ actualizar(evento: EventoPartido)&#xa;+ cerrar_partido(partido)&#xa;+ aplicar_no_show(partido, ausente)&#xa;+ anular_no_show(partido, jugador)" vertex="1">
+                    <mxGeometry height="72" width="300" y="58" as="geometry"/>
                 </mxCell>
                 <mxCell id="notificador" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;" value="NotificadorPartido" vertex="1">
-                    <mxGeometry height="50" width="300" x="420" y="-300" as="geometry"/>
+                    <mxGeometry height="114" width="320" x="440" y="-300" as="geometry"/>
                 </mxCell>
-                <mxCell id="notificador-metodos" parent="notificador" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ actualizar(evento: EventoPartido)" vertex="1">
-                    <mxGeometry height="24" width="300" y="26" as="geometry"/>
+                <mxCell id="notificador-attrs" parent="notificador" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- session: Session&#xa;- fabrica: FabricaNotificaciones" vertex="1">
+                    <mxGeometry height="40" width="320" y="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="notificador-sep" parent="notificador" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+                    <mxGeometry height="8" width="320" y="66" as="geometry"/>
+                </mxCell>
+                <mxCell id="notificador-metodos" parent="notificador" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ actualizar(evento: EventoPartido)&#xa;+ destinatarios(evento, para): list[Usuario]" vertex="1">
+                    <mxGeometry height="40" width="320" y="74" as="geometry"/>
                 </mxCell>
                 <mxCell id="observador" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#fff2cc;strokeColor=#d6b656;" value="«interface»&#xa;ObservadorPartido" vertex="1">
-                    <mxGeometry height="64" width="380" x="300" y="-100" as="geometry"/>
+                    <mxGeometry height="64" width="380" x="340" y="-100" as="geometry"/>
                 </mxCell>
                 <mxCell id="observador-metodos" parent="observador" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ actualizar(evento: EventoPartido)" vertex="1">
                     <mxGeometry height="24" width="380" y="40" as="geometry"/>
                 </mxCell>
-                <mxCell id="nota-eventos" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="Eventos de Partido:&#xa;postulacion_recibida&#xa;postulacion_aceptada&#xa;postulacion_rechazada&#xa;partido_completo&#xa;revocacion&#xa;postulacion_retirada&#xa;partido_cancelado&#xa;partido_jugado&#xa;no_show_marcado" vertex="1">
-                    <mxGeometry height="176" width="235" x="45" y="-100" as="geometry"/>
+                <mxCell id="nota-eventos" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="Eventos de Partido:&#xa;postulacion_recibida&#xa;postulacion_aceptada&#xa;postulacion_rechazada&#xa;partido_completo&#xa;revocacion&#xa;postulacion_retirada&#xa;partido_cancelado&#xa;partido_jugado&#xa;no_show_marcado&#xa;no_show_anulado" vertex="1">
+                    <mxGeometry height="192" width="220" x="45" y="-100" as="geometry"/>
+                </mxCell>
+                <mxCell id="nota-partido" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="Desde el inicio el partido no cambia:&#xa;postular, aceptar, rechazar, revocar,&#xa;retirar y cancelar dan 409 «El partido&#xa;ya empezó». Por eso también reciben&#xa;ahora (el diagrama no lo muestra).&#xa;Si termina sin aceptados, pasa a jugado&#xa;sin emitir partido_jugado." vertex="1">
+                    <mxGeometry height="128" width="260" x="45" y="330" as="geometry"/>
                 </mxCell>
                 <mxCell id="evento" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="EventoPartido" vertex="1">
-                    <mxGeometry height="82" width="235" x="45" y="100" as="geometry"/>
+                    <mxGeometry height="82" width="220" x="45" y="110" as="geometry"/>
                 </mxCell>
                 <mxCell id="evento-attrs" parent="evento" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- tipo: TipoEvento&#xa;- partido: Partido&#xa;- postulacion: Postulacion [0..1]" vertex="1">
-                    <mxGeometry height="56" width="235" y="26" as="geometry"/>
+                    <mxGeometry height="56" width="220" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="partido" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Partido" vertex="1">
-                    <mxGeometry height="370" width="380" x="300" y="100" as="geometry"/>
+                    <mxGeometry height="466" width="380" x="340" y="100" as="geometry"/>
                 </mxCell>
                 <mxCell id="partido-attrs" parent="partido" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- organizador: Usuario&#xa;- complejo: Complejo&#xa;- inicio: datetime&#xa;- duracion_minutos: int&#xa;- tipo: TipoPartido&#xa;- cupos_faltantes: int&#xa;- estado: EstadoPartido" vertex="1">
                     <mxGeometry height="136" width="380" y="26" as="geometry"/>
@@ -52,13 +67,13 @@
                 <mxCell id="partido-sep" parent="partido" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
                     <mxGeometry height="8" width="380" y="162" as="geometry"/>
                 </mxCell>
-                <mxCell id="partido-metodos" parent="partido" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ fin(): datetime&#xa;+ postular(jugador): Postulacion&#xa;+ aceptar(postulacion)&#xa;+ rechazar(postulacion)&#xa;+ revocar(postulacion)&#xa;+ retirar(postulacion)&#xa;+ marcar_no_show(postulacion)&#xa;+ cancelar()&#xa;+ actualizar_estado(ahora)&#xa;+ agregar_observador(o)&#xa;+ quitar_observador(o)&#xa;+ notificar(evento)" vertex="1">
-                    <mxGeometry height="200" width="380" y="170" as="geometry"/>
+                <mxCell id="partido-metodos" parent="partido" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ fin(): datetime&#xa;+ en_juego(): bool&#xa;+ participantes(): list[Usuario]&#xa;+ presentes(): list[Usuario]&#xa;+ actualizar_estado(ahora): bool&#xa;+ postular(jugador): Postulacion&#xa;+ aceptar(postulacion)&#xa;+ rechazar(postulacion)&#xa;+ revocar(postulacion)&#xa;+ retirar(postulacion)&#xa;+ liberar_cupo()&#xa;+ cancelar()&#xa;+ marcar_no_show(postulacion)&#xa;+ quitar_no_show(postulacion)&#xa;+ agregar_observador(o)&#xa;+ quitar_observador(o)&#xa;+ notificar(evento)&#xa;+ avisar(tipo, postulacion)" vertex="1">
+                    <mxGeometry height="296" width="380" y="170" as="geometry"/>
                 </mxCell>
                 <mxCell id="votacion" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Votacion" vertex="1">
-                    <mxGeometry height="242" width="380" x="180" y="560" as="geometry"/>
+                    <mxGeometry height="242" width="380" x="180" y="640" as="geometry"/>
                 </mxCell>
-                <mxCell id="votacion-attrs" parent="votacion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- partido: Partido&#xa;- emisor: Usuario&#xa;- receptor_usuario: Usuario [0..1]&#xa;- receptor_complejo: Complejo [0..1]&#xa;- estado: EstadoVotacion&#xa;- estrellas: int [0..1]&#xa;- emitida_at: datetime&#xa;- created_at: datetime" vertex="1">
+                <mxCell id="votacion-attrs" parent="votacion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- partido: Partido&#xa;- emisor: Usuario&#xa;- receptor_usuario: Usuario [0..1]&#xa;- receptor_complejo: Complejo [0..1]&#xa;- estado: EstadoVotacion&#xa;- estrellas: int [0..1]&#xa;- emitida_at: datetime [0..1]&#xa;- created_at: datetime" vertex="1">
                     <mxGeometry height="152" width="380" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="votacion-sep" parent="votacion" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
@@ -68,58 +83,64 @@
                     <mxGeometry height="56" width="380" y="186" as="geometry"/>
                 </mxCell>
                 <mxCell id="complejo" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Complejo" vertex="1">
-                    <mxGeometry height="374" width="380" x="-420" y="100" as="geometry"/>
+                    <mxGeometry height="322" width="380" x="-420" y="100" as="geometry"/>
                 </mxCell>
-                <mxCell id="complejo-attrs" parent="complejo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- zona: Zona&#xa;- nombre: str&#xa;- direccion: str&#xa;- localidad: str&#xa;- latitud: decimal&#xa;- longitud: decimal&#xa;- telefono_contacto: str&#xa;- whatsapp_contacto: str&#xa;- email_contacto: str&#xa;- puntuacion_promedio: decimal&#xa;- cantidad_puntuaciones: int&#xa;- tipo: str&#xa;- reserva_online: bool&#xa;- sitio_web: str&#xa;- calificacion_maps: decimal&#xa;- link_maps: str" vertex="1">
-                    <mxGeometry height="284" width="380" y="26" as="geometry"/>
+                <mxCell id="complejo-attrs" parent="complejo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- zona: Zona&#xa;- nombre: str&#xa;- direccion: str&#xa;- localidad: str&#xa;- latitud: float&#xa;- longitud: float&#xa;- telefono_contacto: str [0..1]&#xa;- puntuacion_promedio: float [0..1]&#xa;- cantidad_puntuaciones: int&#xa;- tipo: str&#xa;- reserva_online: bool&#xa;- sitio_web: str [0..1]&#xa;- calificacion_maps: float [0..1]&#xa;- link_maps: str [0..1]" vertex="1">
+                    <mxGeometry height="248" width="380" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="complejo-sep" parent="complejo" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
-                    <mxGeometry height="8" width="380" y="310" as="geometry"/>
+                    <mxGeometry height="8" width="380" y="274" as="geometry"/>
                 </mxCell>
-                <mxCell id="complejo-metodos" parent="complejo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ registrar_puntuacion(estrellas)&#xa;+ quitar_puntuacion(estrellas)&#xa;+ distancia_a(latitud, longitud): float" vertex="1">
-                    <mxGeometry height="56" width="380" y="318" as="geometry"/>
+                <mxCell id="complejo-metodos" parent="complejo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ registrar_puntuacion(estrellas)&#xa;+ quitar_puntuacion(estrellas)" vertex="1">
+                    <mxGeometry height="40" width="380" y="282" as="geometry"/>
                 </mxCell>
                 <mxCell id="zona" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Zona" vertex="1">
-                    <mxGeometry height="82" width="380" x="-860" y="246" as="geometry"/>
+                    <mxGeometry height="82" width="380" x="-920" y="220" as="geometry"/>
                 </mxCell>
                 <mxCell id="zona-attrs" parent="zona" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- nombre: str&#xa;- provincia: str" vertex="1">
                     <mxGeometry height="56" width="380" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="postulacion" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Postulacion" vertex="1">
-                    <mxGeometry height="274" width="320" x="820" y="100" as="geometry"/>
+                    <mxGeometry height="290" width="320" x="860" y="100" as="geometry"/>
                 </mxCell>
-                <mxCell id="postulacion-attrs" parent="postulacion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- partido: Partido&#xa;- jugador: Usuario&#xa;- estado: EstadoPostulacion&#xa;- no_show: bool&#xa;- created_at: datetime&#xa;- respondida_at: datetime" vertex="1">
+                <mxCell id="postulacion-attrs" parent="postulacion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- partido: Partido&#xa;- jugador: Usuario&#xa;- estado: EstadoPostulacion&#xa;- no_show: bool&#xa;- created_at: datetime&#xa;- respondida_at: datetime [0..1]" vertex="1">
                     <mxGeometry height="120" width="320" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="postulacion-sep" parent="postulacion" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
                     <mxGeometry height="8" width="320" y="146" as="geometry"/>
                 </mxCell>
-                <mxCell id="postulacion-metodos" parent="postulacion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ aceptar()&#xa;+ rechazar()&#xa;+ revocar()&#xa;+ retirar()&#xa;+ marcar_no_show()&#xa;+ quitar_no_show()&#xa;+ whatsapp_visible(): bool" vertex="1">
-                    <mxGeometry height="120" width="320" y="154" as="geometry"/>
+                <mxCell id="postulacion-metodos" parent="postulacion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ pasar(desde, hacia, mensaje)&#xa;+ aceptar()&#xa;+ rechazar()&#xa;+ revocar()&#xa;+ retirar()&#xa;+ marcar_no_show()&#xa;+ quitar_no_show()&#xa;+ whatsapp_visible(): bool" vertex="1">
+                    <mxGeometry height="136" width="320" y="154" as="geometry"/>
                 </mxCell>
                 <mxCell id="usuario" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Usuario" vertex="1">
-                    <mxGeometry height="418" width="380" x="820" y="420" as="geometry"/>
+                    <mxGeometry height="450" width="380" x="860" y="440" as="geometry"/>
                 </mxCell>
-                <mxCell id="usuario-attrs" parent="usuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- email: str&#xa;- whatsapp: str&#xa;- contrasena_hash: str&#xa;- nombre: str&#xa;- apellido: str&#xa;- fecha_nacimiento: date&#xa;- posicion: PosicionJugador&#xa;- puntuacion_promedio: decimal&#xa;- cantidad_puntuaciones: int&#xa;- partidos_jugados: int&#xa;- bloqueado: bool&#xa;- rol: Rol" vertex="1">
+                <mxCell id="usuario-attrs" parent="usuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- email: str&#xa;- whatsapp: str&#xa;- contrasena_hash: str&#xa;- nombre: str&#xa;- apellido: str&#xa;- fecha_nacimiento: date&#xa;- posicion: str&#xa;- puntuacion_promedio: float [0..1]&#xa;- cantidad_puntuaciones: int&#xa;- partidos_jugados: int&#xa;- bloqueado: bool&#xa;- rol: Rol" vertex="1">
                     <mxGeometry height="216" width="380" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="usuario-sep" parent="usuario" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
                     <mxGeometry height="8" width="380" y="242" as="geometry"/>
                 </mxCell>
-                <mxCell id="usuario-metodos" parent="usuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ edad(hoy): int&#xa;+ registrar_puntuacion(estrellas)&#xa;+ quitar_puntuacion(estrellas)&#xa;+ sumar_partido_jugado()&#xa;+ restar_partido_jugado()&#xa;+ deuda(): int&#xa;+ habilitado(): bool&#xa;+ bloquear(admin, motivo, reclamo)&#xa;+ desbloquear()&#xa;+ tiene_rol(nombre): bool" vertex="1">
-                    <mxGeometry height="168" width="380" y="250" as="geometry"/>
+                <mxCell id="usuario-metodos" parent="usuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ edad(hoy): int&#xa;+ tiene_rol(nombre): bool&#xa;+ registrar_puntuacion(estrellas)&#xa;+ quitar_puntuacion(estrellas)&#xa;+ sumar_partido_jugado()&#xa;+ restar_partido_jugado()&#xa;+ votaciones_pendientes(): list[Votacion]&#xa;+ deuda(): int&#xa;+ habilitado(): bool&#xa;+ exigir_habilitado()&#xa;+ bloquear(admin, motivo, reclamo): Sancion&#xa;+ desbloquear(sancion)" vertex="1">
+                    <mxGeometry height="200" width="380" y="250" as="geometry"/>
                 </mxCell>
-                <mxCell id="nota-fabrica" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="Fábrica simple: elige la plantilla del mensaje según el tipo y devuelve la Notificacion." vertex="1">
-                    <mxGeometry height="70" width="360" x="1280" y="-270" as="geometry"/>
+                <mxCell id="nota-fabrica" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="Fábrica simple: elige la plantilla del mensaje&#xa;según el tipo y devuelve la Notificacion, sin&#xa;guardarla. El WhatsApp nunca va en el texto.&#xa;La usan NotificadorPartido y la ruta de&#xa;reclamos (aviso de reclamo resuelto al autor)." vertex="1">
+                    <mxGeometry height="96" width="360" x="1320" y="-270" as="geometry"/>
                 </mxCell>
                 <mxCell id="fabrica" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;" value="FabricaNotificaciones" vertex="1">
-                    <mxGeometry height="50" width="360" x="1280" y="-130" as="geometry"/>
+                    <mxGeometry height="114" width="360" x="1320" y="-130" as="geometry"/>
+                </mxCell>
+                <mxCell id="fabrica-attrs" parent="fabrica" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- PLANTILLAS: dict[TipoNotificacion, str] {de clase}&#xa;- OBJETIVOS: dict[TipoObjetivo, str] {de clase}&#xa;- RESULTADOS: dict[EstadoReclamo, str] {de clase}" vertex="1">
+                    <mxGeometry height="56" width="360" y="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="fabrica-sep" parent="fabrica" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+                    <mxGeometry height="8" width="360" y="82" as="geometry"/>
                 </mxCell>
                 <mxCell id="fabrica-metodos" parent="fabrica" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ crear(tipo, destinatario, referencia): Notificacion" vertex="1">
-                    <mxGeometry height="24" width="360" y="26" as="geometry"/>
+                    <mxGeometry height="24" width="360" y="90" as="geometry"/>
                 </mxCell>
                 <mxCell id="notificacion" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Notificacion" vertex="1">
-                    <mxGeometry height="194" width="360" x="1280" y="100" as="geometry"/>
+                    <mxGeometry height="194" width="360" x="1320" y="100" as="geometry"/>
                 </mxCell>
                 <mxCell id="notificacion-attrs" parent="notificacion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- usuario: Usuario&#xa;- tipo: TipoNotificacion&#xa;- mensaje: str&#xa;- referencia_tipo: str&#xa;- referencia_id: int&#xa;- leida: bool&#xa;- created_at: datetime" vertex="1">
                     <mxGeometry height="136" width="360" y="26" as="geometry"/>
@@ -131,13 +152,13 @@
                     <mxGeometry height="24" width="360" y="170" as="geometry"/>
                 </mxCell>
                 <mxCell id="rol" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Rol" vertex="1">
-                    <mxGeometry height="66" width="240" x="1330" y="494" as="geometry"/>
+                    <mxGeometry height="66" width="240" x="1400" y="510" as="geometry"/>
                 </mxCell>
                 <mxCell id="rol-attrs" parent="rol" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- nombre: str" vertex="1">
                     <mxGeometry height="40" width="240" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="sancion" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Sancion" vertex="1">
-                    <mxGeometry height="194" width="340" x="1330" y="590" as="geometry"/>
+                    <mxGeometry height="194" width="340" x="1400" y="610" as="geometry"/>
                 </mxCell>
                 <mxCell id="sancion-attrs" parent="sancion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- usuario: Usuario&#xa;- aplicada_por: Usuario&#xa;- reclamo: Reclamo [0..1]&#xa;- motivo: str&#xa;- desde: datetime&#xa;- hasta: datetime [0..1]" vertex="1">
                     <mxGeometry height="120" width="340" y="26" as="geometry"/>
@@ -149,21 +170,21 @@
                     <mxGeometry height="40" width="340" y="154" as="geometry"/>
                 </mxCell>
                 <mxCell id="reclamo" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Reclamo" vertex="1">
-                    <mxGeometry height="258" width="380" x="1280" y="900" as="geometry"/>
+                    <mxGeometry height="290" width="420" x="1320" y="900" as="geometry"/>
                 </mxCell>
                 <mxCell id="reclamo-attrs" parent="reclamo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="- id: int&#xa;- autor: Usuario&#xa;- tipo_objetivo: TipoObjetivo&#xa;- objetivo_id: int&#xa;- motivo: str&#xa;- estado: EstadoReclamo&#xa;- resolucion: str [0..1]&#xa;- resuelto_por: Usuario [0..1]&#xa;- created_at: datetime&#xa;- resuelto_at: datetime [0..1]" vertex="1">
-                    <mxGeometry height="168" width="380" y="26" as="geometry"/>
+                    <mxGeometry height="168" width="420" y="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="reclamo-sep" parent="reclamo" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
-                    <mxGeometry height="8" width="380" y="194" as="geometry"/>
+                    <mxGeometry height="8" width="420" y="194" as="geometry"/>
                 </mxCell>
-                <mxCell id="reclamo-metodos" parent="reclamo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ abrir(autor, tipo_objetivo, objetivo, motivo): Reclamo {de clase}&#xa;+ resolver(admin, resolucion)&#xa;+ rechazar(admin, resolucion)" vertex="1">
-                    <mxGeometry height="56" width="380" y="202" as="geometry"/>
+                <mxCell id="reclamo-metodos" parent="reclamo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;whiteSpace=wrap;" value="+ abrir(autor, tipo_objetivo, objetivo, motivo): Reclamo {de clase}&#xa;+ resolver(admin, resolucion, objetivo, bloquear): Sancion | None&#xa;+ rechazar(admin, resolucion)&#xa;+ exigir_abierto()&#xa;+ cerrar(estado, admin, resolucion)" vertex="1">
+                    <mxGeometry height="88" width="420" y="202" as="geometry"/>
                 </mxCell>
                 <mxCell id="nota-reclamo" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;fillColor=#fffbe6;strokeColor=#999999;" value="objetivo_id según tipo_objetivo (sin clave foránea):&#xa;no_show → Postulacion&#xa;votacion → Votacion&#xa;usuario → Usuario&#xa;complejo → Complejo" vertex="1">
-                    <mxGeometry height="110" width="380" x="1280" y="1190" as="geometry"/>
+                    <mxGeometry height="96" width="420" x="1320" y="1220" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel-partido-postulacion" edge="1" parent="1" source="partido" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="postulacion" value="postulaciones">
+                <mxCell id="rel-partido-postulacion" edge="1" parent="1" source="partido" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.1717;exitDx=0;exitDy=0;entryX=0;entryY=0.2759;entryDx=0;entryDy=0;" target="postulacion" value="postulaciones">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-partido" connectable="0" parent="rel-partido-postulacion" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="1" vertex="1">
@@ -176,7 +197,7 @@
                         <mxPoint y="-10" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-partido-usuario" edge="1" parent="1" source="partido" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.15;entryDx=0;entryDy=0;" target="usuario" value="organizador">
+                <mxCell id="rel-partido-usuario" edge="1" parent="1" source="partido" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.8155;exitDx=0;exitDy=0;entryX=0;entryY=0.0889;entryDx=0;entryDy=0;" target="usuario" value="organizador">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-partido-usuario-a" connectable="0" parent="rel-partido-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
@@ -189,7 +210,7 @@
                         <mxPoint y="-10" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-partido-complejo" edge="1" parent="1" source="partido" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.6;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="complejo" value="complejo">
+                <mxCell id="rel-partido-complejo" edge="1" parent="1" source="partido" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.3433;exitDx=0;exitDy=0;entryX=1;entryY=0.4969;entryDx=0;entryDy=0;" target="complejo" value="complejo">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-partido-complejo-a" connectable="0" parent="rel-partido-complejo" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
@@ -202,7 +223,7 @@
                         <mxPoint y="-10" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-partido-evento" edge="1" parent="1" source="partido" style="endArrow=open;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.15;exitDx=0;exitDy=0;entryX=1;entryY=0.35;entryDx=0;entryDy=0;" target="evento" value="«crea»">
+                <mxCell id="rel-partido-evento" edge="1" parent="1" source="partido" style="endArrow=open;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.1073;exitDx=0;exitDy=0;entryX=1;entryY=0.4878;entryDx=0;entryDy=0;" target="evento" value="«crea»">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="rel-partido-observador" edge="1" parent="1" source="partido" style="startArrow=diamondThin;startFill=0;endArrow=open;endFill=0;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="observador" value="observadores&#xa;0..*">
@@ -211,7 +232,7 @@
                 <mxCell id="real-procesador" edge="1" parent="1" source="procesador" style="endArrow=block;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="observador" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="real-notificador" edge="1" parent="1" source="notificador" style="endArrow=block;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="observador" value="">
+                <mxCell id="real-notificador" edge="1" parent="1" source="notificador" style="endArrow=block;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.6842;entryY=0;entryDx=0;entryDy=0;" target="observador" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="link-nota-procesador" edge="1" parent="1" source="procesador" style="endArrow=none;dashed=1;html=1;strokeColor=#999999;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="nota-procesador" value="">
@@ -221,27 +242,19 @@
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="rel-procesador-votacion" edge="1" parent="1" source="procesador" style="endArrow=open;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" target="votacion" value="«crea»">
-                    <mxGeometry relative="1" x="0.4673" as="geometry">
+                    <mxGeometry relative="1" x="0.857" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
-                            <mxPoint x="10" y="-275"/>
-                            <mxPoint x="10" y="657"/>
+                            <mxPoint x="10" y="-235"/>
+                            <mxPoint x="10" y="736.8"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="rel-notificador-fabrica" edge="1" parent="1" source="notificador" style="endArrow=open;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fabrica" value="usa">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
-                            <mxPoint x="1000" y="-275"/>
-                            <mxPoint x="1000" y="-105"/>
-                        </Array>
-                    </mxGeometry>
-                </mxCell>
-                <mxCell id="rel-reclamo-fabrica" edge="1" parent="1" source="reclamo" style="endArrow=open;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="fabrica" value="usa">
-                    <mxGeometry relative="1" as="geometry">
-                        <Array as="points">
-                            <mxPoint x="1700" y="1029"/>
-                            <mxPoint x="1700" y="-105"/>
+                            <mxPoint x="1040" y="-243"/>
+                            <mxPoint x="1040" y="-73"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
@@ -254,7 +267,10 @@
                 <mxCell id="link-nota-reclamo" edge="1" parent="1" source="reclamo" style="endArrow=none;dashed=1;html=1;strokeColor=#999999;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="nota-reclamo" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel-postulacion-usuario" edge="1" parent="1" source="postulacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="usuario" value="jugador">
+                <mxCell id="link-nota-partido" edge="1" parent="1" source="partido" style="endArrow=none;dashed=1;html=1;strokeColor=#999999;exitX=0;exitY=0.6309;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="nota-partido" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel-postulacion-usuario" edge="1" parent="1" source="postulacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.4211;entryY=0;entryDx=0;entryDy=0;" target="usuario" value="jugador">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-postulacion-usuario-a" connectable="0" parent="rel-postulacion-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
@@ -267,20 +283,20 @@
                         <mxPoint x="14" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-usuario-rol" edge="1" parent="1" source="usuario" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rol" value="rol">
+                <mxCell id="rel-usuario-rol" edge="1" parent="1" source="usuario" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.2289;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="rol" value="rol">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-usuario-rol-a" connectable="0" parent="rel-usuario-rol" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
                     <mxGeometry relative="1" x="-0.8" y="1" as="geometry">
-                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint y="-16" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="mult-usuario-rol-b" connectable="0" parent="rel-usuario-rol" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="1" vertex="1">
                     <mxGeometry relative="1" x="0.8" y="1" as="geometry">
-                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint y="-16" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-notificacion-usuario" edge="1" parent="1" source="notificacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.1;entryDx=0;entryDy=0;" target="usuario" value="destinatario">
+                <mxCell id="rel-notificacion-usuario" edge="1" parent="1" source="notificacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.0444;entryDx=0;entryDy=0;" target="usuario" value="destinatario">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-notificacion-usuario-a" connectable="0" parent="rel-notificacion-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
@@ -293,7 +309,7 @@
                         <mxPoint y="-10" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-votacion-usuario" edge="1" parent="1" source="votacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.545;exitDx=0;exitDy=0;entryX=0;entryY=0.65;entryDx=0;entryDy=0;" target="usuario" value="emisor / receptor_usuario">
+                <mxCell id="rel-votacion-usuario" edge="1" parent="1" source="votacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.4959;exitDx=0;exitDy=0;entryX=0;entryY=0.7111;entryDx=0;entryDy=0;" target="usuario" value="emisor / receptor_usuario">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-votacion-usuario-a" connectable="0" parent="rel-votacion-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
@@ -306,26 +322,21 @@
                         <mxPoint y="-10" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-sancion-usuario" edge="1" parent="1" source="sancion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.31;exitDx=0;exitDy=0;entryX=1;entryY=0.67;entryDx=0;entryDy=0;" target="usuario" value="usuario / aplicada_por">
+                <mxCell id="rel-sancion-usuario" edge="1" parent="1" source="sancion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.4639;exitDx=0;exitDy=0;entryX=1;entryY=0.5778;entryDx=0;entryDy=0;" target="usuario" value="usuario / aplicada_por">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-sancion-usuario-a" connectable="0" parent="rel-sancion-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
                     <mxGeometry relative="1" x="-0.7" y="1" as="geometry">
-                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint y="-16" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="mult-sancion-usuario-b" connectable="0" parent="rel-sancion-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="1" vertex="1">
                     <mxGeometry relative="1" x="0.7" y="1" as="geometry">
-                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint y="-16" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-reclamo-usuario" edge="1" parent="1" source="reclamo" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.95;entryDx=0;entryDy=0;" target="usuario" value="autor / resuelto_por">
-                    <mxGeometry relative="1" as="geometry">
-                        <Array as="points">
-                            <mxPoint x="1240" y="965"/>
-                            <mxPoint x="1240" y="817"/>
-                        </Array>
-                    </mxGeometry>
+                <mxCell id="rel-reclamo-usuario" edge="1" parent="1" source="reclamo" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=0.5263;entryY=1;entryDx=0;entryDy=0;" target="usuario" value="autor / resuelto_por">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-reclamo-usuario-a" connectable="0" parent="rel-reclamo-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
                     <mxGeometry relative="1" x="-0.8" y="1" as="geometry">
@@ -334,13 +345,13 @@
                 </mxCell>
                 <mxCell id="mult-reclamo-usuario-b" connectable="0" parent="rel-reclamo-usuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="1" vertex="1">
                     <mxGeometry relative="1" x="0.8" y="1" as="geometry">
-                        <mxPoint y="-10" as="offset"/>
+                        <mxPoint x="14" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-sancion-reclamo" edge="1" parent="1" source="sancion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="reclamo" value="reclamo">
+                <mxCell id="rel-sancion-reclamo" edge="1" parent="1" source="sancion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5952;entryY=0;entryDx=0;entryDy=0;" target="reclamo" value="reclamo">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="mult-sancion-reclamo-a" connectable="0" parent="rel-sancion-reclamo" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
+                <mxCell id="mult-sancion-reclamo-a" connectable="0" parent="rel-sancion-reclamo" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..1" vertex="1">
                     <mxGeometry relative="1" x="-0.6" y="1" as="geometry">
                         <mxPoint x="14" as="offset"/>
                     </mxGeometry>
@@ -350,7 +361,7 @@
                         <mxPoint x="14" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="rel-votacion-partido" edge="1" parent="1" source="votacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="partido" value="partido">
+                <mxCell id="rel-votacion-partido" edge="1" parent="1" source="votacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0.8421;exitY=0;exitDx=0;exitDy=0;entryX=0.4211;entryY=1;entryDx=0;entryDy=0;" target="partido" value="partido">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="mult-votacion-partido-a" connectable="0" parent="rel-votacion-partido" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
@@ -364,9 +375,9 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="rel-votacion-complejo" edge="1" parent="1" source="votacion" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.9;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="complejo" value="receptor_complejo">
-                    <mxGeometry relative="1" as="geometry">
+                    <mxGeometry relative="1" x="-0.5" as="geometry">
                         <Array as="points">
-                            <mxPoint x="-230" y="778"/>
+                            <mxPoint x="-230" y="857.8"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>

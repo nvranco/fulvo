@@ -64,10 +64,10 @@ def datos_iniciales(session):
 
 @pytest.fixture
 def client(session, datos_iniciales):
-    """Cliente HTTP de prueba conectado a la base en memoria.
+    """Cliente HTTP de prueba conectado al PostgreSQL de prueba.
 
     Reemplaza `get_session` por la sesión de prueba (`dependency_overrides`):
-    las rutas escriben y leen en la base en memoria, nunca en `fulvo.db`.
+    las rutas escriben y leen en la base del contenedor, nunca en `fulvo.db`.
     """
 
     def get_session_override():

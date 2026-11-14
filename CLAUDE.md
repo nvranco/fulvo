@@ -106,7 +106,7 @@ Python: **3.13**, una sola versión en todos lados (`.python-version`, `requires
 
 Entorno: `pipx` instala Poetry; Poetry crea el venv en `.venv/` (`poetry config virtualenvs.in-project true`, configuración global por máquina). `package-mode = false` porque es una app: `fulvo` no se instala como paquete. El `Dockerfile` instala las dependencias con Poetry desde `poetry.lock`, en dos etapas (decisión del 2026-11-13): la primera arma `/app/.venv` y la imagen final copia solo ese entorno, sin Poetry. Así la imagen tiene las mismas versiones que se testean. Antes se instalaba con `pip install .`, como la cátedra, pero pip resolvía con los rangos de `pyproject.toml` y 28 de 68 paquetes salían con otra versión. **Docker es obligatorio** para desarrollar y testear: `poetry test` levanta un PostgreSQL en un contenedor, y sin Docker Desktop corriendo de fondo los tests fallan al arrancar. Pasos completos para replicar en otra máquina: `docs/entorno.md`. Mantener ese archivo al día si cambia algo del entorno.
 
-Las versiones exactas de dependencias salen del `pyproject.toml` y `poetry.lock` de `codigo_aulas/13`, sin `aiosqlite`, sin `pytest-asyncio` y con `sqlalchemy` en vez de `sqlalchemy[asyncio]`. No actualizar dependencias sin avisar.
+Las dependencias son las del `pyproject.toml` de `codigo_aulas/13`, sin `aiosqlite`, sin `pytest-asyncio` y con `sqlalchemy` en vez de `sqlalchemy[asyncio]`, pero en versiones más nuevas (por ejemplo, FastAPI 0.161 contra 0.141, ruff 0.17 contra 0.16 y typos 1.51 contra 1.50). Las versiones exactas son las de `poetry.lock`. No actualizar dependencias sin avisar.
 
 ### Desvío: SQLAlchemy síncrono
 
@@ -138,7 +138,7 @@ fulvo/
 ├── alembic.ini
 ├── Dockerfile
 ├── compose.yaml
-├── entrypoint.sh              # alembic upgrade head + uvicorn
+├── entrypoint.sh              # alembic upgrade head + carga inicial + uvicorn
 ├── fly.toml
 ├── .env                       # NO se commitea (usar .env.example)
 ├── .github/workflows/pipeline.yaml
@@ -193,12 +193,12 @@ Requisito por máquina: el plugin de tareas, `pipx inject poetry 'poethepoet[poe
 - **Todo en español:** nombres de variables, funciones, clases, modelos, tablas, columnas, campos de esquemas, rutas, mensajes de error (`detail`), comentarios y docstrings.
 - **Excepciones al idioma:** lo que impone una librería o un estándar queda como está (`router`, `session`, `Depends`, `status_code`, `Authorization`, `Bearer`, `access_token`, `token_type`, nombres de métodos HTTP, claims de JWT como `sub` y `exp`, `__tablename__`, etc.).
 - Usar identificadores en español **sin tildes ni ñ** (`reserva`, `contrasena`, `anio`) para evitar problemas con herramientas, y tildes normales en comentarios y mensajes de texto.
-- `typos` revisa en inglés: si marca palabras en español como error, agregar la excepción en `[tool.typos.default]` en vez de renombrar.
+- `typos` revisa en inglés: si marca palabras en español como error, agregar la excepción en `[tool.typos.default.extend-words]` en vez de renombrar.
 
 ### Estilo (lo fija Ruff, no discutir)
 
 - Línea de 79 caracteres, **comillas simples**.
-- Reglas activas: `I F E W PL PT FAST`.
+- Reglas activas: `I F E W PL PT` (`[tool.ruff.lint]` en `pyproject.toml`).
 - Imports ordenados, sin imports sin usar.
 
 ### Prácticas
@@ -230,7 +230,7 @@ Decidido. Es entregable (va en la presentación con el UML) y tema central de la
 Se aplican dos patrones:
 
 - **Observer.** `Partido` es el sujeto y emite eventos (`postulacion_recibida`, `postulacion_aceptada`, `postulacion_rechazada`, `partido_completo`, `revocacion`, `postulacion_retirada`, `partido_cancelado`, `partido_jugado`, `no_show_marcado` y `no_show_anulado`). Los observadores implementan `ObservadorPartido`: `NotificadorPartido` crea las notificaciones y `ProcesadorPostPartido` suma partidos jugados, crea votaciones pendientes, aplica el no-show y lo deshace cuando un reclamo lo anula. El evento es un objeto `EventoPartido`.
-- **Factory.** `FabricaNotificaciones` (fábrica simple) arma cada `Notificacion` según su tipo. La usa `NotificadorPartido` y también la lógica de reclamos.
+- **Factory.** `FabricaNotificaciones` (fábrica simple) arma cada `Notificacion` según su tipo. La usa `NotificadorPartido` y también la ruta de reclamos (`PATCH /reclamos/{id}`), para la respuesta al autor.
 
 Por qué: `Partido` solo avisa y no sabe quién reacciona, así que agregar una consecuencia nueva no lo modifica. La fábrica concentra los mensajes de notificación en un solo lugar.
 
@@ -255,7 +255,7 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 - Mínimo exigido: **10 tests unitarios**. Objetivo real: cubrir cada endpoint, sus caminos felices y sus errores.
 - Estructura **AAA** (Organizar, Actuar, Afirmar) en cada test.
 - Nombres de tests en español y descriptivos: `test_crear_usuario_con_email_repetido_devuelve_conflicto`.
-- Fixtures compartidas en `tests/conftest.py`: `client`, `session`, `user`, `token`, etc. Datos de prueba con `factory-boy` en `tests/factories.py`.
+- Fixtures compartidas en `tests/conftest.py`: `client`, `session`, `usuario`, `token`, `admin`, etc. Datos de prueba con `factory-boy` en `tests/factories.py`.
 - Cada test se aísla: las tablas se crean y se borran por test.
 - **Los tests corren contra PostgreSQL real, no SQLite en memoria** (decisión del 2026-11-12). `testcontainers` levanta un `postgres:16`, la misma versión de `compose.yaml`, una vez por corrida, y lo apaga al terminar. Así las diferencias entre bases (mensajes de error, restricciones, tipos) aparecen en los tests y no en el deploy. Requisito: **Docker corriendo de fondo**. Costo: la suite tarda unos 5 minutos en vez de 2.
 - Cobertura de ramas activada (`--cov-branch`). Revisar el reporte html para ver qué falta.
@@ -278,11 +278,11 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 
 - Workflow en `.github/workflows/pipeline.yaml`, se dispara con `push` y `pull_request`.
 - Pasos: checkout, instalar Python 3.13, instalar Poetry, `pipx inject poetry 'poethepoet[poetry_plugin]'`, `poetry install`, `poetry test`. El paso del plugin no está en la lección 12: es el mismo que hace cada máquina del grupo (`docs/entorno.md`), y sin él `poetry test` no existe.
-- Las variables de entorno van como **GitHub Secrets**, nunca en el workflow. Hoy no hace falta ninguna: `DATABASE_URL` tiene valor por defecto. Cuando el login (RQ1) agregue `SECRET_KEY` y compañía, se cargan como secrets y se mapean en un bloque `env` del job. Solo se mapean secrets que existan: uno que falta llega como texto vacío y pisa el valor por defecto de `Settings`.
+- Las variables de entorno van como **GitHub Secrets**, nunca en el workflow. Hoy no hace falta ninguna: los tests definen su propia `SECRET_KEY` falsa (`tests/__init__.py`), levantan su propio PostgreSQL con `testcontainers` y el resto de `Settings` tiene valor por defecto. Si algún paso necesitara un valor real (por ejemplo, el deploy), se carga como secret y se mapea en un bloque `env` del job. Solo se mapean secrets que existan: uno que falta llega como texto vacío y pisa el valor por defecto de `Settings`.
 
 ### Deploy
 
-- Fly.io con `fly.toml`, siguiendo la lección de la cátedra. `entrypoint.sh` corre las migraciones antes de iniciar la API.
+- Fly.io con `fly.toml`, siguiendo la lección de la cátedra. `entrypoint.sh` corre las migraciones y la carga inicial antes de iniciar la API.
 
 ## 11. Seguridad y configuración
 
@@ -297,19 +297,19 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 
 ## 12. Entregables (checklist)
 
-- [ ] Requerimientos RQ1..RQ11 definidos y cubiertos por endpoints
-- [ ] API FastAPI funcionando y RESTful
-- [ ] Registro y login con JWT
-- [ ] Base de datos con SQLAlchemy y migraciones Alembic
-- [ ] Manejo de errores con excepciones
-- [ ] Patrón de diseño aplicado y justificado
-- [ ] 10 o más tests unitarios pasando
-- [ ] GitHub Action corriendo los tests
-- [ ] `Dockerfile` y `compose.yaml`
+- [x] Requerimientos RQ1..RQ11 definidos y cubiertos por endpoints
+- [x] API FastAPI funcionando y RESTful
+- [x] Registro y login con JWT
+- [x] Base de datos con SQLAlchemy y migraciones Alembic
+- [x] Manejo de errores con excepciones
+- [x] Patrón de diseño aplicado y justificado (Observer y Factory)
+- [x] 10 o más tests unitarios pasando
+- [x] GitHub Action corriendo los tests
+- [x] `Dockerfile` y `compose.yaml`
 - [ ] Deploy publicado
-- [ ] `README.md` con librerías, despliegue y pruebas
-- [ ] Documentación: idea general, requerimientos funcionales y casos de uso (`docs/`)
-- [ ] Presentación con al menos 1 diagrama UML y explicación de patrones
+- [ ] `README.md` con librerías, despliegue y pruebas (falta el deploy en Fly.io)
+- [x] Documentación: idea general, requerimientos funcionales y casos de uso (`docs/`)
+- [ ] Presentación con al menos 1 diagrama UML y explicación de patrones (el diagrama ya está en `docs/diagramas/clases.svg`)
 - [ ] Repo compartido con `matuk` y `santiagoblaslaguzza`
 
 ## 13. Reglas para Claude

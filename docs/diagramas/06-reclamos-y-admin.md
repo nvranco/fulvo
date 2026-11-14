@@ -10,7 +10,7 @@ sequenceDiagram
 
     U->>A: Crear reclamo (no-show, votación, usuario o complejo, motivo)
     A->>S: Registrar reclamo
-    S->>BD: Verificar que el objetivo existe, que no es el propio usuario, que no tiene un reclamo abierto del mismo autor y, si es no-show o votación, que afecta al usuario
+    S->>BD: Verificar que el objetivo existe, que no es el propio usuario<br/>y que el autor no tiene otro reclamo abierto sobre lo mismo.<br/>Si es no-show o votación, que lo afecta (no-show marcado o votación emitida)
     alt Objetivo inválido
         S-->>A: Rechazar reclamo
         A-->>U: Mostrar error
@@ -30,8 +30,10 @@ sequenceDiagram
     alt Admin acepta el reclamo
         D->>A: Resolver reclamo como resuelto
         A->>S: Registrar resolución
-        S->>BD: Aplicar medida según el objetivo (quitar no-show, sumar partido jugado y quitar el voto de 0 estrellas; eliminar votación; bloquear usuario; o editar complejo)
+        Note over S,BD: Medida según el objetivo<br/>No-show: quitar la marca, sumar el partido jugado,<br/>quitar el voto de 0 estrellas y reponer las votaciones borradas<br/>Votación: anularla (no se borra)<br/>Usuario: bloquearlo, si el admin lo pide<br/>Complejo: ninguna, el admin edita sus datos aparte
+        S->>BD: Aplicar la medida
         S->>BD: Recalcular puntuación promedio del afectado si cambió un voto o un no-show
+        S->>BD: Si se anuló un no-show, crear notificación de votaciones repuestas para los presentes
         S->>BD: Marcar reclamo resuelto
     else Admin rechaza el reclamo
         D->>A: Resolver reclamo como rechazado
@@ -44,7 +46,7 @@ sequenceDiagram
 
     D->>A: Bloquear o desbloquear usuario
     A->>S: Registrar bloqueo
-    S->>BD: Bloquear: crear sanción y marcar usuario bloqueado. Desbloquear: cerrar sanción
+    S->>BD: Bloquear: crear sanción y marcar usuario bloqueado, y en los partidos<br/>que no empezaron, cancelar los suyos y retirar sus postulaciones (con sus avisos).<br/>Desbloquear: cerrar sanción y quitar el bloqueo
     S-->>A: Usuario actualizado
     A-->>D: Mostrar confirmación
 ```

@@ -35,12 +35,12 @@
 <line x1="506" y1="125" x2="520" y2="125" stroke="#333"/>
 <text x="40" y="478" font-size="11">1 zona : N complejos (complejos.zona_id -> zonas.id)</text>
 <rect x="40" y="200" width="300" height="128" fill="#fff2cc" stroke="#d6b656"/>
-<text x="48" y="222" font-size="11">Nota: complejos lleva solo las columnas</text>
-<text x="48" y="240" font-size="11">que usa la API hoy. Se agregan con</text>
-<text x="48" y="258" font-size="11">migraciones cuando haga falta:</text>
-<text x="48" y="276" font-size="11">- whatsapp_contacto</text>
-<text x="48" y="294" font-size="11">- email_contacto</text>
-<text x="48" y="312" font-size="11">La puntuación sale de las votaciones (RQ8).</text>
+<text x="48" y="222" font-size="11">Nota: complejos guarda los datos del CSV.</text>
+<text x="48" y="240" font-size="11">Como contacto tiene solo telefono_contacto:</text>
+<text x="48" y="258" font-size="11">el WhatsApp y el email del complejo</text>
+<text x="48" y="276" font-size="11">quedaron fuera del MVP (ningún RQ los usa).</text>
+<text x="48" y="294" font-size="11">La puntuación sale de las votaciones (RQ8),</text>
+<text x="48" y="312" font-size="11">no de calificacion_maps (Google Maps).</text>
 <rect x="40" y="530" width="300" height="78" fill="#ffffff" stroke="#6c8ebf"/>
 <rect x="40" y="530" width="300" height="26" fill="#dae8fc" stroke="#6c8ebf"/>
 <text x="190.0" y="548" text-anchor="middle" font-weight="bold">roles</text>

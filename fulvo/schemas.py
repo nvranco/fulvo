@@ -43,8 +43,8 @@ class Mensaje(BaseModel):
 class ComplejoEntrada(BaseModel):
     """Datos que envía el cliente para cargar un complejo (sin id).
 
-    No incluye la provincia: la tiene la zona, y el servidor se la copia al
-    complejo. Así no pueden contradecirse.
+    No incluye la provincia: la tiene la zona, y la API la muestra
+    leyéndola de ella. Así no pueden contradecirse.
     """
 
     zona: Texto
@@ -105,7 +105,7 @@ class ZonaPublica(ZonaEntrada):
 
 
 class ListaZonas(BaseModel):
-    """Zonas que tienen al menos un complejo, envueltas como en la cátedra."""
+    """Todas las zonas, tengan o no complejos, envueltas como en la cátedra."""
 
     zonas: list[ZonaPublica]
 
@@ -362,8 +362,9 @@ class ListaMisPostulaciones(BaseModel):
 class NotificacionPublica(BaseModel):
     """Notificación como la ve su destinatario (RQ9).
 
-    `referencia_tipo` ("postulacion" o "partido") y `referencia_id` dicen
-    qué originó el aviso, para que la app pueda llevar a esa pantalla.
+    `referencia_tipo` ("postulacion", "partido" o "reclamo") y
+    `referencia_id` dicen qué originó el aviso, para que la app pueda llevar
+    a esa pantalla.
     """
 
     model_config = ConfigDict(from_attributes=True)

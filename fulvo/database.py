@@ -12,8 +12,8 @@ def get_session():
     """Entrega una sesión por request y la cierra al terminar.
 
     Se usa con `Depends`. El `with` cierra la sesión aunque la ruta falle,
-    y los tests reemplazan esta función por una sesión sobre SQLite en
-    memoria (`app.dependency_overrides`).
+    y los tests reemplazan esta función por una sesión sobre el PostgreSQL
+    de prueba que levanta testcontainers (`app.dependency_overrides`).
 
     Como en la cátedra, cada archivo de `routes/` define su alias:
     `Session = Annotated[Session, Depends(get_session)]`.

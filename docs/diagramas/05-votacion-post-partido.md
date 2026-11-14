@@ -31,12 +31,12 @@ sequenceDiagram
         S->>BD: Recalcular puntuación promedio del receptor
     end
 
-    opt Organizador marca un aceptado ausente
+    opt Organizador marca un aceptado ausente (solo con el partido jugado)
         O->>A: Marcar no-show
         A->>S: Registrar no-show
         S->>BD: Marcar no-show en el aceptado
         S->>BD: Restar un partido jugado al ausente y sumar un voto de 0 estrellas a su puntuación
-        S->>BD: Eliminar votaciones pendientes del ausente
+        S->>BD: Eliminar las votaciones pendientes del ausente y las de los demás hacia él (las emitidas quedan)
     end
 
     S->>BD: Contar partidos con votaciones pendientes del participante

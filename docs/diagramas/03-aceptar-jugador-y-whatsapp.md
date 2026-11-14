@@ -19,16 +19,23 @@ sequenceDiagram
     O->>A: Aceptar jugador
     A->>S: Registrar aceptación
     S->>BD: Marcar postulación aceptada y restar un cupo
-    S->>BD: Crear notificación para el jugador
-    S-->>A: Aceptación registrada con WhatsApp del jugador
-    A-->>O: Mostrar WhatsApp del jugador
-    S--)J: Notificar aceptación con WhatsApp del organizador
-
+    S->>BD: Crear notificación para el jugador (sin el WhatsApp)
     opt Cupos faltantes llegan a 0
         S->>BD: Marcar partido completo
         S->>BD: Rechazar postulaciones en espera
         S->>BD: Crear notificación de partido completo para cada rechazado
     end
+    S-->>A: Aceptación registrada con WhatsApp del jugador
+    A-->>O: Mostrar WhatsApp del jugador
+    S--)J: Notificar aceptación (el aviso dice dónde ver el WhatsApp, no lo incluye)
+
+    J->>A: Ver mis postulaciones
+    A->>S: Obtener postulaciones del jugador
+    S->>BD: Obtener postulaciones con su partido y su organizador
+    BD-->>S: Postulaciones
+    S-->>A: Postulación aceptada con WhatsApp del organizador
+    A-->>J: Mostrar WhatsApp del organizador
+    Note over O,J: Cada uno ve el WhatsApp del otro mientras la postulación está aceptada y el partido no se canceló
 
     O->>A: Rechazar postulación
     A->>S: Registrar rechazo
