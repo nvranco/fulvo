@@ -64,6 +64,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - El grupo del organizador no son usuarios del sistema. Solo se guarda cuántos faltan.
 - Un partido publicado no se edita: se cancela y se crea otro.
 - El pase a jugado se revisa cada vez que se consulta el partido. No hay tarea periódica. También se revisan los partidos de un usuario que ya terminaron antes de listar sus votaciones o de calcular su deuda: si nadie los consultó, todavía no tienen votaciones.
+- Si dos pedidos tocan el mismo partido a la vez, el segundo espera a que termine el primero (la fila del partido queda bloqueada hasta el commit). Así el pase a jugado y sus votaciones se hacen una sola vez, y dos aceptaciones simultáneas no superan los cupos (decisión del 2026-11-13).
 - Se permite postularse a partidos que se solapan en horario.
 - No se puede postular a un partido que ya empezó.
 - Organizador no puede postularse a su propio partido.
@@ -168,7 +169,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - Datos del complejo: nombre, dirección, localidad, latitud, longitud, teléfono, WhatsApp y email de contacto, tipo, si tiene reserva online, sitio web, link a Google Maps y calificación de Maps. Ubicación y contactos salen de la carga inicial. La provincia del complejo es la de su zona.
 - El complejo tiene puntuación promedio y cantidad de puntuaciones, calculadas por las votaciones.
 - La búsqueda de cercanos recibe un punto (latitud y longitud) y un radio en km. Devuelve los complejos dentro del radio, ordenados por distancia.
-- Los datos iniciales salen de un CSV (`fulvo/datos/complejos.csv`, armado a mano desde Google Maps) que la API carga al arrancar. También se pueden agregar zonas y complejos con la API.
+- Los datos iniciales salen de un CSV (`fulvo/datos/complejos.csv`, armado a mano desde Google Maps). La carga inicial (`python -m fulvo.carga_inicial`, que el contenedor corre al arrancar) los inserta solo en una base sin zonas. Después, las zonas y los complejos se agregan, editan y borran con la API, y un reinicio no deshace esos cambios (decisión del 2026-11-13).
 - Usuarios no crean ni editan complejos. Solo el admin edita. Las altas, ediciones y bajas exigen rol admin; las lecturas son públicas.
 - Un complejo con partidos no se puede borrar. La API responde 409 con el mensaje "Error al borrar el complejo: aún tiene partidos agendados". Cuenta cualquier partido del complejo, también los jugados y los cancelados, porque siguen apuntando a él.
 
