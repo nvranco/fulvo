@@ -8,8 +8,9 @@ sequenceDiagram
     participant BD as Base de datos
     actor J as Jugador
 
-    O->>A: Crear partido (complejo, fecha y hora, duración, tipo, cupos faltantes)
+    O->>A: Crear partido (complejo, fecha y hora, tipo, cupos faltantes)
     A->>S: Registrar partido
+    Note over S: La duración no se elige: todo partido dura 60 minutos
     S->>BD: Contar partidos con votaciones pendientes del organizador
     BD-->>S: Deuda
     alt Deuda mayor que X
@@ -23,7 +24,7 @@ sequenceDiagram
 
     J->>A: Ver partidos abiertos (filtros: zona, complejo, tipo)
     A->>S: Buscar partidos
-    S->>BD: Obtener partidos abiertos filtrados
+    S->>BD: Obtener partidos abiertos que todavía no empezaron, filtrados
     BD-->>S: Partidos
     S-->>A: Listado
     A-->>J: Mostrar partidos
