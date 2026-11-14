@@ -49,6 +49,10 @@ services:
       # admin (lo avisa en los logs del arranque).
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Opcional: lista JSON con las direcciones del front (CORS, ver
+      # `.env.example`). Si falta queda vacía: ninguna página de otra
+      # dirección puede usar la API desde el navegador.
+      CORS_ORIGINS: ${CORS_ORIGINS:-[]}
 
 volumes:
   pgdata:

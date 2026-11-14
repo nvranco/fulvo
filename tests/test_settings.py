@@ -51,3 +51,28 @@ def test_las_credenciales_del_admin_son_opcionales(monkeypatch):
 
     assert settings.ADMIN_EMAIL is None
     assert settings.ADMIN_PASSWORD is None
+
+
+def test_sin_cors_origins_no_se_permite_ningun_origen(monkeypatch):
+    monkeypatch.delenv('CORS_ORIGINS', raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.CORS_ORIGINS == []
+
+
+def test_cors_origins_se_lee_del_env_como_lista_json(monkeypatch, tmp_path):
+    monkeypatch.delenv('CORS_ORIGINS', raising=False)
+    archivo_env = tmp_path / '.env'
+    # El mismo formato que muestra `.env.example`.
+    archivo_env.write_text(
+        'CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5500"]\n',
+        encoding='utf-8',
+    )
+
+    settings = Settings(_env_file=archivo_env)
+
+    assert settings.CORS_ORIGINS == [
+        'http://localhost:5173',
+        'http://127.0.0.1:5500',
+    ]
