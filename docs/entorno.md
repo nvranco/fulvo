@@ -134,13 +134,13 @@ Sin este paso, registrar un usuario da 500 porque falta el rol `usuario`.
 poetry run fastapi dev fulvo/app.py
 ```
 
-También funciona `poetry serve` (atajo definido en `pyproject.toml`). Abrir http://127.0.0.1:8000 (debe responder `{"mensaje": "Hola Mundo!"}`) y http://127.0.0.1:8000/docs (documentación automática). Cortar con `Ctrl+C`.
+También funciona `poetry serve` (atajo definido en `pyproject.toml`). Abrir http://127.0.0.1:8000 (debe responder `{"mensaje": "Hola Fulvo!"}`) y http://127.0.0.1:8000/docs (documentación automática). Cortar con `Ctrl+C`.
 
 Para probar las rutas del admin desde `/docs`: botón **Authorize**, con `ADMIN_EMAIL` en `username` y `ADMIN_PASSWORD` en `password` (`client_id` y `client_secret` quedan vacíos). Sin autorizarse, `POST /zonas` da 401; con el admin, 201.
 
 ## Herramientas de desarrollo
 
-Instaladas en el grupo `dev` de Poetry (`poetry add --group dev pytest pytest-cov ruff typos pytest-random-order`) y configuradas en `pyproject.toml`:
+Instaladas en el grupo `dev` de Poetry (`poetry add --group dev pytest pytest-cov ruff typos pytest-random-order factory-boy freezegun testcontainers`) y configuradas en `pyproject.toml`:
 
 | Herramienta | Qué hace | Configuración |
 |---|---|---|
@@ -148,6 +148,8 @@ Instaladas en el grupo `dev` de Poetry (`poetry add --group dev pytest pytest-co
 | Typos | revisa ortografía en inglés; excluye `*.md`, `docs`, `poetry.lock` y `migrations` porque están en español | `[tool.typos.files]` |
 | pytest + pytest-cov | tests con cobertura del paquete `fulvo`, incluidas las ramas (`--cov-branch`) | `[tool.pytest]` |
 | testcontainers | levanta un PostgreSQL 16 en Docker para los tests (fixture `engine` de `tests/conftest.py`) | `tests/conftest.py` |
+| factory-boy | arma usuarios y partidos de prueba con datos válidos (`UsuarioFactory`, `PartidoFactory`) | `tests/factories.py` |
+| freezegun | fija el reloj en los tests que dependen de la hora (tokens vencidos, partidos que terminan) | en cada test, con `freeze_time` |
 | pytest-random-order | corre los tests en orden aleatorio (`--random-order`) para detectar tests que dependen de otros; imprime la semilla para repetir un orden | `[tool.pytest]` |
 | Poe the Poet | tareas cortas | `[tool.poe.tasks]` |
 
@@ -166,7 +168,7 @@ Antes de `poetry test`, Docker Desktop tiene que estar corriendo: la fixture `en
 
 Los tests no necesitan el `.env`: `tests/__init__.py` define una `SECRET_KEY` falsa antes de importar `fulvo`, y los tests de `Settings` lo ignoran con `_env_file=None`. Por eso el CI corre sin secrets.
 
-Si typos marca una palabra en español dentro del código, se agrega la excepción en `[tool.typos.default]` en vez de renombrar (ya están `cliente` y `clientes`).
+Si typos marca una palabra en español dentro del código, se agrega la excepción en `[tool.typos.default.extend-words]` en vez de renombrar (ya están `cliente`, `clientes` y varias más).
 
 ## Cómo se creó el proyecto (referencia)
 

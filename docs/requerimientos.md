@@ -168,7 +168,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 
 - Una zona tiene nombre y provincia. Es un partido o un barrio; la localidad se guarda en cada complejo.
 - Un complejo pertenece a una zona.
-- Datos del complejo: nombre, dirección, localidad, latitud, longitud, teléfono, WhatsApp y email de contacto, tipo, si tiene reserva online, sitio web, link a Google Maps y calificación de Maps. Ubicación y contactos salen de la carga inicial. La provincia del complejo es la de su zona.
+- Datos del complejo: nombre, dirección, localidad, latitud, longitud, teléfono de contacto, tipo, si tiene reserva online, sitio web, link a Google Maps y calificación de Maps. Ubicación y teléfono salen de la carga inicial. La provincia del complejo es la de su zona. El WhatsApp y el email de contacto del complejo quedaron fuera del MVP: ningún RQ los usa y el CSV no los trae.
 - El complejo tiene puntuación promedio y cantidad de puntuaciones, calculadas por las votaciones.
 - La búsqueda de cercanos recibe un punto (latitud y longitud) y un radio en km. Devuelve los complejos dentro del radio, ordenados por distancia.
 - Los datos iniciales salen de un CSV (`fulvo/datos/complejos.csv`, armado a mano desde Google Maps). La carga inicial (`python -m fulvo.carga_inicial`, que el contenedor corre al arrancar) los inserta solo en una base sin zonas. Después, las zonas y los complejos se agregan, editan y borran con la API, y un reinicio no deshace esos cambios (decisión del 2026-11-13).

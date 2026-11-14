@@ -18,7 +18,7 @@ JSON -> UsuarioEntrada (valida) -> modelo Usuario (BD, con contrasena_hash) -> U
 JSON -> PartidoEntrada (valida y pasa a hora de Argentina) -> modelo Partido (BD) -> PartidoPublico (JSON, con el complejo y el perfil público del organizador)
 ```
 
-Los schemas de entrada y salida **no cambian**: la API sigue devolviendo lo mismo que hoy.
+Pasar de las listas en memoria del principio a la base de datos no cambió los schemas de entrada y salida: la API siguió devolviendo lo mismo.
 
 ## 2. Tablas
 
@@ -126,7 +126,7 @@ Migración: `120c063df0c0` (crear postulaciones), sobre `7a76c3c1902d`. `no_show
 | `usuario_id` | entero | obligatorio, clave foránea a `usuarios.id` (el destinatario) |
 | `tipo` | texto (30) | obligatorio: uno de los tipos de `TipoNotificacion` |
 | `mensaje` | texto | obligatorio, ya armado por la fábrica |
-| `referencia_tipo` | texto | obligatorio: `postulacion` o `partido` |
+| `referencia_tipo` | texto | obligatorio: `postulacion`, `partido` o `reclamo` |
 | `referencia_id` | entero | obligatorio, sin clave foránea |
 | `leida` | booleano | obligatorio, por defecto falso |
 | `created_at` | fecha y hora | obligatorio, hora de Argentina |
@@ -202,10 +202,10 @@ Migración: `5acd3d483e8e` (crear reclamos), sobre `8c64cf074cd1`. La misma migr
 
 ## 3. Decisiones
 
-- **Solo las columnas que usa la API hoy.** Quedan afuera `whatsapp_contacto` y `email_contacto`, que `clases.md` prevé para `Complejo`. Se agregan con una migración cuando llegue el RQ que las necesite, como pasó con la puntuación (RQ8). Así cada columna tiene un endpoint que la justifica, y se practica la migración incremental.
-- **Sin `created_at` ni `updated_at` por ahora.** Ningún RQ los pide para zonas y complejos. Se suman cuando haya una tabla que los necesite (por ejemplo `Notificacion` ya los define en `clases.md`).
-- **La provincia vive solo en `zonas`.** El complejo no la guarda: la API la devuelve leyéndola de su zona. Así un complejo no puede contradecir a su zona. Es lo mismo que hace hoy `crear_complejo`, que copia la provincia de la zona.
-- **`zona_id` es una clave foránea por id, no por nombre.** Hoy un complejo apunta a su zona por el nombre. Con la base de datos es una referencia al `id`, y el nombre se obtiene con la relación `Complejo.zona`.
+- **Solo las columnas que usa la API.** Cada columna tiene un endpoint que la justifica, y las que llegaron después se sumaron con su migración, como la puntuación (RQ8). Por eso el complejo tiene un solo dato de contacto, `telefono_contacto`: el WhatsApp y el email de contacto del complejo, que el diseño inicial preveía, quedaron fuera del MVP, porque ningún RQ los usa y el CSV no los trae.
+- **Sin `created_at` ni `updated_at` en zonas y complejos.** Ningún RQ los pide. Las tablas que sí necesitan una fecha la tienen: `created_at` en postulaciones, notificaciones, votaciones y reclamos.
+- **La provincia vive solo en `zonas`.** El complejo no la guarda: la API la devuelve leyéndola de su zona. Así un complejo no puede contradecir a su zona.
+- **`zona_id` es una clave foránea por id, no por nombre.** En las listas en memoria del principio, un complejo apuntaba a su zona por el nombre. Con la base de datos es una referencia al `id`, y el nombre se obtiene con la relación `Complejo.zona`.
 - **Relación en un solo sentido.** El modelo `Complejo` tiene `zona` (muchos a uno). `Zona` no tiene `complejos`, porque ninguna ruta lo necesita. Si hace falta se agrega después sin tocar la tabla.
 - **`tipo` es texto libre.** Los valores del CSV son pocos (Campo de fútbol, Cancha de fútbol sala, Club deportivo, etc.) y ninguna regla depende de ellos. No se arma una tabla ni un `Enum` hasta que haga falta filtrar o validar por tipo.
 - **Coordenadas como decimal de punto flotante (`Float`).** Alcanza para ubicar un complejo en un mapa. La distancia se sigue calculando en Python con haversine (`distancia_km`), igual en SQLite y PostgreSQL.
@@ -246,7 +246,7 @@ Postulaciones:
 
 Notificaciones:
 
-- **Referencia genérica, sin clave foránea.** `referencia_tipo` y `referencia_id` dicen qué originó el aviso: una postulación o un partido, y más adelante un reclamo. Una clave foránea solo puede apuntar a una tabla, así que se sigue la decisión de `clases.md`. El costo es que la base no verifica el id: lo arma siempre la fábrica.
+- **Referencia genérica, sin clave foránea.** `referencia_tipo` y `referencia_id` dicen qué originó el aviso: una postulación, un partido o, en la respuesta a un reclamo, el reclamo (RQ11). Una clave foránea solo puede apuntar a una tabla, así que se sigue la decisión de `clases.md`. El costo es que la base no verifica el id: lo arma siempre la fábrica.
 - **El mensaje se guarda armado.** Lo arma `FabricaNotificaciones` al crear la notificación, y no se recalcula después. Por eso nunca lleva el WhatsApp: si después se revoca al jugador o se cancela el partido, el número no debe quedar guardado.
 - **`tipo` es texto de largo fijo (30).** Como los demás enums, se guarda como texto, pero con un largo fijo, para sumar "votaciones pendientes" (RQ8) y "reclamo resuelto" (RQ11) sin migrar la columna.
 - **Se crean en la misma transacción que el cambio que las originó.** `NotificadorPartido` las suma a la sesión y el commit de la ruta las guarda juntas: no queda una notificación de algo que no pasó.
@@ -279,7 +279,7 @@ Reclamos:
 
 - **Conexión.** `DATABASE_URL` en `.env`, leída con `pydantic-settings` (`fulvo/settings.py`). En desarrollo es un archivo SQLite (`sqlite:///fulvo.db`, ignorado por git con `*.db`). En contenedor, CI y producción es PostgreSQL con `postgresql+psycopg://...`.
 - **Clave de los tokens.** `SECRET_KEY` también va en `.env` y es obligatoria. Sin ella no arranca nada que lea `Settings`, ni siquiera Alembic, que la usa para leer `DATABASE_URL`. Ver [`entorno.md`](entorno.md#7-crear-el-env), paso 7.
-- **Esquema.** Lo crea Alembic (`alembic upgrade head`), nunca `create_all` fuera de los tests. Los tests sí usan `create_all` sobre SQLite en memoria, como `codigo_aulas/07`.
+- **Esquema.** Lo crea Alembic (`alembic upgrade head`), nunca `create_all` fuera de los tests. Los tests sí usan `create_all`, como `codigo_aulas/07`, pero sobre el PostgreSQL 16 que levanta `testcontainers` (`tests/conftest.py`): crean las tablas antes de cada test y las borran después.
 - **Carga inicial.** Script idempotente: `python -m fulvo.carga_inicial` crea los roles base que falten y, si `ADMIN_EMAIL` y `ADMIN_PASSWORD` están definidas, el primer admin (si ya hay un usuario con ese email, no lo toca). Las zonas y los complejos de `fulvo/datos/complejos.csv` los carga **solo en una base sin zonas**: después son del admin, que los edita y los borra con la API (RQ10). `entrypoint.sh` corre el script en cada arranque del contenedor, después de `alembic upgrade head`; si cargara lo que faltara, volvería a crear un complejo borrado y duplicaría uno renombrado (decisión del 2026-11-13). Se mira la tabla de zonas porque no tiene baja: si hay una, la carga ya se hizo. Por lo mismo, una fila nueva en el CSV no llega sola a una base con datos: se carga con `POST /complejos`. Sobre una base vacía, las zonas se crean en el orden en que aparecen en el CSV y los complejos en el orden de las filas, así que los ids quedan 1, 2, 3... en ese orden.
 
 ## 5. Pendiente
