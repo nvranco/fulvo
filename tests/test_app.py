@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 
-def test_raiz_devuelve_ok_y_hola_mundo(client):
+def test_raiz_devuelve_ok_y_hola_fulvo(client):
     # Organizar: el cliente llega armado desde la fixture de conftest.py
 
     # Actuar
