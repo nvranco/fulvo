@@ -46,7 +46,10 @@ def listar_mis_postulaciones(
         .limit(filtro.limit)
     )
     postulaciones = session.scalars(consulta).all()
-    for postulacion in postulaciones:
+    # En orden de partido, como `poner_al_dia_partidos_de`: preparar uno lo
+    # bloquea hasta el commit, y bloquear siempre en el mismo orden evita
+    # que dos pedidos se queden esperando uno al otro.
+    for postulacion in sorted(postulaciones, key=lambda p: p.partido_id):
         preparar_partido(session, postulacion.partido)
     session.commit()
     return {'postulaciones': [mi_postulacion(p) for p in postulaciones]}
