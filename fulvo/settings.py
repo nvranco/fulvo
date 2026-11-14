@@ -49,3 +49,12 @@ class Settings(BaseSettings):
     # una clave de admin pública en el repo daría acceso a cualquiera.
     ADMIN_EMAIL: str | None = None
     ADMIN_PASSWORD: str | None = None
+
+    # Orígenes (protocolo, dominio y puerto) desde los que la página de un
+    # front puede usar la API en el navegador: la lista de CORS (ver
+    # fulvo/app.py). En el `.env` va como lista JSON, por ejemplo
+    # CORS_ORIGINS=["http://localhost:5173"]. Vacía por defecto (decisión
+    # del 2026-11-14): si nadie la configura, el navegador no deja que una
+    # página de otra dirección lea las respuestas. Quien levanta el front
+    # agrega la suya, en local y en el deploy.
+    CORS_ORIGINS: list[str] = []

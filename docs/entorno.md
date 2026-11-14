@@ -102,6 +102,7 @@ ADMIN_PASSWORD=la-contraseña-generada
 - Cada integrante genera su propia clave. No se comparte ni se commitea.
 - `ADMIN_EMAIL` y `ADMIN_PASSWORD` son opcionales. Sin ellas la carga inicial no crea un admin, y no se pueden probar las altas, ediciones y bajas de zonas y complejos.
 - El resto de las variables queda como en `.env.example`.
+- `CORS_ORIGINS` solo hace falta para usar la API desde un front web que corre en otra dirección. Va como lista JSON, por ejemplo `CORS_ORIGINS=["http://localhost:5173"]` (ver el README).
 
 Comprobar que se lee bien (el comando no muestra la clave):
 
@@ -188,4 +189,6 @@ La cátedra usa `poetry new --flat fast_zero`. Acá el repositorio ya existía, 
 - `SECRET_KEY Field required`: no hay `.env` en la carpeta desde la que se corre el comando, o quedó guardado como `.env.txt`. Correr los comandos desde la raíz del proyecto y revisar con `git status --short --ignored .env` (paso 7).
 - Registrar un usuario da 500: faltan los roles. Correr `poetry run python -m fulvo.carga_inicial` (paso 8).
 - `Admin: no creado (faltan ADMIN_EMAIL y ADMIN_PASSWORD)`: esas líneas faltan o están vacías en el `.env`.
+- `error parsing value for field "CORS_ORIGINS"`: la lista del `.env` no está en formato JSON. Va con corchetes y comillas dobles: `CORS_ORIGINS=["http://localhost:5173"]`.
+- El front muestra un error de CORS en la consola del navegador y la API no responde a sus pedidos: falta su dirección en `CORS_ORIGINS`, o no es exactamente la misma (`localhost` y `127.0.0.1` son direcciones distintas, y el puerto también cuenta). Agregarla y reiniciar la API.
 - `Admin: ya existía` y no se recuerda la contraseña: la carga inicial no cambia la contraseña de un admin que ya existe. En desarrollo, borrar `fulvo.db` y repetir el paso 8.

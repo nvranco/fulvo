@@ -105,6 +105,8 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 Para tener un usuario admin local, completar también `ADMIN_EMAIL` y `ADMIN_PASSWORD`: la carga inicial lo crea. El `.env` no se commitea (está en `.gitignore`). Los pasos detallados están en [`docs/entorno.md`](docs/entorno.md#7-crear-el-env).
 
+Para usar la API desde un front web que corre en otra dirección (por ejemplo, Vite en `http://localhost:5173`), agregar esa dirección en `CORS_ORIGINS` dentro del `.env`, como lista JSON: `CORS_ORIGINS=["http://localhost:5173"]`. Por defecto la lista está vacía y el navegador no deja que una página de otra dirección lea las respuestas de la API (CORS). Swagger, Postman y curl no la necesitan.
+
 Otras tareas: `poetry lint`, `poetry format` y `poetry test`. **`poetry test` necesita Docker Desktop abierto**: los tests corren contra un PostgreSQL 16 que levanta `testcontainers` en un contenedor y borra al terminar (la suite tarda unos 5 minutos). Los tests no necesitan el `.env`: usan una clave falsa definida en `tests/__init__.py`.
 
 La API queda en http://127.0.0.1:8000 y la documentación automática en http://127.0.0.1:8000/docs.
@@ -120,7 +122,7 @@ docker compose up --build
 
 - `compose.yaml` arma dos servicios: la base (`fulvo_database`), con un volumen para que los datos queden entre corridas, y la API (`fulvo_app`), que espera a que la base acepte conexiones.
 - Al arrancar, `entrypoint.sh` aplica las migraciones, corre la carga inicial y levanta la API en http://127.0.0.1:8000. La carga crea los roles y el admin si faltan, y las zonas y complejos del CSV solo la primera vez (en una base sin zonas): un reinicio no duplica nada ni deshace lo que el admin editó o borró.
-- La `SECRET_KEY` sale del `.env`: si falta, `docker compose up` avisa y no arranca. Con `ADMIN_EMAIL` y `ADMIN_PASSWORD` la carga inicial crea el admin. La `DATABASE_URL` del `.env` no se usa acá: `compose.yaml` apunta a la base del contenedor.
+- La `SECRET_KEY` sale del `.env`: si falta, `docker compose up` avisa y no arranca. Con `ADMIN_EMAIL` y `ADMIN_PASSWORD` la carga inicial crea el admin, y `CORS_ORIGINS` también sale de ahí. La `DATABASE_URL` del `.env` no se usa acá: `compose.yaml` apunta a la base del contenedor.
 - `docker compose down` apaga los contenedores y conserva la base; `docker compose down -v` también la borra.
 - La imagen instala exactamente las versiones de `poetry.lock`, así corre lo mismo que se testea. Se arma en dos etapas: Poetry instala las dependencias en la primera, y la imagen final copia solo ese entorno, sin Poetry (ver los comentarios del `Dockerfile`).
 
