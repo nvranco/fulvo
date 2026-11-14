@@ -287,7 +287,7 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 
 ## 11. Seguridad y configuración
 
-- Variables en `.env` (local) leídas con `pydantic-settings`: `DATABASE_URL`, `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`.
+- Variables en `.env` (local) leídas con `pydantic-settings`: `DATABASE_URL`, `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `CORS_ORIGINS`.
 - Valores propios del dominio: límite de deuda X (`LIMITE_DEUDA = 3`, constante fija en `settings.py`, fuera de `Settings` porque no es una variable de entorno) y credenciales del primer admin (`ADMIN_EMAIL` y `ADMIN_PASSWORD`, opcionales en `Settings`, que lee solo `carga_inicial`).
 - **Nunca** commitear `.env` ni secretos. Mantener un `.env.example` sin valores reales.
 - Contraseñas siempre hasheadas (argon2 vía `pwdlib`), nunca guardadas ni logueadas en claro.
@@ -295,6 +295,7 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 - Las rutas de admin usan `exigir_admin`: en el decorador o en el router si solo necesitan el permiso, o con el alias `AdminActual` si necesitan al admin (por ejemplo, para guardar quién bloqueó a un usuario).
 - Un usuario bloqueado no puede iniciar sesión, y el token que ya tenía deja de servir en el pedido siguiente (`403`), porque el usuario se vuelve a leer de la base en cada pedido.
 - Mensajes de login genéricos (no revelar si falló el usuario o la contraseña).
+- CORS (decisión del 2026-11-14): el `CORSMiddleware` de FastAPI, en `fulvo/app.py`, deja que el navegador use la API solo desde los orígenes de `CORS_ORIGINS` (lista JSON en el `.env`, vacía por defecto: ningún origen ajeno). Hace falta para un front que corre en otra dirección; no afecta a Swagger, Postman, curl ni los tests. Protege al usuario en el navegador, no a la API: a la API la protege el JWT.
 
 ## 12. Entregables (checklist)
 
