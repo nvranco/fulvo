@@ -382,6 +382,14 @@ class Partido:
     toda acción sobre el partido o sus postulaciones pasa por un método de
     esta clase, que cambia el estado y avisa con un `EventoPartido` a sus
     observadores. No sabe quiénes son ni qué hacen con el aviso.
+
+    Desde el inicio el partido no cambia: nadie se postula, el organizador
+    no acepta, rechaza ni revoca, nadie se retira ni se baja y el partido no
+    se cancela. Cada uno de esos métodos recibe `ahora` y levanta "El
+    partido ya empezó" (decisión del equipo del 2026-11-14). Lo que pase en
+    la cancha se corrige cuando termina, con el no-show y los reclamos. Sin
+    esta regla, un aceptado que no fue se bajaba con el partido empezado y
+    así esquivaba el no-show.
     """
 
     __tablename__ = 'partidos'
@@ -498,12 +506,24 @@ class Partido:
         partido (`docs/requerimientos.md`). Solo cambian los abiertos y los
         completos: uno cancelado sigue cancelado aunque ya haya pasado su
         fecha. Recibe `ahora` en vez de leer el reloj para poder probarlo
-        con fechas fijas, como `Usuario.edad`. Si cambia, emite
-        `partido_jugado`.
+        con fechas fijas, como `Usuario.edad`.
+
+        Si tuvo aceptados, emite `partido_jugado`: los observadores suman
+        los partidos jugados, crean las votaciones y avisan. Si nadie se
+        sumó, no emite nada: el organizador no jugó con nadie de la app, así
+        que no hay a quién votar ni partido jugado que contar (decisión del
+        equipo del 2026-11-14). Si no, cada partido sin nadie le dejaba un
+        voto pendiente al complejo, y con cuatro quedaba bloqueado por
+        deuda.
         """
         if self.en_juego() and ahora >= self.fin():
             self.estado = EstadoPartido.jugado
-            self.avisar(TipoEvento.partido_jugado)
+            hubo_aceptados = any(
+                postulacion.estado == EstadoPostulacion.aceptada
+                for postulacion in self.postulaciones
+            )
+            if hubo_aceptados:
+                self.avisar(TipoEvento.partido_jugado)
             return True
         return False
 
@@ -542,11 +562,12 @@ class Partido:
         Si los cupos llegan a 0, el partido pasa a completo y las
         postulaciones que seguían en espera pasan a rechazadas. Por cada una
         se emite `partido_completo`, porque el aviso es para cada postulante
-        que quedó afuera (`clases.md`).
+        que quedó afuera (`clases.md`). Solo antes del inicio.
         """
         exigir(
             self.estado == EstadoPartido.abierto, 'El partido no está abierto'
         )
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         postulacion.aceptar(ahora)
         self.cupos_faltantes -= 1
         self.avisar(TipoEvento.postulacion_aceptada, postulacion)
@@ -558,27 +579,32 @@ class Partido:
                     self.avisar(TipoEvento.partido_completo, otra)
 
     def rechazar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
-        """Rechaza una postulación en espera (RQ6)."""
+        """Rechaza una postulación en espera (RQ6). Solo antes del inicio."""
         exigir(
             self.estado == EstadoPartido.abierto, 'El partido no está abierto'
         )
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         postulacion.rechazar(ahora)
         self.avisar(TipoEvento.postulacion_rechazada, postulacion)
 
     def revocar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
-        """Revoca a un aceptado: libera su cupo (RQ7)."""
+        """Revoca a un aceptado y libera su cupo, antes del inicio (RQ7)."""
         exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         postulacion.revocar(ahora)
         self.liberar_cupo()
         self.avisar(TipoEvento.revocacion, postulacion)
 
-    def retirar(self, postulacion: 'Postulacion') -> None:
+    def retirar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
         """El jugador retira su postulación o, si estaba aceptado, se baja.
 
         Si estaba aceptado, libera su cupo (RQ7). Las dos cosas son el mismo
-        evento, `postulacion_retirada` (`requerimientos.md`).
+        evento, `postulacion_retirada` (`requerimientos.md`). Solo antes del
+        inicio: con el partido empezado, un aceptado que no fue ya no se
+        baja, y el organizador le puede marcar el no-show cuando termina.
         """
         exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         estaba_aceptada = postulacion.estado == EstadoPostulacion.aceptada
         postulacion.retirar()
         if estaba_aceptada:
@@ -591,13 +617,14 @@ class Partido:
         if self.estado == EstadoPartido.completo:
             self.estado = EstadoPartido.abierto
 
-    def cancelar(self) -> None:
-        """Cancela el partido (RQ7).
+    def cancelar(self, ahora: datetime) -> None:
+        """Cancela el partido (RQ7). Solo antes del inicio.
 
         Las postulaciones no cambian de estado, pero el WhatsApp deja de
         verse (`Postulacion.whatsapp_visible`).
         """
         exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         self.estado = EstadoPartido.cancelado
         self.avisar(TipoEvento.partido_cancelado)
 

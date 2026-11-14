@@ -114,17 +114,22 @@ Métodos:
 |---|---|---|
 | `fin()` | Devuelve `inicio` + duración. | — |
 | `postular(jugador)` | Crea la postulación. Rechaza con excepción si el partido no está abierto o ya empezó, si el jugador es el organizador, si ya se postuló antes (aunque se haya retirado) o si tiene deuda mayor que X (RQ8). | `postulacion_recibida` |
-| `aceptar(postulacion)` | Resta 1 cupo. Si llega a 0, el partido pasa a completo y las postulaciones en espera pasan a rechazadas. | `postulacion_aceptada`, `partido_completo` |
-| `rechazar(postulacion)` | Marca la postulación rechazada. | `postulacion_rechazada` |
-| `revocar(postulacion)` | Suma 1 cupo y reabre el partido si estaba completo. | `revocacion` |
-| `retirar(postulacion)` | El jugador se baja. Si estaba aceptado, suma 1 cupo y reabre el partido. | `postulacion_retirada` |
+| `aceptar(postulacion)` | Resta 1 cupo. Si llega a 0, el partido pasa a completo y las postulaciones en espera pasan a rechazadas. Solo antes del inicio. | `postulacion_aceptada`, `partido_completo` |
+| `rechazar(postulacion)` | Marca la postulación rechazada. Solo antes del inicio. | `postulacion_rechazada` |
+| `revocar(postulacion)` | Suma 1 cupo y reabre el partido si estaba completo. Solo antes del inicio. | `revocacion` |
+| `retirar(postulacion)` | El jugador se baja. Si estaba aceptado, suma 1 cupo y reabre el partido. Solo antes del inicio. | `postulacion_retirada` |
 | `marcar_no_show(postulacion)` | Solo el organizador, sobre un aceptado y con el partido jugado. Llama a `postulacion.marcar_no_show()`. | `no_show_marcado` |
 | `quitar_no_show(postulacion)` | Lo usa el reclamo resuelto (RQ11). Llama a `postulacion.quitar_no_show()`. | `no_show_anulado` |
-| `cancelar()` | Pasa a cancelado. | `partido_cancelado` |
-| `actualizar_estado(ahora)` | Si ya pasó `fin()`, pasa a jugado. Se llama al consultar el partido. | `partido_jugado` |
+| `cancelar()` | Pasa a cancelado. Solo antes del inicio. | `partido_cancelado` |
+| `actualizar_estado(ahora)` | Si ya pasó `fin()`, pasa a jugado. Se llama al consultar el partido. Si no tuvo aceptados, no emite nada. | `partido_jugado` (si tuvo aceptados) |
 | `participantes()` | Devuelve el organizador y los jugadores aceptados. Lo usan los dos observadores al pasar a jugado. | — |
 | `presentes()` | Los participantes sin un no-show marcado (RQ11). Lo usan los dos observadores al anularse un no-show. | — |
 | `agregar_observador(o)`, `quitar_observador(o)`, `notificar(evento)` | Mecánica del Observer. | — |
+
+Decisiones (2026-11-14):
+
+- **Desde el inicio el partido no cambia.** `postular`, `aceptar`, `rechazar`, `revocar`, `retirar` y `cancelar` levantan una excepción si el partido ya empezó ("El partido ya empezó", 409). Lo que pase en la cancha se corrige cuando termina, con el no-show y los reclamos. Sin esta regla, un aceptado que no fue se bajaba con el partido empezado y esquivaba el no-show. La regla es una línea en cada método (`exigir(ahora < self.inicio, ...)`), como las demás, y el porqué está en el docstring de la clase.
+- **Un partido sin aceptados no deja nada.** `actualizar_estado` lo pasa a jugado igual, pero no emite `partido_jugado`: no hay partidos jugados, votaciones ni avisos que crear. Si no, cada partido que nadie completó le dejaba al organizador un voto pendiente al complejo, y con cuatro quedaba bloqueado por deuda: ya no podía publicar, que es justo lo que el MVP quiere medir.
 
 **Postulacion**
 
@@ -263,14 +268,14 @@ Decisiones sobre el Observer:
 - **Dos observadores**, que implementan la interfaz `ObservadorPartido` (método `actualizar(evento)`):
   - `NotificadorPartido`: crea la notificación de cada evento usando la Factory. Con `partido_jugado` crea el aviso de votaciones pendientes, y con `no_show_anulado`, el de votaciones repuestas.
   - `ProcesadorPostPartido`: reacciona a tres eventos.
-    - `partido_jugado`: suma 1 partido jugado a cada participante y crea las votaciones pendientes.
+    - `partido_jugado`: suma 1 partido jugado a cada participante y crea las votaciones pendientes. Un partido que termina sin aceptados no emite este evento, así que no hay nada que procesar (decisión del 2026-11-14).
     - `no_show_marcado`: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes y las que los demás tenían hacia él (decisión del 2026-11-11). Las ya emitidas quedan.
     - `no_show_anulado` (RQ11): vuelve todo atrás. Le devuelve el partido jugado, le quita el voto de 0 y repone las votaciones borradas, solo entre presentes y sin repetir las que existen (decisión del 2026-11-12).
 - Motivo de usar un segundo observador: los efectos de pasar a jugado y de marcar un no-show no viven dentro de `Partido`. `Partido` solo avisa y no sabe quién reacciona. Agregar otra reacción no lo modifica.
 - **`EventoPartido`:** lo que recibe `actualizar(evento)`. Lleva `tipo` (uno de los 10 eventos), `partido` y `postulacion` (opcional, solo en los eventos que nacen de una postulación). `Partido` lo crea al emitir. Así cada observador sabe qué partido y qué postulación originaron el aviso, sin buscarlos.
 - **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`. Los observadores concretos y la fábrica están en `fulvo/observadores.py`: necesitan los modelos, y `models.py` ya importa `eventos.py`, así que juntos se importarían mutuamente. `Partido`, `Postulacion` y `Notificacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, y cada pedido suma los dos observadores en `preparar_partido`, que antes bloquea la fila del partido hasta el commit (`SELECT ... FOR UPDATE`): dos pedidos a la vez no lo pasan a jugado dos veces (decisión del 2026-11-13). Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron, porque las votaciones se crean recién cuando alguien consulta el partido.
 - **Las relaciones de un objeto sin guardar.** SQLAlchemy no carga las relaciones de un objeto que todavía no se mandó a la base (por ejemplo, el jugador de una postulación recién aceptada). Por eso los dos observadores hacen `flush` antes de leerlas: manda los cambios pendientes sin confirmarlos.
-- **Fechas.** Los métodos que guardan o comparan una fecha (`postular`, `aceptar`, `rechazar`, `revocar` y `actualizar_estado`) reciben `ahora`, para poder probarlos con fechas fijas, como `edad(hoy)`. El diagrama no lo muestra.
+- **Fechas.** Los métodos que guardan o comparan una fecha (`postular`, `aceptar`, `rechazar`, `revocar`, `retirar`, `cancelar` y `actualizar_estado`) reciben `ahora`, para poder probarlos con fechas fijas, como `edad(hoy)`. `retirar` y `cancelar` lo reciben desde el 2026-11-14, para revisar que el partido no haya empezado. El diagrama no lo muestra.
 - **Errores.** Una transición inválida levanta `ReglaDeNegocioError` (`fulvo/errores.py`), que la API responde como 409.
 
 Decisiones sobre la Factory:
@@ -297,7 +302,8 @@ Decisiones sobre la Factory:
 
 ## 4. Decisiones ya tomadas que afectan a las clases
 
-- El pase a `jugado` se revisa cada vez que se consulta el partido, no con una tarea periódica. Ahí se dispara el aviso del Observer.
+- El pase a `jugado` se revisa cada vez que se consulta el partido, no con una tarea periódica. Ahí se dispara el aviso del Observer, si el partido tuvo aceptados.
+- Desde el inicio, el partido y sus postulaciones no cambian hasta que termina.
 - El orden de la lista de espera (puntuación descendente, sin puntuación al final, desempate por llegada) se calcula al consultar. No se guarda.
 - La deuda del usuario se calcula por partido con votaciones pendientes. Si supera X (3, `LIMITE_DEUDA` en `settings.py`), no puede publicar ni postularse.
 - El WhatsApp solo se expone mientras la postulación está aceptada.

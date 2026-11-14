@@ -15,6 +15,7 @@ sequenceDiagram
     S-->>A: Lista ordenada por puntuación (sin puntuación al final, desempate por llegada)
     A-->>O: Mostrar lista de espera
 
+    Note over O,J: Aceptar y rechazar, solo antes del inicio del partido. Si ya empezó, responde "El partido ya empezó" (409)
     O->>A: Aceptar jugador
     A->>S: Registrar aceptación
     S->>BD: Marcar postulación aceptada y restar un cupo

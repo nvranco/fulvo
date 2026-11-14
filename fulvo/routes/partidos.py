@@ -226,10 +226,16 @@ def sacar_de_partidos_por_jugar(session: Session, usuario: Usuario) -> None:
     avisos de siempre (partido cancelado, postulación retirada) y el patrón
     Observer no cambia. Desbloquear no deshace nada de esto. Los partidos
     van en orden de id, como en `poner_al_dia_partidos_de`.
+
+    Usa el mismo `ahora` para elegir los partidos y para cambiarlos: esos
+    métodos solo dejan cambiar un partido que no empezó, y con un reloj
+    leído después, uno que empieza justo en el medio cortaría el bloqueo
+    con un 409.
     """
+    ahora = ahora_argentina()
     por_jugar = (
         Partido.estado.in_([EstadoPartido.abierto, EstadoPartido.completo]),
-        Partido.inicio > ahora_argentina(),
+        Partido.inicio > ahora,
     )
     organizados = session.scalars(
         select(Partido)
@@ -238,7 +244,7 @@ def sacar_de_partidos_por_jugar(session: Session, usuario: Usuario) -> None:
     ).all()
     for partido in organizados:
         preparar_partido(session, partido)
-        partido.cancelar()
+        partido.cancelar(ahora)
 
     postulaciones = session.scalars(
         select(Postulacion)
@@ -255,7 +261,7 @@ def sacar_de_partidos_por_jugar(session: Session, usuario: Usuario) -> None:
     ).all()
     for postulacion in postulaciones:
         preparar_partido(session, postulacion.partido)
-        postulacion.partido.retirar(postulacion)
+        postulacion.partido.retirar(postulacion, ahora)
 
 
 def buscar_partido(session: Session, partido_id: int) -> Partido:
@@ -365,11 +371,12 @@ def cancelar_partido(
 
     Es PATCH sobre el estado porque el partido no se borra: queda
     cancelado. `datos` solo valida que se pida "cancelado". 403 si no es el
-    organizador y 409 si el partido ya se jugó o ya estaba cancelado.
+    organizador y 409 si el partido ya empezó, ya se jugó o ya estaba
+    cancelado.
     """
     partido = buscar_partido(session, partido_id)
     exigir_organizador(partido, organizador)
-    partido.cancelar()
+    partido.cancelar(ahora_argentina())
     session.commit()
     return partido_publico(partido)
 
@@ -434,11 +441,12 @@ def responder_postulacion(
 ):
     """El organizador responde una postulación (RQ6 a RQ8).
 
-    Acepta, rechaza o revoca (`{"estado": ...}`), o marca que el jugador
-    aceptado no vino (`{"no_show": true}`), que solo se puede con el partido
-    jugado. 403 si no es el organizador, 404 si la postulación no es de este
-    partido y 409 si el cambio no se puede hacer desde el estado actual. Al
-    aceptar, la respuesta ya trae el WhatsApp del jugador.
+    Acepta, rechaza o revoca (`{"estado": ...}`), solo antes del inicio, o
+    marca que el jugador aceptado no vino (`{"no_show": true}`), que solo
+    se puede con el partido jugado. 403 si no es el organizador, 404 si la
+    postulación no es de este partido y 409 si el partido ya empezó o el
+    cambio no se puede hacer desde el estado actual. Al aceptar, la
+    respuesta ya trae el WhatsApp del jugador.
     """
     partido = buscar_partido(session, partido_id)
     exigir_organizador(partido, organizador)

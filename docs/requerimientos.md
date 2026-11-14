@@ -66,7 +66,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 - El pase a jugado se revisa cada vez que se consulta el partido. No hay tarea periódica. También se revisan los partidos de un usuario que ya terminaron antes de listar sus votaciones o de calcular su deuda: si nadie los consultó, todavía no tienen votaciones.
 - Si dos pedidos tocan el mismo partido a la vez, el segundo espera a que termine el primero (la fila del partido queda bloqueada hasta el commit). Así el pase a jugado y sus votaciones se hacen una sola vez, y dos aceptaciones simultáneas no superan los cupos (decisión del 2026-11-13).
 - Se permite postularse a partidos que se solapan en horario.
-- No se puede postular a un partido que ya empezó.
+- Desde que empieza, el partido no cambia: nadie se postula, el organizador no acepta, rechaza ni revoca, nadie se retira ni se baja y el partido no se cancela. La API responde 409 "El partido ya empezó". Lo que pase en la cancha se corrige cuando termina, con el no-show y los reclamos (decisión del 2026-11-14). Así un aceptado que no va a ir no se puede bajar con el partido empezado para esquivar el no-show.
 - Organizador no puede postularse a su propio partido.
 - Usuario no puede postularse dos veces al mismo partido, aunque se haya retirado, lo hayan rechazado o revocado, o el partido se reabra.
 - Estados:
@@ -75,8 +75,8 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 |---|---|
 | abierto | Al publicar, o al liberarse un cupo. |
 | completo | Cupos faltantes llega a 0. Postulaciones en espera pasan a rechazadas y se notifica. |
-| jugado | Termina el partido: pasan su fecha y hora de inicio más su duración (automático). |
-| cancelado | Organizador cancela. |
+| jugado | Termina el partido: pasan su fecha y hora de inicio más su duración (automático). Si nadie se sumó (ningún aceptado), pasa igual, pero sin partidos jugados, votaciones ni avisos (decisión del 2026-11-14). |
+| cancelado | Organizador cancela, antes del inicio. |
 
 **Postulación**
 
@@ -94,10 +94,11 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 
 - Participantes del partido: organizador y aceptados.
 - Cada participante vota a los demás participantes y al complejo, de 0 a 5 estrellas. Las votaciones se crean pendientes al pasar el partido a jugado.
+- Un partido que termina sin aceptados no tiene votaciones: el organizador no jugó con nadie de la app, así que no hay a quién votar (decisión del 2026-11-14). Tampoco vota al complejo.
 - Un voto emitido no se cambia.
 - Solo el organizador puede marcar no-show a un aceptado, y solo con el partido ya jugado: antes no hay votaciones ni partido jugado que deshacer (decisión del 2026-11-11). El no-show cuenta como un voto de 0 estrellas en la puntuación del ausente y no suma partido jugado. El organizador no lo puede desmarcar: eso se pide con un reclamo (RQ11).
 - Sin ventana de votación: se puede votar en cualquier momento. El no-show tampoco tiene límite de tiempo.
-- Partidos jugados: al pasar el partido a jugado se suma 1 a cada participante. Si el organizador marca no-show, se resta 1 al ausente y se eliminan sus votaciones pendientes y también las que los demás tenían hacia él: no jugó, y el no-show ya cuenta como su voto (decisión del 2026-11-11). Las votaciones ya emitidas quedan.
+- Partidos jugados: al pasar el partido a jugado se suma 1 a cada participante, si tuvo aceptados (uno sin aceptados no le suma nada al organizador). Si el organizador marca no-show, se resta 1 al ausente y se eliminan sus votaciones pendientes y también las que los demás tenían hacia él: no jugó, y el no-show ya cuenta como su voto (decisión del 2026-11-11). Las votaciones ya emitidas quedan.
 - Puntuación promedio se recalcula con cada voto, tanto la del usuario como la del complejo.
 - Cada votación guarda cuándo se emitió.
 - Cada usuario ve los votos que recibió (emitidos o anulados), con las estrellas y el partido, pero sin saber quién votó (decisión del 2026-11-12). Los necesita para reclamar uno (RQ11).
@@ -106,6 +107,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
 **Bloqueo por deuda**
 
 - Deuda = cantidad de partidos jugados con votaciones sin completar. Cuenta por partido: un partido con varios votos pendientes suma 1.
+- Un partido que termina sin aceptados no suma deuda, porque no tiene votaciones: publicar partidos que nadie completa no bloquea al organizador (decisión del 2026-11-14).
 - Si deuda es mayor que X, el usuario no puede publicar partidos ni postularse. La API responde 409, como las demás reglas del dominio, con un mensaje que dice en cuántos partidos debe votos, en cuántos tiene que completarlos para volver a estar habilitado y cuántas votaciones le faltan en total (decisión del 2026-11-11). Por ejemplo: "Tenés votaciones pendientes en 4 partidos y el máximo es 3: completá las de al menos 1 partido para publicar o postularte (te faltan 9 votaciones)."
 - El perfil propio muestra la deuda y si el usuario está habilitado para publicar y postularse.
 - X = 3. Valor fijo en configuración (`LIMITE_DEUDA`, en `fulvo/settings.py`), no editable desde admin en el MVP.
@@ -125,7 +127,7 @@ Roles se guardan en una tabla `roles` referenciada por el usuario, no como boole
   - Reclamo resuelto (al autor).
 - Cada usuario ve solo sus notificaciones, de la más nueva a la más vieja, y las marca como leídas de a una.
 - El texto nunca incluye el WhatsApp: si después se revoca al jugador o se cancela el partido, el número no queda guardado en la notificación (decisión del 2026-11-11). El aviso de aceptación dice dónde verlo.
-- "Votaciones pendientes" se crea al pasar el partido a jugado, para cada participante (RQ8).
+- "Votaciones pendientes" se crea al pasar el partido a jugado, para cada participante (RQ8). Si el partido terminó sin aceptados, no se crea.
 - "Votaciones repuestas" se crea cuando un reclamo anula un no-show, para los participantes que vinieron, incluido el que había quedado como ausente: vuelven a deber votos de ese partido (decisión del 2026-11-12). No dice quién era el ausente.
 - "Reclamo resuelto" le avisa al autor que el admin respondió, tanto si lo resolvió como si lo rechazó (como en el diagrama 06): dice cómo terminó y la respuesta del admin.
 

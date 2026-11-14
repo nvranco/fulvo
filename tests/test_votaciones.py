@@ -1,15 +1,22 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from http import HTTPStatus
 
 import pytest
+from freezegun import freeze_time
 
-from fulvo.models import Complejo, EstadoPostulacion, ahora_argentina
+from fulvo.models import (
+    HORA_ARGENTINA,
+    Complejo,
+    EstadoPostulacion,
+    ahora_argentina,
+)
 from fulvo.settings import LIMITE_DEUDA
 from tests.datos import con_token
 from tests.factories import (
     guardar_aceptado,
     guardar_partido,
     guardar_partido_jugado,
+    guardar_postulacion,
     guardar_usuario_comun,
 )
 
@@ -18,9 +25,11 @@ MI_PERFIL = '/usuarios/yo'
 NO_JUGADO = 'Solo se puede marcar un no-show en un partido jugado'
 BLOQUEO_CON_CUATRO = (
     'Tenés votaciones pendientes en 4 partidos y el máximo es 3: completá '
-    'las de al menos 1 partido para publicar o postularte (te faltan 4 '
+    'las de al menos 1 partido para publicar o postularte (te faltan 8 '
     'votaciones).'
 )
+# Inicio fijo, en hora de Argentina, para los tests que mueven el reloj.
+INICIO = datetime(2026, 11, 20, 20, 0)
 
 
 def terminado_sin_consultar(session, organizador, aceptados=()):
@@ -40,10 +49,21 @@ def terminado_sin_consultar(session, organizador, aceptados=()):
 def deber_partidos(session, usuario, cantidad: int) -> None:
     """Deja al usuario con votaciones pendientes en `cantidad` partidos.
 
-    En cada uno es el único participante: le queda un voto, al complejo.
+    En cada uno juega con un aceptado: le quedan dos votos, al aceptado y
+    al complejo. Sin aceptados no le quedaría ninguno.
     """
+    aceptado = guardar_usuario_comun(session, usuario.rol_id)
     for _ in range(cantidad):
-        guardar_partido_jugado(session, usuario)
+        guardar_partido_jugado(session, usuario, [aceptado])
+
+
+def en_hora_argentina(momento: datetime):
+    """Congela el reloj en `momento`, una hora de Argentina sin zona.
+
+    freezegun toma una fecha sin zona como UTC: con la zona de Argentina,
+    `ahora_argentina()` devuelve justo `momento`.
+    """
+    return freeze_time(momento.replace(tzinfo=HORA_ARGENTINA))
 
 
 def mis_votaciones(client, usuario, **params) -> list[dict]:
@@ -65,6 +85,11 @@ def votacion_a(votaciones: list[dict], usuario) -> dict:
     """La votación de la lista que va hacia `usuario`."""
     buscado = ('usuario', usuario.id)
     return next(v for v in votaciones if receptor(v) == buscado)
+
+
+def votacion_al_complejo(votaciones: list[dict]) -> dict:
+    """La votación de la lista que va hacia el complejo."""
+    return next(v for v in votaciones if v['receptor_complejo'])
 
 
 def votar(client, votacion_id, usuario, estrellas):
@@ -142,10 +167,12 @@ def test_cada_votacion_muestra_solo_el_perfil_publico_del_jugador(
     assert al_jugador['receptor_complejo'] is None
 
 
-def test_la_votacion_al_complejo_trae_el_complejo(client, session, usuario):
-    terminado_sin_consultar(session, usuario)
+def test_la_votacion_al_complejo_trae_el_complejo(
+    client, session, usuario, otro_usuario
+):
+    terminado_sin_consultar(session, usuario, [otro_usuario])
 
-    (al_complejo,) = mis_votaciones(client, usuario)
+    al_complejo = votacion_al_complejo(mis_votaciones(client, usuario))
 
     assert al_complejo['receptor_usuario'] is None
     assert al_complejo['receptor_complejo']['id'] == 1
@@ -178,6 +205,25 @@ def test_un_partido_que_no_termino_todavia_no_tiene_votaciones(
 
     assert votaciones == []
     assert en_juego.estado == 'abierto'
+
+
+def test_un_partido_que_termina_sin_aceptados_no_deja_votaciones_ni_deuda(
+    client, session, usuario, otro_usuario
+):
+    # Alguien se postuló, pero el organizador nunca lo aceptó.
+    partido = terminado_sin_consultar(session, usuario)
+    guardar_postulacion(session, partido, otro_usuario)
+
+    leido = client.get(f'/partidos/{partido.id}', headers=con_token(usuario))
+
+    assert leido.json()['estado'] == 'jugado'
+    assert mis_votaciones(client, usuario) == []
+    assert mis_votaciones(client, otro_usuario) == []
+    perfil = client.get(MI_PERFIL, headers=con_token(usuario)).json()
+    assert perfil['partidos_jugados'] == 0
+    assert perfil['deuda'] == 0
+    avisos = client.get('/notificaciones', headers=con_token(usuario))
+    assert avisos.json()['notificaciones'] == []
 
 
 def test_mis_votaciones_filtran_por_estado(
@@ -277,9 +323,11 @@ def test_el_promedio_del_jugador_junta_los_votos_de_varios(
     assert perfil['puntuacion_promedio'] == pytest.approx(3.5)
 
 
-def test_votar_al_complejo_actualiza_su_puntuacion(client, session, usuario):
-    terminado_sin_consultar(session, usuario)
-    (al_complejo,) = mis_votaciones(client, usuario)
+def test_votar_al_complejo_actualiza_su_puntuacion(
+    client, session, usuario, otro_usuario
+):
+    terminado_sin_consultar(session, usuario, [otro_usuario])
+    al_complejo = votacion_al_complejo(mis_votaciones(client, usuario))
 
     estrellas = 5
 
@@ -311,9 +359,11 @@ def test_emitir_una_votacion_inexistente_es_no_encontrado(client, usuario):
     assert respuesta.json()['detail'] == 'Votación no encontrada'
 
 
-def test_emitir_dos_veces_devuelve_conflicto(client, session, usuario):
-    terminado_sin_consultar(session, usuario)
-    (votacion,) = mis_votaciones(client, usuario)
+def test_emitir_dos_veces_devuelve_conflicto(
+    client, session, usuario, otro_usuario
+):
+    terminado_sin_consultar(session, usuario, [otro_usuario])
+    votacion = votacion_al_complejo(mis_votaciones(client, usuario))
     primera = 4
     votar(client, votacion['id'], usuario, primera)
 
@@ -327,10 +377,10 @@ def test_emitir_dos_veces_devuelve_conflicto(client, session, usuario):
 
 @pytest.mark.parametrize('estrellas', [-1, 6, 4.5, 'muchas', None])
 def test_las_estrellas_van_de_0_a_5_enteras(
-    client, session, usuario, estrellas
+    client, session, usuario, otro_usuario, estrellas
 ):
-    terminado_sin_consultar(session, usuario)
-    (votacion,) = mis_votaciones(client, usuario)
+    terminado_sin_consultar(session, usuario, [otro_usuario])
+    votacion = mis_votaciones(client, usuario)[0]
 
     respuesta = votar(client, votacion['id'], usuario, estrellas)
 
@@ -397,6 +447,29 @@ def test_no_show_en_un_partido_que_no_se_jugo_devuelve_conflicto(
     assert respuesta.json()['detail'] == NO_JUGADO
 
 
+def test_el_aceptado_que_no_fue_no_se_puede_bajar_y_recibe_el_no_show(
+    client, session, usuario, otro_usuario
+):
+    partido = guardar_partido(session, usuario, inicio=INICIO)
+    postulacion = guardar_aceptado(session, partido, otro_usuario)
+
+    with en_hora_argentina(INICIO + timedelta(minutes=30)):
+        baja = client.patch(
+            f'/postulaciones/{postulacion.id}',
+            json={'estado': 'retirada'},
+            headers=con_token(otro_usuario),
+        )
+
+    assert baja.status_code == HTTPStatus.CONFLICT
+    assert baja.json()['detail'] == 'El partido ya empezó'
+    # Sigue aceptado: cuando el partido termina, el organizador le marca
+    # el no-show.
+    with en_hora_argentina(partido.fin() + timedelta(minutes=1)):
+        no_show = marcar_no_show(client, postulacion, usuario)
+    assert no_show.status_code == HTTPStatus.OK
+    assert no_show.json()['no_show'] is True
+
+
 def test_no_show_a_un_jugador_no_aceptado_devuelve_conflicto(
     client, session, usuario, otro_usuario
 ):
@@ -461,6 +534,17 @@ def test_con_deuda_de_mas_no_se_puede_publicar(client, session, usuario):
     assert respuesta.json()['detail'] == BLOQUEO_CON_CUATRO
 
 
+def test_partidos_que_terminan_sin_aceptados_no_bloquean_al_organizador(
+    client, session, usuario
+):
+    for _ in range(LIMITE_DEUDA + 1):
+        terminado_sin_consultar(session, usuario)
+
+    respuesta = publicar(client, usuario)
+
+    assert respuesta.status_code == HTTPStatus.CREATED
+
+
 def test_con_la_deuda_en_el_limite_todavia_se_puede_publicar(
     client, session, usuario
 ):
@@ -487,10 +571,10 @@ def test_con_deuda_de_mas_no_se_puede_postular(
 
 
 def test_la_deuda_incluye_partidos_terminados_que_nadie_consulto(
-    client, session, usuario
+    client, session, usuario, otro_usuario
 ):
     for _ in range(LIMITE_DEUDA + 1):
-        terminado_sin_consultar(session, usuario)
+        terminado_sin_consultar(session, usuario, [otro_usuario])
 
     respuesta = publicar(client, usuario)
 
@@ -501,8 +585,9 @@ def test_la_deuda_incluye_partidos_terminados_que_nadie_consulto(
 def test_al_postularse_la_deuda_incluye_partidos_que_nadie_consulto(
     client, session, usuario, otro_usuario
 ):
+    aceptado = guardar_usuario_comun(session, usuario.rol_id)
     for _ in range(LIMITE_DEUDA + 1):
-        terminado_sin_consultar(session, otro_usuario)
+        terminado_sin_consultar(session, otro_usuario, [aceptado])
     partido = guardar_partido(session, usuario)
 
     respuesta = client.post(
@@ -516,8 +601,12 @@ def test_al_postularse_la_deuda_incluye_partidos_que_nadie_consulto(
 
 def test_votar_lo_que_falta_vuelve_a_habilitar(client, session, usuario):
     deber_partidos(session, usuario, LIMITE_DEUDA + 1)
-    votacion = mis_votaciones(client, usuario)[0]
-    votar(client, votacion['id'], usuario, 3)
+    # Las dos votaciones de un mismo partido: completas, deja de deberlo.
+    votaciones = mis_votaciones(client, usuario)
+    partido_id = votaciones[0]['partido']['id']
+    del_partido = [v for v in votaciones if v['partido']['id'] == partido_id]
+    for votacion in del_partido:
+        votar(client, votacion['id'], usuario, 3)
 
     respuesta = publicar(client, usuario)
 

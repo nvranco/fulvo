@@ -35,7 +35,7 @@ sequenceDiagram
     alt Deuda mayor que X
         S-->>A: Bloqueado por votaciones pendientes
         A-->>J: Mostrar cuántas votaciones completar
-    else Es el organizador, ya está postulado o el partido no está abierto
+    else Es el organizador, ya está postulado, o el partido no está abierto o ya empezó
         S-->>A: Rechazar postulación
         A-->>J: Mostrar motivo
     else Habilitado

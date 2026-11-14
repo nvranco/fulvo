@@ -5,7 +5,11 @@ import pytest
 
 from fulvo.models import ahora_argentina
 from tests.datos import con_token
-from tests.factories import guardar_partido, guardar_usuario_comun
+from tests.factories import (
+    guardar_aceptado,
+    guardar_partido,
+    guardar_usuario_comun,
+)
 
 NOTIFICACIONES = '/notificaciones'
 
@@ -207,11 +211,12 @@ def test_sin_token_devuelve_no_autenticado(client, metodo, ruta, cuerpo):
 
 
 def test_consultar_un_partido_terminado_avisa_las_votaciones_pendientes(
-    client, session, usuario
+    client, session, usuario, otro_usuario
 ):
     terminado = guardar_partido(
         session, usuario, inicio=ahora_argentina() - timedelta(hours=3)
     )
+    guardar_aceptado(session, terminado, otro_usuario)
 
     client.get(f'/partidos/{terminado.id}', headers=con_token(usuario))
 
