@@ -283,6 +283,7 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 ### Deploy
 
 - Fly.io con `fly.toml`, siguiendo la lección de la cátedra. `entrypoint.sh` corre las migraciones y la carga inicial antes de iniciar la API.
+- **Va después del front** (decisión del 2026-11-14): primero se termina el front, con los ajustes que necesite de la API, y recién después se arma el `fly.toml` y se publica.
 
 ## 11. Seguridad y configuración
 
