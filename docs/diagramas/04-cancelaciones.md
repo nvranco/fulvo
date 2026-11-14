@@ -8,6 +8,7 @@ sequenceDiagram
     participant BD as Base de datos
     actor J as Jugador
 
+    Note over O,J: Todo esto, solo antes del inicio del partido. Desde que empieza, cualquier cambio responde "El partido ya empezó" (409)
     alt Postulante retira su postulación (en espera)
         J->>A: Retirar postulación
         A->>S: Registrar retiro

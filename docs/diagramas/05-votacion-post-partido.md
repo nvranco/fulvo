@@ -9,9 +9,13 @@ sequenceDiagram
     actor O as Organizador
 
     Note over S: Al consultar el partido, ya pasó su inicio más su duración
-    S->>BD: Marcar partido jugado y sumar un partido jugado a cada participante
-    S->>BD: Crear votaciones pendientes (cada participante a los demás participantes y al complejo)
-    S->>BD: Crear notificación de votaciones pendientes
+    alt Hubo jugadores aceptados
+        S->>BD: Marcar partido jugado y sumar un partido jugado a cada participante
+        S->>BD: Crear votaciones pendientes (cada participante a los demás participantes y al complejo)
+        S->>BD: Crear notificación de votaciones pendientes
+    else Nadie se sumó
+        S->>BD: Marcar partido jugado, sin partidos jugados, votaciones ni avisos
+    end
 
     P->>A: Ver votaciones pendientes
     A->>S: Obtener votaciones pendientes
