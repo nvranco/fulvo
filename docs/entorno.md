@@ -118,7 +118,7 @@ poetry run alembic upgrade head
 poetry run python -m fulvo.carga_inicial
 ```
 
-Alembic crea las tablas, o agrega las que faltan si la base ya existía. La carga inicial crea los roles `usuario` y `admin`, las zonas y complejos del CSV y el admin del `.env`. Es idempotente: la segunda vez no duplica nada. En una base nueva muestra:
+Alembic crea las tablas, o agrega las que faltan si la base ya existía. La carga inicial crea los roles `usuario` y `admin`, las zonas y complejos del CSV y el admin del `.env`. Es idempotente: la segunda vez no duplica nada. Las zonas y los complejos los carga solo en una base sin zonas: después los maneja el admin con la API, y volver a correr la carga no deshace sus cambios. En una base nueva muestra:
 
 ```
 Roles creados: 2.

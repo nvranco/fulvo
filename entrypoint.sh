@@ -8,8 +8,9 @@ set -e
 # 1. Crea o actualiza las tablas hasta la última migración.
 alembic upgrade head
 
-# 2. Carga roles, zonas, complejos y el primer admin. Es idempotente:
-# en cada reinicio no duplica nada, solo agrega lo que falte.
+# 2. Carga los roles y el primer admin si faltan, y las zonas y complejos
+# del CSV solo la primera vez (en una base sin zonas). En un reinicio no
+# duplica nada ni vuelve a crear lo que el admin borró o renombró.
 python -m fulvo.carga_inicial
 
 # 3. Levanta la API. `exec` reemplaza este script por uvicorn, así las

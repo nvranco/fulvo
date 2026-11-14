@@ -153,7 +153,16 @@ def listar_partidos_abiertos(
 
 
 def preparar_partido(session: Session, partido: Partido) -> None:
-    """Le suma al partido sus observadores y lo pone al día.
+    """Bloquea el partido, le suma sus observadores y lo pone al día.
+
+    Primero lo vuelve a leer con `SELECT ... FOR UPDATE`: su fila queda
+    bloqueada hasta el commit del pedido. Si otro pedido lo está cambiando
+    en ese momento, este espera y lo lee ya cambiado. Sin el bloqueo, dos
+    pedidos a la vez sobre un partido recién terminado lo pasaban dos veces
+    a jugado, y el segundo chocaba con las votaciones del primero (un 500);
+    también dos aceptaciones a la vez se pisaban los cupos. SQLite ignora el
+    bloqueo, y ahí solo se desarrolla. Se llama antes de cambiar el partido,
+    porque `refresh` descarta los cambios que todavía no se mandaron.
 
     Los observadores no se guardan en la base: cada pedido los suma, antes
     de que pase cualquier cosa. Si el partido ya los tiene (porque ya está
@@ -164,6 +173,7 @@ def preparar_partido(session: Session, partido: Partido) -> None:
     Después revisa si ya terminó: es el pase a jugado al consultar que pide
     `docs/requerimientos.md`. El commit de cada ruta guarda el cambio.
     """
+    session.refresh(partido, with_for_update=True)
     if not partido.observadores:
         partido.agregar_observador(NotificadorPartido(session))
         partido.agregar_observador(ProcesadorPostPartido(session))
@@ -179,6 +189,10 @@ def poner_al_dia_partidos_de(session: Session, usuario: Usuario) -> None:
     de listar sus votaciones o de calcular su deuda, se preparan los
     partidos en los que juega (como organizador o aceptado) que siguen en
     juego y ya empezaron. Cuáles terminaron lo decide `actualizar_estado`.
+
+    Van en orden de id: preparar uno lo bloquea hasta el commit, y bloquear
+    siempre en el mismo orden evita que dos pedidos se queden esperando uno
+    al otro.
     """
     en_juego = [EstadoPartido.abierto, EstadoPartido.completo]
     aceptado = select(Postulacion.partido_id).where(
@@ -186,7 +200,8 @@ def poner_al_dia_partidos_de(session: Session, usuario: Usuario) -> None:
         Postulacion.estado == EstadoPostulacion.aceptada,
     )
     partidos = session.scalars(
-        select(Partido).where(
+        select(Partido)
+        .where(
             Partido.estado.in_(en_juego),
             Partido.inicio <= ahora_argentina(),
             or_(
@@ -194,6 +209,7 @@ def poner_al_dia_partidos_de(session: Session, usuario: Usuario) -> None:
                 Partido.id.in_(aceptado),
             ),
         )
+        .order_by(Partido.id)
     ).all()
     for partido in partidos:
         preparar_partido(session, partido)
@@ -208,14 +224,17 @@ def sacar_de_partidos_por_jugar(session: Session, usuario: Usuario) -> None:
     empezaron o se jugaron quedan como están, con sus votaciones. Cada
     cambio pasa por los métodos de `Partido`, así los afectados reciben los
     avisos de siempre (partido cancelado, postulación retirada) y el patrón
-    Observer no cambia. Desbloquear no deshace nada de esto.
+    Observer no cambia. Desbloquear no deshace nada de esto. Los partidos
+    van en orden de id, como en `poner_al_dia_partidos_de`.
     """
     por_jugar = (
         Partido.estado.in_([EstadoPartido.abierto, EstadoPartido.completo]),
         Partido.inicio > ahora_argentina(),
     )
     organizados = session.scalars(
-        select(Partido).where(Partido.organizador_id == usuario.id, *por_jugar)
+        select(Partido)
+        .where(Partido.organizador_id == usuario.id, *por_jugar)
+        .order_by(Partido.id)
     ).all()
     for partido in organizados:
         preparar_partido(session, partido)
@@ -232,6 +251,7 @@ def sacar_de_partidos_por_jugar(session: Session, usuario: Usuario) -> None:
             ]),
             *por_jugar,
         )
+        .order_by(Postulacion.partido_id)
     ).all()
     for postulacion in postulaciones:
         preparar_partido(session, postulacion.partido)
@@ -242,7 +262,8 @@ def buscar_partido(session: Session, partido_id: int) -> Partido:
     """Devuelve el partido con ese id, preparado, o levanta 404.
 
     Lo usan todas las rutas que reciben un partido, así ninguna trabaja con
-    un estado viejo ni sin sus observadores.
+    un estado viejo ni sin sus observadores, y cada una lo tiene bloqueado
+    hasta su commit (`preparar_partido`).
     """
     partido = session.get(Partido, partido_id)
     if partido is None:

@@ -156,7 +156,7 @@ fulvo/
 │   ├── eventos.py             # patrón Observer: evento e interfaz (ver sección 8)
 │   ├── observadores.py        # observadores concretos y fábrica de notificaciones (Factory)
 │   ├── errores.py             # errores del dominio, que la API responde como 409
-│   ├── carga_inicial.py       # carga fulvo/datos/complejos.csv en la base (idempotente)
+│   ├── carga_inicial.py       # roles, admin y complejos.csv (el CSV, solo en una base sin zonas)
 │   ├── datos/                 # complejos.csv: carga inicial, viaja con el código
 │   └── routes/                # un archivo por recurso (como la cátedra, aula 12)
 └── tests/
@@ -242,7 +242,7 @@ Dónde viven (decisiones del 2026-11-11):
 
 Van separados porque `models.py` importa `eventos.py` (para emitir eventos) y los observadores necesitan los modelos (por ejemplo, la fábrica crea `Notificacion`). En un solo archivo, `models.py` y `eventos.py` se importarían mutuamente y Python no podría cargarlos. Así las dependencias van en un solo sentido: `observadores.py` → `models.py` → `eventos.py`.
 
-La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Cada pedido suma los observadores en `preparar_partido` (`fulvo/routes/partidos.py`), una sola vez por partido, antes de cualquier acción. Los dos observadores suman sus cambios (notificaciones, partidos jugados, votaciones) a la sesión del pedido, y el commit de la ruta los guarda junto con el cambio que los originó. Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron: si nadie los consultó, todavía no tienen votaciones.
+La lista de observadores no es una columna: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, porque SQLAlchemy no llama a `__init__` al leer. Cada pedido suma los observadores en `preparar_partido` (`fulvo/routes/partidos.py`), una sola vez por partido, antes de cualquier acción. Antes de sumarlos, `preparar_partido` vuelve a leer el partido con `SELECT ... FOR UPDATE`, y su fila queda bloqueada hasta el commit del pedido: si dos pedidos tocan el mismo partido a la vez, el segundo espera y lo lee ya cambiado, así el pase a jugado y sus votaciones se hacen una sola vez y dos aceptaciones no se pisan los cupos (decisión del 2026-11-13; antes el segundo pedido respondía 500). Los que preparan varios partidos lo hacen en orden de id, para que dos pedidos no se queden esperando uno al otro. Los dos observadores suman sus cambios (notificaciones, partidos jugados, votaciones) a la sesión del pedido, y el commit de la ruta los guarda junto con el cambio que los originó. Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron: si nadie los consultó, todavía no tienen votaciones.
 
 El bloqueo de un usuario (RQ10) usa el Observer sin modificarlo: `sacar_de_partidos_por_jugar` (`fulvo/routes/partidos.py`) cancela sus partidos y retira sus postulaciones con los métodos de `Partido`, así los avisos salen igual que si lo hubiera hecho una persona.
 

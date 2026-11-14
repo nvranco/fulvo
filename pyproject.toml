@@ -101,6 +101,7 @@ coordinar = 'coordinar'
 historial = 'historial'
 autor = 'autor'
 resolucion = 'resolucion'
+comparte = 'comparte'
 
 [tool.typos.files]
 # Typos revisa inglés; la documentación está en español.

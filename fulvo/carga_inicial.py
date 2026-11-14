@@ -29,38 +29,45 @@ def leer_filas(ruta: Path = RUTA_CSV) -> list[dict[str, str]]:
 
 
 def cargar(session: Session, ruta: Path = RUTA_CSV) -> tuple[int, int]:
-    """Inserta en la base las zonas y complejos del CSV que todavía no están.
+    """Carga las zonas y los complejos del CSV, solo en una base sin zonas.
 
-    Devuelve cuántas zonas y cuántos complejos creó. Es idempotente: se
-    puede correr las veces que haga falta, y la segunda vez no crea nada.
-    Una zona ya existente se reconoce por su nombre (sin importar
-    mayúsculas) y un complejo por su nombre y dirección, las mismas reglas
-    que la API usa para rechazar duplicados.
+    Devuelve cuántas zonas y cuántos complejos creó. Es la carga inicial:
+    se hace una sola vez. Después las zonas y los complejos son del admin,
+    que los edita y los borra por la API (RQ10). `entrypoint.sh` corre este
+    script en cada arranque del contenedor, y antes agregaba lo que faltara:
+    volvía un complejo borrado y se duplicaba uno renombrado. Por eso, si
+    ya hay alguna zona, no hace nada (decisión del equipo del 2026-11-13).
+    Se mira la tabla de zonas porque no tiene baja: si hay una, la carga ya
+    se hizo. Correrla dos veces sigue sin duplicar nada.
 
     Las zonas se crean en el orden en que aparecen en el CSV, y los
     complejos en el orden de las filas. Sobre una base vacía los ids quedan
-    1, 2, 3... siguiendo ese orden.
+    1, 2, 3... siguiendo ese orden. Dentro del CSV, una zona se reconoce por
+    su nombre sin importar mayúsculas y un complejo por su nombre y
+    dirección, las mismas reglas que la API usa para rechazar duplicados.
     """
+    if session.scalar(select(Zona.id).limit(1)) is not None:
+        return 0, 0
+
     filas = leer_filas(ruta)
 
-    zonas = {z.nombre.lower(): z for z in session.scalars(select(Zona))}
-    zonas_creadas = 0
+    # La base no tiene zonas, y por lo tanto tampoco complejos (todo
+    # complejo es de una zona): `zonas` y `cargados` arrancan vacíos y solo
+    # evitan repetir algo que aparezca dos veces en el CSV.
+    zonas = {}
     for fila in filas:
         if fila['zona'].lower() not in zonas:
             zona = Zona(nombre=fila['zona'], provincia=fila['provincia'])
             session.add(zona)
             zonas[fila['zona'].lower()] = zona
-            zonas_creadas += 1
     # flush envía los INSERT sin cerrar la transacción: las zonas nuevas
     # reciben su id, que los complejos necesitan como zona_id.
     session.flush()
 
-    claves = select(Complejo.nombre, Complejo.direccion)
-    existentes = set(session.execute(claves).all())
-    complejos_creados = 0
+    cargados = set()
     for fila in filas:
         clave = (fila['nombre'], fila['direccion'])
-        if clave in existentes:
+        if clave in cargados:
             continue
         session.add(
             Complejo(
@@ -81,12 +88,11 @@ def cargar(session: Session, ruta: Path = RUTA_CSV) -> tuple[int, int]:
                 link_maps=fila['link_maps'] or None,
             )
         )
-        existentes.add(clave)
-        complejos_creados += 1
+        cargados.add(clave)
 
     # Un solo commit: si algo falla, no queda la carga a medias.
     session.commit()
-    return zonas_creadas, complejos_creados
+    return len(zonas), len(cargados)
 
 
 def cargar_roles(session: Session) -> int:
