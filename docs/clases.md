@@ -25,10 +25,12 @@ Métodos:
 | `quitar_puntuacion(estrellas)` | Deshace un voto y recalcula. | Anular una votación o un no-show recalcula el promedio. |
 | `sumar_partido_jugado()` | Suma 1 a `partidos_jugados`. | Al pasar el partido a jugado, o al anular un no-show. |
 | `restar_partido_jugado()` | Resta 1 a `partidos_jugados`. | No-show. |
+| `votaciones_pendientes()` | Devuelve las votaciones que todavía tiene que emitir. | De ellas sale la deuda. |
 | `deuda()` | Cuenta los partidos en los que tiene votaciones pendientes. | La deuda cuenta por partido. |
 | `habilitado()` | Verdadero si `deuda()` no supera X (3, en `settings.py`). | Bloqueo por deuda: no puede publicar ni postularse. |
-| `bloquear(admin, motivo, reclamo)` | Marca `bloqueado` y crea la `Sancion`. | RQ10. |
-| `desbloquear()` | Quita `bloqueado` y cierra la `Sancion`. | RQ10. |
+| `exigir_habilitado()` | Levanta la excepción (409) con el detalle de la deuda si no está habilitado. | Bloqueo por deuda. |
+| `bloquear(admin, motivo, reclamo)` | Marca `bloqueado`, crea la `Sancion` y la devuelve. | RQ10. |
+| `desbloquear(sancion)` | Quita `bloqueado` y cierra la `Sancion`. | RQ10. |
 | `tiene_rol(nombre)` | Compara su `Rol` con el nombre. | Los permisos se validan por rol en un solo punto. |
 
 Decisiones:
@@ -78,7 +80,7 @@ La `Notificacion` no se construye a mano: la crea `FabricaNotificaciones` (ver s
 
 - `id`, `zona`, `nombre`, `direccion`, `localidad`
 - `latitud`, `longitud`
-- `telefono_contacto`, `whatsapp_contacto`, `email_contacto`
+- `telefono_contacto`
 - `puntuacion_promedio`, `cantidad_puntuaciones`
 - `tipo` (campo de fútbol, cancha de fútbol sala, club, etc.), `reserva_online`
 - `sitio_web`, `link_maps`
@@ -90,11 +92,11 @@ Métodos:
 |---|---|---|
 | `registrar_puntuacion(estrellas)` | Suma un voto y recalcula el promedio y la cantidad. | Se vota al complejo (RQ8). |
 | `quitar_puntuacion(estrellas)` | Deshace un voto y recalcula. | Anular una votación recalcula el promedio. |
-| `distancia_a(latitud, longitud)` | Devuelve la distancia en km hasta un punto. | RQ3: buscar complejos cercanos. |
 
 Decisiones:
 
-- **Cercanos con radio.** La búsqueda recibe latitud, longitud y `radio_km`, y devuelve los complejos dentro del radio, ordenados por distancia. La distancia se calcula en Python con `distancia_a`, que funciona igual en SQLite y PostgreSQL. Alcanza para el volumen del MVP.
+- **Cercanos con radio.** La búsqueda recibe latitud, longitud y `radio_km`, y devuelve los complejos dentro del radio, ordenados por distancia. La distancia se calcula en Python con la fórmula de haversine (`distancia_km`, en `fulvo/routes/complejos.py`), que funciona igual en SQLite y PostgreSQL. Alcanza para el volumen del MVP. Es una función de la ruta y no un método de `Complejo`, porque solo la usa esa búsqueda.
+- **Un solo dato de contacto.** El complejo tiene `telefono_contacto`. El WhatsApp y el email de contacto, que el diseño inicial preveía, quedaron fuera del MVP: ningún RQ los usa y el CSV de la carga inicial no los trae.
 - **Puntuación repetida a propósito.** `registrar_puntuacion` y `quitar_puntuacion` existen en `Usuario` y en `Complejo`. Son dos métodos cortos y cada clase se lee sola. No se arma una clase base `Puntuable`.
 - **Sin método para editar datos.** El admin los modifica por el endpoint (RQ10) y no hay regla propia que proteger.
 
@@ -113,11 +115,13 @@ Métodos:
 | Método | Qué hace | Evento que emite |
 |---|---|---|
 | `fin()` | Devuelve `inicio` + duración. | — |
+| `en_juego()` | Verdadero si el partido está abierto o completo. Lo usan `revocar`, `retirar` y `cancelar`. | — |
 | `postular(jugador)` | Crea la postulación. Rechaza con excepción si el partido no está abierto o ya empezó, si el jugador es el organizador, si ya se postuló antes (aunque se haya retirado) o si tiene deuda mayor que X (RQ8). | `postulacion_recibida` |
 | `aceptar(postulacion)` | Resta 1 cupo. Si llega a 0, el partido pasa a completo y las postulaciones en espera pasan a rechazadas. Solo antes del inicio. | `postulacion_aceptada`, `partido_completo` |
 | `rechazar(postulacion)` | Marca la postulación rechazada. Solo antes del inicio. | `postulacion_rechazada` |
 | `revocar(postulacion)` | Suma 1 cupo y reabre el partido si estaba completo. Solo antes del inicio. | `revocacion` |
 | `retirar(postulacion)` | El jugador se baja. Si estaba aceptado, suma 1 cupo y reabre el partido. Solo antes del inicio. | `postulacion_retirada` |
+| `liberar_cupo()` | Suma 1 cupo y, si el partido estaba completo, lo reabre. Lo usan `revocar` y `retirar`. | — |
 | `marcar_no_show(postulacion)` | Solo el organizador, sobre un aceptado y con el partido jugado. Llama a `postulacion.marcar_no_show()`. | `no_show_marcado` |
 | `quitar_no_show(postulacion)` | Lo usa el reclamo resuelto (RQ11). Llama a `postulacion.quitar_no_show()`. | `no_show_anulado` |
 | `cancelar()` | Pasa a cancelado. Solo antes del inicio. | `partido_cancelado` |
@@ -125,6 +129,7 @@ Métodos:
 | `participantes()` | Devuelve el organizador y los jugadores aceptados. Lo usan los dos observadores al pasar a jugado. | — |
 | `presentes()` | Los participantes sin un no-show marcado (RQ11). Lo usan los dos observadores al anularse un no-show. | — |
 | `agregar_observador(o)`, `quitar_observador(o)`, `notificar(evento)` | Mecánica del Observer. | — |
+| `avisar(tipo, postulacion)` | Arma el `EventoPartido` y se lo pasa a `notificar`. Lo usan los métodos que emiten eventos. | El de `tipo` |
 
 Decisiones (2026-11-14):
 
@@ -143,6 +148,7 @@ Métodos. `Postulacion` es dueña de sus propias transiciones de estado, y `Part
 
 | Método | Qué hace |
 |---|---|
+| `pasar(desde, hacia, mensaje)` | Cambia al estado `hacia` si el actual está en `desde`; si no, levanta la excepción con `mensaje`. Los métodos de abajo la usan. |
 | `aceptar()` | Pasa de en espera a aceptada y guarda `respondida_at`. |
 | `rechazar()` | Pasa de en espera a rechazada y guarda `respondida_at`. |
 | `revocar()` | Pasa de aceptada a revocada y guarda `respondida_at`. |
@@ -194,8 +200,10 @@ Métodos:
 | Método | Qué hace |
 |---|---|
 | `abrir(autor, tipo_objetivo, objetivo, motivo)` | Método de clase que crea el reclamo en estado abierto. Valida según el tipo: un no-show tiene que estar marcado y ser del autor, y una votación tiene que tener al autor como receptor. Rechaza denunciarse a uno mismo. Levanta una excepción si no se cumple. |
-| `resolver(admin, resolucion)` | Pasa a resuelto y aplica la medida según `tipo_objetivo`. |
+| `resolver(admin, resolucion, objetivo, bloquear)` | Aplica la medida según `tipo_objetivo` y pasa a resuelto. Si bloqueó al denunciado, devuelve la sanción. |
 | `rechazar(admin, resolucion)` | Pasa a rechazado. No aplica ninguna medida. |
+| `exigir_abierto()` | Levanta la excepción (409) si el reclamo ya se cerró. Lo usan `resolver` y `rechazar`. |
+| `cerrar(estado, admin, resolucion)` | Guarda el estado final, la respuesta, quién respondió y cuándo. |
 
 Medida al resolver:
 
@@ -266,11 +274,11 @@ Decisiones sobre el Observer:
 - **Un solo sujeto: `Partido`.** Las acciones sobre postulaciones (postular, aceptar, rechazar, revocar, retirar) pasan por métodos de `Partido`. Motivo: `Partido` ya maneja los cupos y el estado, así que esas acciones lo modifican igual. `Postulacion` no emite eventos.
 - **Eventos de `Partido`:** `postulacion_recibida`, `postulacion_aceptada`, `postulacion_rechazada`, `partido_completo`, `revocacion`, `postulacion_retirada`, `partido_cancelado`, `partido_jugado`, `no_show_marcado` y, con los reclamos (RQ11), `no_show_anulado`.
 - **Dos observadores**, que implementan la interfaz `ObservadorPartido` (método `actualizar(evento)`):
-  - `NotificadorPartido`: crea la notificación de cada evento usando la Factory. Con `partido_jugado` crea el aviso de votaciones pendientes, y con `no_show_anulado`, el de votaciones repuestas.
-  - `ProcesadorPostPartido`: reacciona a tres eventos.
-    - `partido_jugado`: suma 1 partido jugado a cada participante y crea las votaciones pendientes. Un partido que termina sin aceptados no emite este evento, así que no hay nada que procesar (decisión del 2026-11-14).
-    - `no_show_marcado`: resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes y las que los demás tenían hacia él (decisión del 2026-11-11). Las ya emitidas quedan.
-    - `no_show_anulado` (RQ11): vuelve todo atrás. Le devuelve el partido jugado, le quita el voto de 0 y repone las votaciones borradas, solo entre presentes y sin repetir las que existen (decisión del 2026-11-12).
+  - `NotificadorPartido`: crea la notificación de cada evento usando la Factory. Con `partido_jugado` crea el aviso de votaciones pendientes, y con `no_show_anulado`, el de votaciones repuestas. Qué aviso genera cada evento y para quién está en la tabla `NOTIFICACIONES_POR_EVENTO` (`fulvo/observadores.py`), y el método `destinatarios` arma la lista de quienes lo reciben.
+  - `ProcesadorPostPartido`: reacciona a tres eventos, cada uno con su método.
+    - `partido_jugado` (`cerrar_partido`): suma 1 partido jugado a cada participante y crea las votaciones pendientes. Un partido que termina sin aceptados no emite este evento, así que no hay nada que procesar (decisión del 2026-11-14).
+    - `no_show_marcado` (`aplicar_no_show`): resta 1 partido jugado al ausente, le suma un voto de 0 estrellas a su puntuación y elimina sus votaciones pendientes y las que los demás tenían hacia él (decisión del 2026-11-11). Las ya emitidas quedan.
+    - `no_show_anulado` (`anular_no_show`, RQ11): vuelve todo atrás. Le devuelve el partido jugado, le quita el voto de 0 y repone las votaciones borradas, solo entre presentes y sin repetir las que existen (decisión del 2026-11-12).
 - Motivo de usar un segundo observador: los efectos de pasar a jugado y de marcar un no-show no viven dentro de `Partido`. `Partido` solo avisa y no sabe quién reacciona. Agregar otra reacción no lo modifica.
 - **`EventoPartido`:** lo que recibe `actualizar(evento)`. Lleva `tipo` (uno de los 10 eventos), `partido` y `postulacion` (opcional, solo en los eventos que nacen de una postulación). `Partido` lo crea al emitir. Así cada observador sabe qué partido y qué postulación originaron el aviso, sin buscarlos.
 - **Dónde vive el código (2026-11-11).** `TipoEvento`, `EventoPartido` y `ObservadorPartido` (una clase abstracta) están en `fulvo/eventos.py`. Los observadores concretos y la fábrica están en `fulvo/observadores.py`: necesitan los modelos, y `models.py` ya importa `eventos.py`, así que juntos se importarían mutuamente. `Partido`, `Postulacion` y `Notificacion` están en `fulvo/models.py`. La lista de observadores vive solo en memoria: la arma `__post_init__` en los partidos nuevos y un método `@reconstructor` en los que se leen de la base, y cada pedido suma los dos observadores en `preparar_partido`, que antes bloquea la fila del partido hasta el commit (`SELECT ... FOR UPDATE`): dos pedidos a la vez no lo pasan a jugado dos veces (decisión del 2026-11-13). Antes de listar las votaciones de un usuario o de calcular su deuda, `poner_al_dia_partidos_de` prepara sus partidos que ya terminaron, porque las votaciones se crean recién cuando alguien consulta el partido.
@@ -280,7 +288,7 @@ Decisiones sobre el Observer:
 
 Decisiones sobre la Factory:
 
-- **Fábrica simple:** `FabricaNotificaciones.crear(tipo, destinatario, referencia)` elige la plantilla del mensaje según el tipo y devuelve la `Notificacion`. No hay una subclase por tipo: sería mucho para explicar y no aporta nada en este alcance.
+- **Fábrica simple:** `FabricaNotificaciones.crear(tipo, destinatario, referencia)` elige la plantilla del mensaje según el tipo y devuelve la `Notificacion`. No hay una subclase por tipo: sería mucho para explicar y no aporta nada en este alcance. Las plantillas son un diccionario de la clase, `PLANTILLAS`, con una por tipo. La respuesta a un reclamo se completa con otros dos, `OBJETIVOS` (sobre qué era) y `RESULTADOS` (cómo terminó).
 - `NotificadorPartido` decide el destinatario de cada evento y le pide la notificación a la fábrica:
 
 | Evento | Destinatario | Tipo de notificación |
@@ -308,9 +316,9 @@ Decisiones sobre la Factory:
 - La deuda del usuario se calcula por partido con votaciones pendientes. Si supera X (3, `LIMITE_DEUDA` en `settings.py`), no puede publicar ni postularse.
 - El WhatsApp solo se expone mientras la postulación está aceptada.
 
-## 6. Diagrama
+## 5. Diagrama
 
-[`diagramas/clases.drawio`](diagramas/clases.drawio). Tiene las 15 clases (10 del dominio y 5 de los patrones Observer y Factory). Se abre en https://app.diagrams.net (Open Existing Diagram) o con la extensión Draw.io Integration de VS Code. Hay una copia en imagen, [`diagramas/clases.svg`](diagramas/clases.svg), para verlo directo en GitHub o usarlo en la presentación. Se exporta desde el `.drawio`: si se cambia uno, hay que regenerar el otro.
+[`diagramas/clases.drawio`](diagramas/clases.drawio). Tiene las 15 clases (10 del dominio y 5 de los patrones Observer y Factory), con los atributos y métodos de `fulvo/models.py`, `fulvo/eventos.py` y `fulvo/observadores.py` (actualizado el 2026-11-14). Se abre en https://app.diagrams.net (Open Existing Diagram) o con la extensión Draw.io Integration de VS Code. Hay una copia en imagen, [`diagramas/clases.svg`](diagramas/clases.svg), para verlo directo en GitHub o usarlo en la presentación. La imagen sale del `.drawio`: si se cambia uno, hay que regenerar el otro (en draw.io, Export as > SVG).
 
 ### Cómo leerlo
 
@@ -327,6 +335,7 @@ Partido
 - Un atributo se lee `nombre: Tipo`. Si el tipo es otra clase del diagrama (`organizador: Usuario`), es una relación.
 - `[0..1]` en un atributo significa que es opcional y puede estar vacío.
 - Los métodos con `(): Tipo` devuelven ese tipo.
+- `{de clase}` marca lo que es de la clase y no de cada objeto: el método `Reclamo.abrir` (un `@classmethod`) y las plantillas de `FabricaNotificaciones`.
 
 **Líneas**
 
@@ -358,7 +367,9 @@ Se lee desde una clase hacia la otra. Ejemplo: entre `Partido` y `Postulacion`, 
 
 **Tips**
 
-1. Leelo por zonas. A la izquierda, zonas y complejos. Al centro, `Partido` con el Observer arriba (observadores, interfaz y evento) y `Votacion` abajo. A la derecha, `Postulacion` y `Usuario`, con `Rol`, `Sancion` y `Reclamo` debajo, y la Factory con `Notificacion` arriba.
+1. Leelo por zonas. A la izquierda, zonas y complejos. Al centro, `Partido` con el Observer arriba (observadores, interfaz y evento) y `Votacion` abajo. A la derecha, `Postulacion` y `Usuario`, y más a la derecha, la Factory con `Notificacion` arriba y `Rol`, `Sancion` y `Reclamo` abajo.
 2. Seguí un caso real. Por ejemplo: un partido pasa a jugado, `Partido` crea un `EventoPartido` y llama a `notificar`, los dos observadores reciben `actualizar(evento)`, el `NotificadorPartido` le pide la notificación a la fábrica y el `ProcesadorPostPartido` crea las votaciones.
-3. `Votacion`, `Sancion` y `Reclamo` se unen a `Usuario` con una sola línea que lleva los dos roles en el nombre (por ejemplo `emisor / receptor_usuario`). Son dos relaciones dibujadas como una para no llenar el diagrama, y la multiplicidad que se ve es la del primer rol (`emisor`, `usuario`, `autor`, que son siempre uno). El segundo rol puede ser opcional: `receptor_usuario` y `resuelto_por` son `0..1`.4. `Reclamo` no tiene línea hacia su objetivo. Guarda `tipo_objetivo` y `objetivo_id`, y la nota al lado explica qué clase corresponde a cada tipo.
+3. `Votacion`, `Sancion` y `Reclamo` se unen a `Usuario` con una sola línea que lleva los dos roles en el nombre (por ejemplo `emisor / receptor_usuario`). Son dos relaciones dibujadas como una para no llenar el diagrama, y la multiplicidad que se ve es la del primer rol (`emisor`, `usuario`, `autor`, que son siempre uno). El segundo rol puede ser opcional: `receptor_usuario` y `resuelto_por` son `0..1`.
+4. `Reclamo` no tiene línea hacia su objetivo. Guarda `tipo_objetivo` y `objetivo_id`, y la nota al lado explica qué clase corresponde a cada tipo. Tampoco tiene línea hacia la fábrica: la respuesta al autor la pide la ruta `PATCH /reclamos/{id}`, no la clase, que no sabe nada de notificaciones (lo dice la nota de la fábrica).
 5. Los tipos que no son clases del diagrama (`EstadoPartido`, `TipoPartido`, `TipoNotificacion` y similares) son enumeraciones: listas fijas de valores, como los estados de la sección 4 de `requerimientos.md`.
+6. Los métodos que guardan o comparan una fecha reciben `ahora`, pero el diagrama solo lo muestra en `actualizar_estado(ahora)`, donde es la idea del método. La nota de `Partido` lo aclara, junto con la regla del partido empezado.
