@@ -23,6 +23,10 @@ FILA_UNO = (
 FILA_DOS = (
     'Belgrano,CABA,Belgrano,Cancha Dos,Calle 2,,Campo,no,,,-34.6,-58.5,\n'
 )
+# Misma zona que las otras dos filas, escrita en minúsculas.
+FILA_TRES = (
+    'belgrano,CABA,Belgrano,Cancha Tres,Calle 3,,Campo,no,,,-34.7,-58.6,\n'
+)
 
 
 def escribir_csv(tmp_path, *filas):
@@ -62,27 +66,66 @@ def test_cargar_convierte_las_celdas_del_csv_en_sus_tipos(session, tmp_path):
     assert uno.zona.nombre == dos.zona.nombre == 'Belgrano'
 
 
-def test_cargar_reutiliza_una_zona_existente_sin_importar_mayusculas(
+def test_cargar_reutiliza_la_zona_del_csv_sin_importar_mayusculas(
     session, tmp_path
 ):
-    session.add(Zona(nombre='belgrano', provincia='CABA'))
-    session.commit()
-    archivo = escribir_csv(tmp_path, FILA_UNO)
+    archivo = escribir_csv(tmp_path, FILA_UNO, FILA_TRES)
 
     zonas, complejos = cargar(session, archivo)
 
-    assert (zonas, complejos) == (0, 1)
+    assert (zonas, complejos) == (1, 2)
     assert session.scalar(select(func.count(Zona.id))) == 1
 
 
-def test_cargar_agrega_solo_los_complejos_que_faltan(session, tmp_path):
-    cargar(session, escribir_csv(tmp_path, FILA_UNO))
+def test_cargar_un_complejo_repetido_en_el_csv_lo_crea_una_vez(
+    session, tmp_path
+):
+    archivo = escribir_csv(tmp_path, FILA_UNO, FILA_UNO)
 
-    zonas, complejos = cargar(
-        session, escribir_csv(tmp_path, FILA_UNO, FILA_DOS)
-    )
+    zonas, complejos = cargar(session, archivo)
 
-    assert (zonas, complejos) == (0, 1)
+    assert (zonas, complejos) == (1, 1)
+
+
+def test_cargar_en_una_base_que_ya_tiene_zonas_no_carga_nada(session):
+    session.add(Zona(nombre='Belgrano', provincia='CABA'))
+    session.commit()
+
+    zonas, complejos = cargar(session)
+
+    assert (zonas, complejos) == (0, 0)
+    assert session.scalar(select(func.count(Complejo.id))) == 0
+
+
+def test_cargar_de_nuevo_no_vuelve_a_crear_un_complejo_borrado(session):
+    # Como un reinicio del contenedor después de un DELETE del admin.
+    cargar(session)
+    borrado = session.get(Complejo, 1)
+    clave = (borrado.nombre, borrado.direccion)
+    session.delete(borrado)
+    session.commit()
+
+    zonas, complejos = cargar(session)
+
+    assert (zonas, complejos) == (0, 0)
+    total = session.scalar(select(func.count(Complejo.id)))
+    assert total == TOTAL_COMPLEJOS - 1
+    claves = set(session.execute(select(Complejo.nombre, Complejo.direccion)))
+    assert clave not in claves
+
+
+def test_cargar_de_nuevo_no_duplica_lo_que_el_admin_renombro(session):
+    # Como un reinicio después de dos PUT del admin: una zona y un complejo.
+    cargar(session)
+    session.get(Zona, 1).nombre += ' Centro'
+    session.get(Complejo, 1).nombre += ' (renombrado)'
+    session.commit()
+
+    zonas, complejos = cargar(session)
+
+    assert (zonas, complejos) == (0, 0)
+    assert session.scalar(select(func.count(Zona.id))) == TOTAL_ZONAS
+    assert session.scalar(select(func.count(Complejo.id))) == TOTAL_COMPLEJOS
 
 
 def test_cargar_roles_crea_usuario_y_admin(session):
