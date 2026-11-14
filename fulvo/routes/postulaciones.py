@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from fulvo.database import get_session
-from fulvo.models import Postulacion
+from fulvo.models import Postulacion, ahora_argentina
 from fulvo.routes.partidos import (
     buscar_partido,
     mi_postulacion,
@@ -65,7 +65,8 @@ def retirar_postulacion(
     """El jugador retira su postulación o, si estaba aceptado, se baja (RQ7).
 
     `datos` solo valida que se pida "retirada". 404 si no existe, 403 si
-    no es suya y 409 si ya no se puede retirar.
+    no es suya y 409 si ya no se puede retirar: por ejemplo, si el partido
+    ya empezó.
     """
     postulacion = session.get(Postulacion, postulacion_id)
     if postulacion is None:
@@ -79,6 +80,6 @@ def retirar_postulacion(
             detail='Solo el jugador de la postulación puede retirarla',
         )
     partido = buscar_partido(session, postulacion.partido_id)
-    partido.retirar(postulacion)
+    partido.retirar(postulacion, ahora_argentina())
     session.commit()
     return mi_postulacion(postulacion)

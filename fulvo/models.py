@@ -382,6 +382,14 @@ class Partido:
     toda acción sobre el partido o sus postulaciones pasa por un método de
     esta clase, que cambia el estado y avisa con un `EventoPartido` a sus
     observadores. No sabe quiénes son ni qué hacen con el aviso.
+
+    Desde el inicio el partido no cambia: nadie se postula, el organizador
+    no acepta, rechaza ni revoca, nadie se retira ni se baja y el partido no
+    se cancela. Cada uno de esos métodos recibe `ahora` y levanta "El
+    partido ya empezó" (decisión del equipo del 2026-11-14). Lo que pase en
+    la cancha se corrige cuando termina, con el no-show y los reclamos. Sin
+    esta regla, un aceptado que no fue se bajaba con el partido empezado y
+    así esquivaba el no-show.
     """
 
     __tablename__ = 'partidos'
@@ -542,11 +550,12 @@ class Partido:
         Si los cupos llegan a 0, el partido pasa a completo y las
         postulaciones que seguían en espera pasan a rechazadas. Por cada una
         se emite `partido_completo`, porque el aviso es para cada postulante
-        que quedó afuera (`clases.md`).
+        que quedó afuera (`clases.md`). Solo antes del inicio.
         """
         exigir(
             self.estado == EstadoPartido.abierto, 'El partido no está abierto'
         )
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         postulacion.aceptar(ahora)
         self.cupos_faltantes -= 1
         self.avisar(TipoEvento.postulacion_aceptada, postulacion)
@@ -558,27 +567,32 @@ class Partido:
                     self.avisar(TipoEvento.partido_completo, otra)
 
     def rechazar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
-        """Rechaza una postulación en espera (RQ6)."""
+        """Rechaza una postulación en espera (RQ6). Solo antes del inicio."""
         exigir(
             self.estado == EstadoPartido.abierto, 'El partido no está abierto'
         )
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         postulacion.rechazar(ahora)
         self.avisar(TipoEvento.postulacion_rechazada, postulacion)
 
     def revocar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
-        """Revoca a un aceptado: libera su cupo (RQ7)."""
+        """Revoca a un aceptado y libera su cupo, antes del inicio (RQ7)."""
         exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         postulacion.revocar(ahora)
         self.liberar_cupo()
         self.avisar(TipoEvento.revocacion, postulacion)
 
-    def retirar(self, postulacion: 'Postulacion') -> None:
+    def retirar(self, postulacion: 'Postulacion', ahora: datetime) -> None:
         """El jugador retira su postulación o, si estaba aceptado, se baja.
 
         Si estaba aceptado, libera su cupo (RQ7). Las dos cosas son el mismo
-        evento, `postulacion_retirada` (`requerimientos.md`).
+        evento, `postulacion_retirada` (`requerimientos.md`). Solo antes del
+        inicio: con el partido empezado, un aceptado que no fue ya no se
+        baja, y el organizador le puede marcar el no-show cuando termina.
         """
         exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         estaba_aceptada = postulacion.estado == EstadoPostulacion.aceptada
         postulacion.retirar()
         if estaba_aceptada:
@@ -591,13 +605,14 @@ class Partido:
         if self.estado == EstadoPartido.completo:
             self.estado = EstadoPartido.abierto
 
-    def cancelar(self) -> None:
-        """Cancela el partido (RQ7).
+    def cancelar(self, ahora: datetime) -> None:
+        """Cancela el partido (RQ7). Solo antes del inicio.
 
         Las postulaciones no cambian de estado, pero el WhatsApp deja de
         verse (`Postulacion.whatsapp_visible`).
         """
         exigir(self.en_juego(), 'El partido ya se jugó o fue cancelado')
+        exigir(ahora < self.inicio, 'El partido ya empezó')
         self.estado = EstadoPartido.cancelado
         self.avisar(TipoEvento.partido_cancelado)
 

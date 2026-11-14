@@ -174,7 +174,7 @@ def test_retirarse_o_bajarse_avisa_al_organizador(
     if aceptada:
         partido.aceptar(postulacion, ahora_argentina())
 
-    partido.retirar(postulacion)
+    partido.retirar(postulacion, ahora_argentina())
 
     assert tipos_de(session, usuario) == [
         TipoNotificacion.postulacion_recibida,
@@ -211,9 +211,9 @@ def test_cancelar_avisa_solo_a_los_que_esperaban_y_a_los_aceptados(
     partido.aceptar(partido.postular(aceptado, ahora), ahora)
     partido.postular(en_espera, ahora)
     partido.rechazar(partido.postular(rechazado, ahora), ahora)
-    partido.retirar(partido.postular(retirado, ahora))
+    partido.retirar(partido.postular(retirado, ahora), ahora)
 
-    partido.cancelar()
+    partido.cancelar(ahora)
 
     for avisado in (aceptado, en_espera):
         avisos = notificaciones_de(session, avisado)

@@ -3,11 +3,16 @@ from http import HTTPStatus
 
 import pytest
 
-from fulvo.models import EstadoPartido, ahora_argentina
+from fulvo.models import EstadoPartido, EstadoPostulacion, ahora_argentina
 from tests.datos import con_token
-from tests.factories import guardar_partido, guardar_usuario_comun
+from tests.factories import (
+    guardar_partido,
+    guardar_postulacion,
+    guardar_usuario_comun,
+)
 
 MIS_POSTULACIONES = '/postulaciones'
+EMPEZADO = 'El partido ya empezó'
 
 
 @pytest.fixture
@@ -514,3 +519,73 @@ def test_cancelar_un_partido_inexistente_es_no_encontrado(client, usuario):
     )
 
     assert respuesta.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.fixture
+def empezado(session, usuario):
+    """Partido de `usuario` que empezó hace media hora y todavía no terminó."""
+    return guardar_partido(
+        session, usuario, inicio=ahora_argentina() - timedelta(minutes=30)
+    )
+
+
+def estados_en_el_partido(client, partido, organizador) -> list[str]:
+    """Estados de las postulaciones del partido, como los ve el organizador."""
+    postulaciones = client.get(
+        de_partido(partido), headers=con_token(organizador)
+    ).json()['postulaciones']
+    return [postulacion['estado'] for postulacion in postulaciones]
+
+
+@pytest.mark.parametrize(
+    'caso',
+    [
+        (EstadoPostulacion.en_espera, 'aceptada'),
+        (EstadoPostulacion.en_espera, 'rechazada'),
+        (EstadoPostulacion.aceptada, 'revocada'),
+    ],
+    ids=['aceptar', 'rechazar', 'revocar'],
+)
+def test_con_el_partido_empezado_el_organizador_no_responde_postulaciones(
+    client, session, empezado, otro_usuario, caso
+):
+    estado, pedido = caso
+    organizador = empezado.organizador
+    postulacion = guardar_postulacion(session, empezado, otro_usuario, estado)
+
+    respuesta = responder(
+        client, empezado, postulacion.id, pedido, organizador
+    )
+
+    assert respuesta.status_code == HTTPStatus.CONFLICT
+    assert respuesta.json()['detail'] == EMPEZADO
+    estados = estados_en_el_partido(client, empezado, organizador)
+    assert estados == [estado.value]
+
+
+@pytest.mark.parametrize(
+    'estado',
+    [EstadoPostulacion.en_espera, EstadoPostulacion.aceptada],
+    ids=['retirarse', 'bajarse'],
+)
+def test_con_el_partido_empezado_el_jugador_no_se_retira_ni_se_baja(
+    client, session, empezado, otro_usuario, estado
+):
+    postulacion = guardar_postulacion(session, empezado, otro_usuario, estado)
+
+    respuesta = retirar(client, postulacion.id, otro_usuario)
+
+    assert respuesta.status_code == HTTPStatus.CONFLICT
+    assert respuesta.json()['detail'] == EMPEZADO
+    estados = estados_en_el_partido(client, empezado, empezado.organizador)
+    assert estados == [estado.value]
+
+
+def test_con_el_partido_empezado_el_organizador_no_lo_cancela(
+    client, empezado, usuario
+):
+    respuesta = cancelar(client, empezado, usuario)
+
+    assert respuesta.status_code == HTTPStatus.CONFLICT
+    assert respuesta.json()['detail'] == EMPEZADO
+    assert leer_partido(client, empezado, usuario)['estado'] == 'abierto'

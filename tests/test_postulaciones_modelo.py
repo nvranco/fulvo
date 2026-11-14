@@ -15,6 +15,7 @@ from tests.factories import guardar_partido, guardar_usuario_comun
 CUPOS = 2
 NO_ABIERTO = 'El partido no está abierto'
 TERMINADO = 'El partido ya se jugó o fue cancelado'
+EMPEZADO = 'El partido ya empezó'
 
 
 @pytest.fixture
@@ -84,7 +85,7 @@ def test_no_se_puede_postular_dos_veces(partido, postulacion, otro_usuario):
 def test_no_se_puede_volver_a_postular_despues_de_retirarse(
     partido, postulacion, otro_usuario, ahora
 ):
-    partido.retirar(postulacion)
+    partido.retirar(postulacion, ahora)
 
     with pytest.raises(ReglaDeNegocioError, match='ya se postuló'):
         partido.postular(otro_usuario, ahora)
@@ -186,9 +187,9 @@ def test_revocar_una_postulacion_en_espera_falla(partido, postulacion, ahora):
 
 
 def test_retirar_una_postulacion_en_espera_no_cambia_los_cupos(
-    partido, postulacion
+    partido, postulacion, ahora
 ):
-    partido.retirar(postulacion)
+    partido.retirar(postulacion, ahora)
 
     assert postulacion.estado == EstadoPostulacion.retirada
     assert postulacion.respondida_at is None
@@ -201,17 +202,17 @@ def test_la_baja_de_un_aceptado_libera_el_cupo_y_reabre_el_partido(
     partido.cupos_faltantes = 1
     partido.aceptar(postulacion, ahora)
 
-    partido.retirar(postulacion)
+    partido.retirar(postulacion, ahora)
 
     assert partido.cupos_faltantes == 1
     assert partido.estado == EstadoPartido.abierto
 
 
-def test_retirar_dos_veces_falla(partido, postulacion):
-    partido.retirar(postulacion)
+def test_retirar_dos_veces_falla(partido, postulacion, ahora):
+    partido.retirar(postulacion, ahora)
 
     with pytest.raises(ReglaDeNegocioError, match='en espera o aceptada'):
-        partido.retirar(postulacion)
+        partido.retirar(postulacion, ahora)
 
 
 @pytest.mark.parametrize(
@@ -225,21 +226,71 @@ def test_con_el_partido_terminado_no_se_puede_revocar_retirar_ni_cancelar(
     partido.estado = estado
     hacer = {
         'revocar': lambda: partido.revocar(postulacion, ahora),
-        'retirar': lambda: partido.retirar(postulacion),
-        'cancelar': partido.cancelar,
+        'retirar': lambda: partido.retirar(postulacion, ahora),
+        'cancelar': lambda: partido.cancelar(ahora),
     }[accion]
 
     with pytest.raises(ReglaDeNegocioError, match=TERMINADO):
         hacer()
 
 
+@pytest.mark.parametrize('minutos_despues_del_inicio', [0, 30])
+@pytest.mark.parametrize(
+    ('accion', 'estado_postulacion'),
+    [
+        ('aceptar', EstadoPostulacion.en_espera),
+        ('rechazar', EstadoPostulacion.en_espera),
+        ('retirar', EstadoPostulacion.en_espera),
+        ('retirar', EstadoPostulacion.aceptada),
+        ('revocar', EstadoPostulacion.aceptada),
+        ('cancelar', EstadoPostulacion.aceptada),
+    ],
+    ids=['aceptar', 'rechazar', 'retirarse', 'bajarse', 'revocar', 'cancelar'],
+)
+def test_con_el_partido_empezado_no_cambia_nada(
+    partido,
+    postulacion,
+    accion,
+    estado_postulacion,
+    minutos_despues_del_inicio,
+):
+    postulacion.estado = estado_postulacion
+    momento = partido.inicio + timedelta(minutes=minutos_despues_del_inicio)
+    hacer = {
+        'aceptar': lambda: partido.aceptar(postulacion, momento),
+        'rechazar': lambda: partido.rechazar(postulacion, momento),
+        'retirar': lambda: partido.retirar(postulacion, momento),
+        'revocar': lambda: partido.revocar(postulacion, momento),
+        'cancelar': lambda: partido.cancelar(momento),
+    }[accion]
+
+    with pytest.raises(ReglaDeNegocioError, match=EMPEZADO):
+        hacer()
+
+    assert postulacion.estado == estado_postulacion
+    assert partido.cupos_faltantes == CUPOS
+    assert partido.estado == EstadoPartido.abierto
+
+
+def test_un_minuto_antes_del_inicio_un_aceptado_todavia_se_puede_bajar(
+    partido, postulacion, ahora
+):
+    partido.aceptar(postulacion, ahora)
+    un_minuto_antes = partido.inicio - timedelta(minutes=1)
+
+    partido.retirar(postulacion, un_minuto_antes)
+
+    assert postulacion.estado == EstadoPostulacion.retirada
+    assert partido.cupos_faltantes == CUPOS
+
+
 @pytest.mark.parametrize(
     'estado', [EstadoPartido.abierto, EstadoPartido.completo]
 )
-def test_cancelar_un_partido_en_juego(partido, estado):
+def test_cancelar_un_partido_en_juego(partido, ahora, estado):
     partido.estado = estado
 
-    partido.cancelar()
+    partido.cancelar(ahora)
 
     assert partido.estado == EstadoPartido.cancelado
 

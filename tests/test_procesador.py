@@ -110,7 +110,7 @@ def test_el_procesador_no_hace_nada_con_los_demas_eventos(
     session, usuario, partido, jugadores
 ):
     # Postular, aceptar y cancelar emiten eventos, pero ninguno es suyo.
-    partido.cancelar()
+    partido.cancelar(ahora_argentina())
 
     assert usuario.partidos_jugados == 0
     assert todas_las_votaciones(session) == []

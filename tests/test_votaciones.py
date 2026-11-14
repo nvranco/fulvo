@@ -1,9 +1,15 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from http import HTTPStatus
 
 import pytest
+from freezegun import freeze_time
 
-from fulvo.models import Complejo, EstadoPostulacion, ahora_argentina
+from fulvo.models import (
+    HORA_ARGENTINA,
+    Complejo,
+    EstadoPostulacion,
+    ahora_argentina,
+)
 from fulvo.settings import LIMITE_DEUDA
 from tests.datos import con_token
 from tests.factories import (
@@ -21,6 +27,8 @@ BLOQUEO_CON_CUATRO = (
     'las de al menos 1 partido para publicar o postularte (te faltan 4 '
     'votaciones).'
 )
+# Inicio fijo, en hora de Argentina, para los tests que mueven el reloj.
+INICIO = datetime(2026, 11, 20, 20, 0)
 
 
 def terminado_sin_consultar(session, organizador, aceptados=()):
@@ -44,6 +52,15 @@ def deber_partidos(session, usuario, cantidad: int) -> None:
     """
     for _ in range(cantidad):
         guardar_partido_jugado(session, usuario)
+
+
+def en_hora_argentina(momento: datetime):
+    """Congela el reloj en `momento`, una hora de Argentina sin zona.
+
+    freezegun toma una fecha sin zona como UTC: con la zona de Argentina,
+    `ahora_argentina()` devuelve justo `momento`.
+    """
+    return freeze_time(momento.replace(tzinfo=HORA_ARGENTINA))
 
 
 def mis_votaciones(client, usuario, **params) -> list[dict]:
@@ -395,6 +412,29 @@ def test_no_show_en_un_partido_que_no_se_jugo_devuelve_conflicto(
 
     assert respuesta.status_code == HTTPStatus.CONFLICT
     assert respuesta.json()['detail'] == NO_JUGADO
+
+
+def test_el_aceptado_que_no_fue_no_se_puede_bajar_y_recibe_el_no_show(
+    client, session, usuario, otro_usuario
+):
+    partido = guardar_partido(session, usuario, inicio=INICIO)
+    postulacion = guardar_aceptado(session, partido, otro_usuario)
+
+    with en_hora_argentina(INICIO + timedelta(minutes=30)):
+        baja = client.patch(
+            f'/postulaciones/{postulacion.id}',
+            json={'estado': 'retirada'},
+            headers=con_token(otro_usuario),
+        )
+
+    assert baja.status_code == HTTPStatus.CONFLICT
+    assert baja.json()['detail'] == 'El partido ya empezó'
+    # Sigue aceptado: cuando el partido termina, el organizador le marca
+    # el no-show.
+    with en_hora_argentina(partido.fin() + timedelta(minutes=1)):
+        no_show = marcar_no_show(client, postulacion, usuario)
+    assert no_show.status_code == HTTPStatus.OK
+    assert no_show.json()['no_show'] is True
 
 
 def test_no_show_a_un_jugador_no_aceptado_devuelve_conflicto(

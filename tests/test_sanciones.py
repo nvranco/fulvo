@@ -275,8 +275,11 @@ def test_bloquear_no_toca_los_partidos_que_ya_empezaron(
     ajeno = guardar_partido(session, otro_usuario, inicio=hace_media_hora)
     postulacion = guardar_aceptado(session, ajeno, usuario)
 
-    bloquear(client, usuario, admin)
+    respuesta = bloquear(client, usuario, admin)
 
+    # Un partido empezado ya no se cancela ni se deja (regla del
+    # 2026-11-14): si el bloqueo lo tomara, respondería 409 y no bloquearía.
+    assert respuesta.status_code == HTTPStatus.CREATED
     assert ver_partido(client, propio, otro_usuario)['estado'] == 'abierto'
     assert postulacion.estado == EstadoPostulacion.aceptada
     assert avisos(client, otro_usuario) == []

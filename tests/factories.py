@@ -76,21 +76,30 @@ def guardar_partido(session, organizador, **cambios) -> Partido:
     return partido
 
 
-def guardar_aceptado(session, partido, jugador) -> Postulacion:
-    """Guarda la postulación del jugador al partido, ya aceptada.
+def guardar_postulacion(
+    session, partido, jugador, estado=EstadoPostulacion.en_espera
+) -> Postulacion:
+    """Guarda la postulación del jugador al partido, en el estado indicado.
 
-    No pasa por `Partido.postular`, así sirve también para partidos que ya
-    empezaron, a los que nadie se puede postular.
+    No pasa por los métodos de `Partido`, así sirve también para partidos
+    que ya empezaron, en los que nadie se postula ni se acepta.
     """
     postulacion = Postulacion(
         partido_id=partido.id,
         jugador_id=jugador.id,
         created_at=partido.inicio - timedelta(days=1),
-        estado=EstadoPostulacion.aceptada,
+        estado=estado,
     )
     partido.postulaciones.append(postulacion)
     session.commit()
     return postulacion
+
+
+def guardar_aceptado(session, partido, jugador) -> Postulacion:
+    """Guarda la postulación del jugador al partido, ya aceptada."""
+    return guardar_postulacion(
+        session, partido, jugador, EstadoPostulacion.aceptada
+    )
 
 
 def guardar_partido_jugado(

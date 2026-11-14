@@ -175,14 +175,28 @@ def test_retirar_o_bajarse_emite_postulacion_retirada(
     if aceptada:
         partido.aceptar(postulacion, ahora)
 
-    partido.retirar(postulacion)
+    partido.retirar(postulacion, ahora)
 
     assert observador.tipos()[-1] == TipoEvento.postulacion_retirada
     assert observador.eventos[-1].postulacion is postulacion
 
 
+def test_una_baja_con_el_partido_empezado_no_emite_eventos(
+    otro_usuario, partido, observador
+):
+    ahora = ahora_argentina()
+    postulacion = partido.postular(otro_usuario, ahora)
+    partido.aceptar(postulacion, ahora)
+    observador.eventos.clear()
+
+    with pytest.raises(ReglaDeNegocioError, match='El partido ya empezó'):
+        partido.retirar(postulacion, partido.inicio)
+
+    assert observador.eventos == []
+
+
 def test_cancelar_emite_partido_cancelado_sin_postulacion(partido, observador):
-    partido.cancelar()
+    partido.cancelar(ahora_argentina())
 
     assert observador.tipos() == [TipoEvento.partido_cancelado]
     assert observador.eventos[0].postulacion is None
