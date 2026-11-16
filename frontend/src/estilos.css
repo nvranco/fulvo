@@ -1,0 +1,599 @@
+:root {
+  --verde: #15803d;
+  --verde-claro: #dcfce7;
+  --verde-oscuro: #14532d;
+  --gris: #6b7280;
+  --borde: #e5e7eb;
+  --fondo: #f6f7f4;
+  --rojo: #b91c1c;
+  --azul: #1d4ed8;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #111827;
+  background: var(--fondo);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+h1, h2, h3, h4 {
+  margin: 0 0 0.6rem;
+}
+
+p {
+  margin: 0.3rem 0;
+}
+
+a {
+  color: var(--azul);
+}
+
+.suave {
+  color: var(--gris);
+}
+
+.ayuda {
+  color: var(--gris);
+  font-size: 0.85rem;
+}
+
+.cargando {
+  padding: 2rem;
+  color: var(--gris);
+  text-align: center;
+}
+
+/* ---------- Botones y formularios ---------- */
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  background: var(--verde);
+  color: white;
+  font-weight: 600;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.secundario {
+  background: white;
+  color: var(--verde-oscuro);
+  border: 1px solid var(--borde);
+}
+
+button.peligro {
+  background: white;
+  color: var(--rojo);
+  border: 1px solid #fecaca;
+}
+
+button.chico {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.fila {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.fila > label {
+  flex: 1;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+input, select {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: white;
+}
+
+input[type='range'] {
+  padding: 0;
+}
+
+/* ---------- Avisos y estados ---------- */
+
+.aviso {
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  margin: 0.6rem 0;
+}
+
+.aviso-error {
+  background: #fef2f2;
+  color: var(--rojo);
+  border: 1px solid #fecaca;
+}
+
+.aviso-ok {
+  background: var(--verde-claro);
+  color: var(--verde-oscuro);
+  border: 1px solid #bbf7d0;
+}
+
+.estado {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.estado-abierto, .estado-aceptada {
+  background: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.estado-completo, .estado-en_espera {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.estado-cancelado, .estado-rechazada, .estado-revocada {
+  background: #fee2e2;
+  color: var(--rojo);
+}
+
+/* ---------- Acceso ---------- */
+
+.acceso {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: linear-gradient(160deg, var(--verde-oscuro), var(--verde));
+}
+
+.acceso-tarjeta {
+  width: min(460px, 100%);
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgb(0 0 0 / 0.2);
+}
+
+.acceso-tarjeta .pestanas {
+  margin: 1rem 0;
+  padding: 0;
+  background: none;
+}
+
+/* ---------- Estructura ---------- */
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1.5rem;
+  background: var(--verde-oscuro);
+  color: white;
+}
+
+.encabezado .logo {
+  margin: 0;
+}
+
+.logo {
+  font-size: 1.6rem;
+}
+
+.perfil {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.pestanas {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.5rem 1.5rem 0;
+  background: white;
+  border-bottom: 1px solid var(--borde);
+  overflow-x: auto;
+}
+
+.pestana {
+  background: none;
+  color: var(--gris);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+.pestana.activa {
+  color: var(--verde-oscuro);
+  border-bottom-color: var(--verde);
+}
+
+.contador {
+  margin-left: 0.4rem;
+  background: var(--rojo);
+  color: white;
+  border-radius: 999px;
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+}
+
+.contenido {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.angosto {
+  max-width: 640px;
+}
+
+.titulo-con-accion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---------- Mapa ---------- */
+
+.mapa-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1rem;
+  height: calc(100vh - 170px);
+  min-height: 450px;
+}
+
+.panel {
+  background: white;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mapa {
+  height: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--borde);
+}
+
+.punto {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.punto-verde {
+  background: #22c55e;
+}
+
+.punto-gris {
+  background: #9ca3af;
+}
+
+.lista-cercanos {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lista-cercanos li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--borde);
+  padding-bottom: 0.5rem;
+}
+
+.popup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 200px;
+}
+
+/* ---------- Partidos ---------- */
+
+.filtros {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--verde-claro);
+  color: var(--verde-oscuro);
+  padding: 0.35rem 0.4rem 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.chip-cerrar {
+  padding: 0 0.45rem;
+  background: none;
+  color: var(--verde-oscuro);
+  font-size: 1.1rem;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.tarjeta {
+  background: white;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+}
+
+.tarjeta-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tipo {
+  background: var(--verde-oscuro);
+  color: white;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.boton-whatsapp {
+  background: #25d366;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+}
+
+.postulantes {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--borde);
+}
+
+th {
+  color: var(--gris);
+  font-weight: 500;
+}
+
+.acciones-fila {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* ---------- Notificaciones ---------- */
+
+.notificaciones {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.notificaciones li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+}
+
+.notificaciones li.nueva {
+  border-left: 4px solid var(--verde);
+  font-weight: 500;
+}
+
+.notificaciones li.leida {
+  opacity: 0.7;
+}
+
+@media (max-width: 800px) {
+  .mapa-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .mapa {
+    height: 60vh;
+  }
+
+  .fila {
+    flex-direction: column;
+  }
+}
+
+/* ---------- Votaciones ---------- */
+
+.sub-pestanas { padding: 0; background: none; margin-bottom: 1rem; }
+.votos { list-style: none; margin: 0; padding: 0; }
+.votos li { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; padding: 0.5rem 0; border-bottom: 1px solid var(--borde); }
+.votos li:last-child { border-bottom: none; }
+.votos-pendientes li { display: grid; grid-template-columns: minmax(10rem, 14rem) auto; justify-content: start; gap: 0.8rem; padding: 0.3rem 0; }
+@media (max-width: 600px) {
+  .votos-pendientes li { grid-template-columns: 1fr; gap: 0.3rem; }
+}
+.anulada { opacity: 0.6; text-decoration: line-through; }
+.reclamo-en-linea { width: 100%; }
+.selector-estrellas { display: flex; gap: 0.25rem; }
+button.estrella { padding: 0.25rem 0.5rem; background: white; color: #854d0e; border: 1px solid var(--borde); font-size: 0.85rem; }
+button.estrella.elegida { background: #fef9c3; border-color: #eab308; }
+button.estrella:focus-visible { outline: 2px solid var(--azul); outline-offset: 1px; }
+.estrellas-fijas { color: #ca8a04; letter-spacing: 0.1em; }
+.estado-pendiente { background: #fef9c3; color: #854d0e; }
+.estado-emitida { background: var(--verde-claro); color: var(--verde-oscuro); }
+.estado-anulada, .estado-no-show { background: #fee2e2; color: var(--rojo); }
+
+/* ---------- Reclamos y administración ---------- */
+
+textarea {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: white;
+  resize: vertical;
+}
+
+.formulario-reclamo {
+  margin-top: 0.6rem;
+}
+
+.fila-buscar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.subtitulo {
+  margin-top: 1.2rem;
+}
+
+.resolucion {
+  background: #f9fafb;
+  border-left: 3px solid var(--borde);
+  padding: 0.4rem 0.7rem;
+  margin-top: 0.6rem;
+}
+
+.estado-resuelto {
+  background: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.estado-rechazado {
+  background: #fee2e2;
+  color: var(--rojo);
+}
+
+label.casilla {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+button.enlace {
+  background: none;
+  color: var(--azul);
+  padding: 0;
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.admin-columnas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.sancion {
+  border-top: 1px solid var(--borde);
+  padding-top: 0.6rem;
+}
+
+@media (max-width: 800px) {
+  .admin-columnas {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Banner de deuda (RQ8) ---------- */
+
+/* Ámbar, como los estados pendientes: avisa sin bloquear. */
+.banner-deuda {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fef9c3;
+  color: #422006;
+  border: 1px solid #eab308;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  margin: 1rem 1.5rem 0;
+}
+
+/* Rojizo: con deuda de más de 3 partidos la cuenta queda bloqueada. */
+.banner-deuda.bloqueado {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: var(--rojo);
+}

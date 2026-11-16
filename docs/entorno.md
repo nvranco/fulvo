@@ -20,6 +20,7 @@ Guía para dejar la máquina lista y que el proyecto corra igual en cualquier co
 | Docker Desktop | **obligatorio**: los tests levantan PostgreSQL en un contenedor, y `docker compose` corre la API con PostgreSQL. Tiene que estar abierto (corriendo de fondo) | `winget install -e --id Docker.DockerDesktop` |
 | pipx | instalar Poetry aislado | ver abajo |
 | Poetry | dependencias y entorno | ver abajo |
+| Node.js 22.12 o más nuevo (opcional) | solo para el front de demo (`frontend/`, ver `frontend/README.md`); la API y los tests no lo necesitan. Vite 8 también acepta la 20, desde la 20.19 | `winget install OpenJS.NodeJS.LTS` |
 
 ## Pasos
 

@@ -159,11 +159,14 @@ fulvo/
 │   ├── carga_inicial.py       # roles, admin y complejos.csv (el CSV, solo en una base sin zonas)
 │   ├── datos/                 # complejos.csv: carga inicial, viaja con el código
 │   └── routes/                # un archivo por recurso (como la cátedra, aula 12)
-└── tests/
-    ├── conftest.py
-    ├── factories.py
-    └── test_*.py
+├── tests/
+│   ├── conftest.py
+│   ├── factories.py
+│   └── test_*.py
+└── frontend/                  # front de demo en React + Vite (ver abajo)
 ```
+
+`frontend/` es una herramienta para **mostrar el MVP** en la presentación, no un entregable ni un RQ: solo consume endpoints existentes y no justifica agregar endpoints nuevos. Usa React + Vite + react-leaflet. En desarrollo pasa por el proxy de Vite (`/api` → `http://127.0.0.1:8000`), así que no necesita `CORS_ORIGINS`; un front publicado en otra dirección sí (ver sección 11). Detalle y decisiones en `frontend/README.md`. Typos lo excluye (JavaScript en español). `frontend/sembrar_demo.py` carga datos de demo (un partido ya jugado con votaciones, un no-show y deuda) para mostrar RQ8 y RQ11; es lo único en Python dentro de `frontend/` y no se usa en los tests.
 
 Las lecciones 03 a 11 de la cátedra ponen todas las rutas en `app.py`; la división en `fast_zero/routes/` (con `app.include_router`) aparece en la lección 12 y en `codigo_aulas/13`. Acá se adoptó antes porque cada recurso (`complejos`, `zonas`) tiene su archivo y `app.py` no crece.
 
@@ -180,6 +183,8 @@ poetry test                    # lint + pytest con cobertura + reporte html
 alembic revision --autogenerate -m "descripción"   # crear migración
 alembic upgrade head           # aplicar migraciones
 docker compose up --build      # API + PostgreSQL en contenedores
+cd frontend && npm install && npm run dev   # front de demo en :5173 (con la API corriendo)
+poetry run python frontend/sembrar_demo.py   # datos de demo para RQ8 y RQ11 (después de carga_inicial)
 ```
 
 Antes de cada commit: `poetry format` y `poetry test` tienen que pasar.

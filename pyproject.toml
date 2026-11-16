@@ -114,6 +114,8 @@ extend-exclude = [
     # Salida generada por la skill graphify: no es código del proyecto y
     # repite textos en español (contraseña, etc.) que typos no entiende.
     'graphify-out',
+    # Front de demostración (JavaScript en español), no es parte de la API.
+    'frontend',
 ]
 
 [tool.poe]
