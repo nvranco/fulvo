@@ -5,6 +5,8 @@ import Estado from './Estado.jsx'
 // acciones que cada pantalla le agrega abajo (postularse, cancelar, etc.).
 export default function TarjetaPartido({ partido, children }) {
   const { complejo, organizador } = partido
+  // Singular o plural según los cupos: "Falta 1 jugador", "Faltan 2 jugadores".
+  const unSoloCupo = partido.cupos_faltantes === 1
   return (
     <article className="tarjeta">
       <div className="tarjeta-cabecera">
@@ -18,8 +20,9 @@ export default function TarjetaPartido({ partido, children }) {
         {complejo.localidad} ({complejo.zona})
       </p>
       <p>
-        Faltan <strong>{partido.cupos_faltantes}</strong> jugador
-        {partido.cupos_faltantes === 1 ? '' : 'es'} · Organiza{' '}
+        {unSoloCupo ? 'Falta' : 'Faltan'}{' '}
+        <strong>{partido.cupos_faltantes}</strong> jugador
+        {unSoloCupo ? '' : 'es'} · Organiza{' '}
         {organizador.nombre} ({textoPuntuacion(organizador.puntuacion_promedio)})
       </p>
       {children && <div className="acciones">{children}</div>}
