@@ -1,0 +1,22 @@
+{
+  "name": "fulvo-front",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Front de demostración del MVP de fulvo (consume la API FastAPI)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-leaflet": "^5.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.8"
+  }
+}
