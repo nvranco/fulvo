@@ -317,7 +317,7 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 - [ ] `README.md` con librerías, despliegue y pruebas (falta el deploy en Fly.io)
 - [x] Documentación: idea general, requerimientos funcionales y casos de uso (`docs/`)
 - [ ] Presentación con al menos 1 diagrama UML y explicación de patrones (el diagrama ya está en `docs/diagramas/clases.svg`)
-1- [ ] Repo compartido con `matuk` y `santiagoblaslaguzza`
+- [ ] Repo compartido con `matuk` y `santiagoblaslaguzza`
 
 ## 13. Reglas para Claude
 
