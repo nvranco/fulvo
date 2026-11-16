@@ -53,23 +53,40 @@ from fulvo.settings import Settings  # noqa: E402
 
 CONTRASENA_DEMO = 'demo1234'
 
-# Clave interna, email y datos de perfil de cada usuario de demo.
+# Clave interna, email y datos de perfil de cada usuario de demo. El
+# WhatsApp va en formato internacional (+54 9 11...), como sugiere el
+# formulario de registro: el front arma el enlace a wa.me con esos dígitos,
+# y sin el +549 WhatsApp lo tomaría como un número de otro país.
 USUARIOS_DEMO = {
     'org': (
         'org@demo.fulvo',
         'Martín',
         'Gómez',
-        '1155550001',
+        '+5491155550001',
         1990,
         'Arquero',
     ),
-    'ana': ('ana@demo.fulvo', 'Ana', 'Pérez', '1155550002', 1995, 'Defensora'),
-    'beto': ('beto@demo.fulvo', 'Beto', 'Ruiz', '1155550003', 1988, 'Volante'),
+    'ana': (
+        'ana@demo.fulvo',
+        'Ana',
+        'Pérez',
+        '+5491155550002',
+        1995,
+        'Defensora',
+    ),
+    'beto': (
+        'beto@demo.fulvo',
+        'Beto',
+        'Ruiz',
+        '+5491155550003',
+        1988,
+        'Volante',
+    ),
     'caro': (
         'caro@demo.fulvo',
         'Carolina',
         'López',
-        '1155550004',
+        '+5491155550004',
         1998,
         'Delantera',
     ),
