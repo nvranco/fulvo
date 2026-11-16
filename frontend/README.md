@@ -20,7 +20,7 @@ Interfaz web para **mostrar el MVP** en la presentación. No es un entregable de
 
 ## Cómo levantarlo
 
-Necesita [Node.js](https://nodejs.org/) 20 o más nuevo y la API corriendo.
+Necesita [Node.js](https://nodejs.org/) 22.12 o más nuevo (Vite 8 también acepta la 20, desde la 20.19) y la API corriendo. En Windows se instala con `winget install OpenJS.NodeJS.LTS`.
 
 ```bash
 # Terminal 1, en la raíz del repo: la API
