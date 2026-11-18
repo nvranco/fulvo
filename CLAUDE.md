@@ -81,7 +81,7 @@ Datos sensibles: el WhatsApp solo se expone entre organizador y aceptado mientra
 
 ## 4. Stack técnico
 
-Se sigue el stack de la cátedra, con **un desvío: SQLAlchemy síncrono** (ver subsección "Desvío" más abajo). Referencia: sitio https://rmatuk.github.io/prog2 y repo https://github.com/rmatuk/prog2. Ante cualquier duda de cómo hacer algo, mirar primero ahí, pero tomando como referencia de base de datos, rutas y tests la carpeta `codigo_aulas/07` (sync) y no la 13 (async). Para Docker, CI, factories y testcontainers sirven `codigo_aulas/11` y `12`, traducidos a sync.
+Se sigue el stack de la cátedra, con **dos desvíos: SQLAlchemy síncrono** (ver subsección "Desvío" más abajo) y **el deploy en Render en vez de Fly.io** (ver "Deploy" en la sección 10). Referencia: sitio https://rmatuk.github.io/prog2 y repo https://github.com/rmatuk/prog2. Ante cualquier duda de cómo hacer algo, mirar primero ahí, pero tomando como referencia de base de datos, rutas y tests la carpeta `codigo_aulas/07` (sync) y no la 13 (async). Para Docker, CI, factories y testcontainers sirven `codigo_aulas/11` y `12`, traducidos a sync.
 
 | Rol | Herramienta |
 |---|---|
@@ -100,7 +100,7 @@ Se sigue el stack de la cátedra, con **un desvío: SQLAlchemy síncrono** (ver 
 | Ejecutor de tareas | `poethepoet` (plugin de Poetry) |
 | Contenedores | Docker y `compose.yaml` |
 | CI | GitHub Actions |
-| Deploy | Fly.io (`fly.toml`), como la cátedra |
+| Deploy | Render (`render.yaml`), plan gratis para la API y la base. La cátedra usa Fly.io (ver sección 10) |
 
 Python: **3.13**, una sola versión en todos lados (`.python-version`, `requires-python = ">=3.13,<4.0"` en `pyproject.toml`, `Dockerfile` y workflow de CI). Decidido porque ya estaba instalada en las máquinas del grupo y evita diferencias entre local, contenedor y CI (la cátedra usa 3.12 en CI y 3.14 en Docker).
 
@@ -139,7 +139,7 @@ fulvo/
 ├── Dockerfile
 ├── compose.yaml
 ├── entrypoint.sh              # alembic upgrade head + carga inicial + uvicorn
-├── fly.toml
+├── render.yaml                # deploy en Render: la API y la base PostgreSQL
 ├── .env                       # NO se commitea (usar .env.example)
 ├── .github/workflows/pipeline.yaml
 ├── docs/
@@ -287,8 +287,23 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 
 ### Deploy
 
-- Fly.io con `fly.toml`, siguiendo la lección de la cátedra. `entrypoint.sh` corre las migraciones y la carga inicial antes de iniciar la API.
-- **Va después del front** (decisión del 2026-11-14): primero se termina el front, con los ajustes que necesite de la API, y recién después se arma el `fly.toml` y se publica.
+- **Render** con `render.yaml` (un Blueprint), en el plan gratis. La API está en https://fulvo-api.onrender.com (documentación en `/docs`). `entrypoint.sh` corre las migraciones y la carga inicial antes de iniciar la API, igual que con Docker local.
+- **Desvío de la cátedra** (decisión del 2026-11-18): la cátedra usa Fly.io, pero Fly ya no tiene plan gratis. En una cuenta sin tarjeta apaga cada máquina a los 5 minutos, y no acepta tarjetas prepagas. El primer intento falló por eso: la base se apagó y las migraciones no pudieron conectarse. Render tiene plan gratis para la API y para PostgreSQL. El `Dockerfile` y `entrypoint.sh` son los mismos: Render construye la misma imagen que `compose.yaml`.
+- `render.yaml` crea dos recursos, los dos en la región `virginia`, porque Render no tiene región en Sudamérica:
+  - `fulvo-db`: PostgreSQL 16, la misma versión de los tests y de `compose.yaml`. No acepta conexiones desde afuera de Render (`ipAllowList` vacía).
+  - `fulvo-api`: Docker, 512 MB y una sola instancia. Los 512 MB alcanzan para argon2, que usa 64 MiB por login. Con una sola instancia las migraciones corren una vez. El health check es `GET /`.
+- `PORT=8000` en `render.yaml`: Render espera la app en el 10000 salvo que se defina `PORT`. Así coincide con el puerto de uvicorn sin tocar `entrypoint.sh`.
+- Secretos: ninguno está en el repositorio.
+  - `SECRET_KEY` la genera Render al azar (`generateValue`).
+  - `ADMIN_EMAIL` y `ADMIN_PASSWORD` se cargan en la web (`sync: false`).
+  - **`DATABASE_URL` se carga a mano** en *Environment* del servicio. Se toma la *Internal Database URL* de `fulvo-db` y se cambia el prefijo `postgresql://` por `postgresql+psycopg://`. Con `postgresql://`, SQLAlchemy busca el driver `psycopg2`, que no está instalado, y la API no arranca. No va en `render.yaml` porque la URL no existe hasta que Render crea la base.
+- Proxy: uvicorn corre con `--proxy-headers --forwarded-allow-ips='*'`. El HTTPS lo atiende el proxy de Render, que avisa en `X-Forwarded-Proto` que el pedido original era HTTPS. Sin esas opciones, las redirecciones salen con `http://`.
+- Límites del plan gratis:
+  - El servicio se duerme a los 15 minutos sin tráfico, y el pedido que lo despierta tarda cerca de un minuto. Antes de mostrarlo, hay que abrir `/docs` un rato antes.
+  - Con 0,1 CPU, el login tarda unos segundos por argon2.
+  - La base vence a los 30 días de creada (se creó el 2026-11-18).
+- El Blueprint sigue la rama `feat/deploy-render`, y cada push a esa rama vuelve a desplegar. Después del merge hay que cambiarlo a `main`, en el Blueprint, en *Settings*. La carga inicial no duplica nada en un redeploy.
+- Se hizo después del front (decisión del 2026-11-14): primero se terminó el front, con los ajustes que necesitaba de la API, y recién después se publicó.
 
 ## 11. Seguridad y configuración
 
@@ -313,8 +328,8 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 - [x] 10 o más tests unitarios pasando
 - [x] GitHub Action corriendo los tests
 - [x] `Dockerfile` y `compose.yaml`
-- [ ] Deploy publicado
-- [ ] `README.md` con librerías, despliegue y pruebas (falta el deploy en Fly.io)
+- [x] Deploy publicado (Render: https://fulvo-api.onrender.com)
+- [x] `README.md` con librerías, despliegue y pruebas
 - [x] Documentación: idea general, requerimientos funcionales y casos de uso (`docs/`)
 - [ ] Presentación con al menos 1 diagrama UML y explicación de patrones (el diagrama ya está en `docs/diagramas/clases.svg`)
 - [ ] Repo compartido con `matuk` y `santiagoblaslaguzza`
