@@ -10,6 +10,8 @@ Aplicación para completar equipos de fútbol.
 
 Proyecto final de la materia **Programación II** de la **Licenciatura en Ciencia de Datos** de la **UNSAM**.
 
+**API publicada:** https://fulvo-api.onrender.com, con la documentación interactiva en https://fulvo-api.onrender.com/docs. Está en el plan gratis de Render: si nadie la usó en los últimos 15 minutos, el primer pedido tarda cerca de un minuto mientras arranca. Ver [Deploy en Render](#deploy-en-render).
+
 ## Secuencia
 
 1. Los usuarios **se registran** en el sistema.
@@ -45,7 +47,7 @@ Se usa el stack de la cátedra:
 - **Poetry** y **poethepoet** para dependencias y tareas
 - **Docker** y **Docker Compose**
 - **GitHub Actions** para la integración continua
-- **Fly.io** para el deploy
+- **Render** para el deploy (la cátedra usa Fly.io; el porqué del cambio está en [Deploy en Render](#deploy-en-render))
 
 ## Librerías
 
@@ -126,15 +128,53 @@ docker compose up --build
 - `docker compose down` apaga los contenedores y conserva la base; `docker compose down -v` también la borra.
 - La imagen instala exactamente las versiones de `poetry.lock`, así corre lo mismo que se testea. Se arma en dos etapas: Poetry instala las dependencias en la primera, y la imagen final copia solo ese entorno, sin Poetry (ver los comentarios del `Dockerfile`).
 
+## Deploy en Render
+
+La API está publicada en **https://fulvo-api.onrender.com** (documentación en [`/docs`](https://fulvo-api.onrender.com/docs)), con una base PostgreSQL 16 de Render.
+
+**Por qué Render y no Fly.io**, que es lo que usa la cátedra: Fly.io ya no tiene plan gratis. En una cuenta sin tarjeta apaga cada máquina a los 5 minutos, y no acepta tarjetas prepagas. Render tiene plan gratis para la API y para la base. La imagen es la misma que la de `docker compose`: Render la construye con el mismo `Dockerfile` y arranca con el mismo `entrypoint.sh`.
+
+[`render.yaml`](render.yaml) describe los dos recursos. Render lo lee del repositorio y los crea:
+
+- **`fulvo-db`**: PostgreSQL 16, plan gratis. No acepta conexiones desde afuera de Render; la API la usa por la red interna.
+- **`fulvo-api`**: la API en Docker, plan gratis (512 MB y una sola instancia). Al arrancar aplica las migraciones y la carga inicial. Render la da por viva cuando `GET /` responde.
+
+### Cómo desplegarla desde cero
+
+1. Entrar a https://render.com con la cuenta de GitHub. El plan gratis no pide tarjeta.
+2. **New** → **Blueprint** → elegir este repositorio y la rama a desplegar. Render lee `render.yaml` y muestra los dos recursos.
+3. Completar los valores que pide:
+   - `ADMIN_EMAIL` y `ADMIN_PASSWORD`, el admin que crea la carga inicial.
+   - `SECRET_KEY` no hace falta: Render la genera al azar.
+4. **Apply**. El primer arranque de la API todavía no tiene base: usa SQLite, el valor por defecto, y se descarta en el paso siguiente.
+5. Cuando `fulvo-db` diga *Available*:
+   1. Ir a **Connect** → **Internal** y copiar la *Internal Database URL*.
+   2. Cambiarle el prefijo `postgresql://` por **`postgresql+psycopg://`**, que nombra el driver (`psycopg`) igual que la URL de `compose.yaml`. Con `postgresql://` la API también arranca, porque SQLAlchemy 2.1 usa psycopg por defecto, pero así queda explícito. La que no anda es `postgres://` (sin "ql"), el formato de Fly.io y Heroku: SQLAlchemy no la reconoce.
+   3. En `fulvo-api` → **Environment**, agregar la variable `DATABASE_URL` con esa URL.
+   4. **Save, rebuild, and deploy**.
+6. En **Logs** tienen que aparecer:
+   - las migraciones de Alembic;
+   - `Roles creados: 2.`
+   - `Zonas creadas: 8. Complejos creados: 51.`
+   - `Admin: creado.`
+   - `Your service is live`.
+
+Cada push a la rama del Blueprint vuelve a desplegar la API. Un redeploy no duplica datos: las migraciones ya aplicadas no se repiten y la carga inicial solo crea lo que falta.
+
+**Límites del plan gratis:**
+- La API se duerme a los 15 minutos sin tráfico, y el pedido que la despierta tarda cerca de un minuto.
+- Tiene 0,1 CPU, así que el login tarda unos segundos: argon2 es lento a propósito.
+- La base gratis vence a los 30 días de creada.
+
 ## Probar la API
 
 ### Desde el navegador
 
-Con la API levantada (con Poetry o con Docker), http://127.0.0.1:8000/docs muestra todos los endpoints y permite probarlos. Para los que piden sesión, el botón **Authorize** pide el email en `username` y la contraseña en `password` (`client_id` y `client_secret` quedan vacíos). Con el admin del `.env` se prueban también las rutas de administración.
+Con la API levantada (con Poetry o con Docker), http://127.0.0.1:8000/docs muestra todos los endpoints y permite probarlos. Sin instalar nada, lo mismo está en la API publicada: https://fulvo-api.onrender.com/docs. Para los que piden sesión, el botón **Authorize** pide el email en `username` y la contraseña en `password` (`client_id` y `client_secret` quedan vacíos). Con el admin del `.env` se prueban también las rutas de administración.
 
 ### Un recorrido con curl
 
-Prueba la idea del MVP de punta a punta: Ana publica un partido, Beto se postula, Ana lo acepta y los dos se ven el WhatsApp. Los comandos son para bash (en Windows, Git Bash) y usan Python para leer el token del login. Sobre una base recién creada, el partido y la postulación tienen id 1; si no, hay que usar el `id` que devuelve cada respuesta.
+Prueba la idea del MVP de punta a punta: Ana publica un partido, Beto se postula, Ana lo acepta y los dos se ven el WhatsApp. Los comandos son para bash (en Windows, Git Bash) y usan Python para leer el token del login. Sobre una base recién creada, el partido y la postulación tienen id 1; si no, hay que usar el `id` que devuelve cada respuesta. Contra la API publicada, el recorrido es el mismo con `API=https://fulvo-api.onrender.com`. Ojo: ahí los datos quedan guardados, así que el segundo intento de registrar a Ana da 409.
 
 ```bash
 API=http://127.0.0.1:8000

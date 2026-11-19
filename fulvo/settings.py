@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     """Configuración de la app, leída de variables de entorno o de `.env`.
 
     Orden de prioridad: variable de entorno, luego `.env`, luego el valor
-    por defecto. Así cada entorno (local, contenedor, CI, Fly.io) define sus
+    por defecto. Así cada entorno (local, contenedor, CI, Render) define sus
     valores desde afuera y el código no cambia.
     """
 
@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     # Con valor por defecto para que la app y los tests anden sin `.env`.
     # Ojo en producción: si falta DATABASE_URL no hay error, se crea un
     # SQLite dentro del contenedor y los datos se pierden al redesplegar.
-    # Por eso compose.yaml y los secrets de Fly la definen siempre.
+    # Por eso compose.yaml la define siempre, y en Render se carga apenas
+    # existe la base (ver la sección 10 de CLAUDE.md).
     DATABASE_URL: str = 'sqlite:///fulvo.db'
 
     # Clave con la que se firman los tokens JWT. Va sin valor por defecto a

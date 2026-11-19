@@ -27,3 +27,9 @@ tests/
 docs/
 .github/
 *.docx
+
+# El front de demo no va en la imagen de la API. Después de `npm install`,
+# frontend/node_modules pesa cientos de MB, y `docker compose build` copia
+# todo el contexto del build antes de empezar.
+frontend/
+.vscode/

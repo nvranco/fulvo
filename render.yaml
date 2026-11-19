@@ -1,0 +1,60 @@
+# Configuración del deploy en Render (Blueprint). Render lee este archivo
+# desde el repositorio de GitHub y crea los dos recursos: la base PostgreSQL
+# y el servicio web con la API. Es el equivalente de compose.yaml en la nube.
+#
+# Usamos Render y no Fly.io (el de la cátedra) porque Fly ya no tiene plan
+# gratis y no acepta tarjetas prepagas; Render tiene plan gratis para la API
+# y para la base.
+#
+# Los secretos NO van acá, porque este archivo se commitea: los que tienen
+# `sync: false` se cargan a mano en la web de Render.
+
+databases:
+  - name: fulvo-db
+    # Plan gratis: 1 GB y vence a los 30 días de creada.
+    plan: free
+    # La misma región que la API, para que se hablen por la red interna.
+    region: virginia
+    databaseName: fulvo
+    user: fulvo
+    # La misma versión que compose.yaml y los tests (testcontainers).
+    postgresMajorVersion: '16'
+    # Lista vacía: nadie se conecta desde afuera de Render. La API usa la
+    # dirección interna, así que la base no queda expuesta a internet.
+    ipAllowList: []
+
+services:
+  - type: web
+    name: fulvo-api
+    # Construye la imagen con el Dockerfile de la raíz, el mismo de
+    # compose.yaml. Al arrancar corre entrypoint.sh: migraciones, carga
+    # inicial y uvicorn.
+    runtime: docker
+    # Plan gratis: 512 MB, que alcanzan para argon2 (64 MiB por login), y una
+    # sola instancia, así las migraciones de entrypoint.sh corren una vez. Sin
+    # tráfico se duerme a los 15 minutos, y el pedido que la despierta tarda.
+    plan: free
+    # No hay región en Sudamérica; Virginia es de las más cercanas.
+    region: virginia
+    # Render pide `/` para saber si la API está viva antes de pasarle tráfico.
+    healthCheckPath: /
+    envVars:
+      # Render espera la app en el puerto 10000 salvo que se defina PORT.
+      # Con 8000 coincide con el que usa uvicorn en entrypoint.sh.
+      - key: PORT
+        value: '8000'
+      # Render genera una clave al azar de 256 bits la primera vez: nadie
+      # la ve ni la copia, y no cambia en los deploys siguientes.
+      - key: SECRET_KEY
+        generateValue: true
+      # Las credenciales del primer admin las pide Render al crear el
+      # Blueprint; carga_inicial lo crea en el primer arranque.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # DATABASE_URL no está acá: se carga a mano en la web cuando la base ya
+      # existe, con la URL interna de fulvo-db y el prefijo
+      # `postgresql+psycopg://`, que nombra el driver como en compose.yaml.
+      # Render la da como `postgresql://...`, que con SQLAlchemy 2.1 también
+      # usa psycopg; la que falla es `postgres://`, el formato de Fly.io.

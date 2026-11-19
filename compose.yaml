@@ -12,7 +12,7 @@ services:
     environment:
       # Credenciales de la base local de desarrollo, como en la cátedra. No
       # son secretas: la base no se publica (no hay `ports`) y solo la ve la
-      # app dentro de la red de Compose. Producción (Fly.io) usa las suyas.
+      # app dentro de la red de Compose. Producción (Render) usa las suyas.
       POSTGRES_USER: fulvo
       POSTGRES_PASSWORD: fulvo
       POSTGRES_DB: fulvo
