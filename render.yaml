@@ -53,7 +53,8 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      # DATABASE_URL no está acá: se carga a mano cuando la base ya existe.
-      # Render la da como `postgresql://...`, y SQLAlchemy necesita
-      # `postgresql+psycopg://...` para usar el driver psycopg que instalamos
-      # (con `postgresql://` busca psycopg2, que no está, y no arranca).
+      # DATABASE_URL no está acá: se carga a mano en la web cuando la base ya
+      # existe, con la URL interna de fulvo-db y el prefijo
+      # `postgresql+psycopg://`, que nombra el driver como en compose.yaml.
+      # Render la da como `postgresql://...`, que con SQLAlchemy 2.1 también
+      # usa psycopg; la que falla es `postgres://`, el formato de Fly.io.

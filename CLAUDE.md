@@ -296,7 +296,7 @@ Los reclamos (RQ11) también usan los dos patrones sin cambiarlos. Anular un no-
 - Secretos: ninguno está en el repositorio.
   - `SECRET_KEY` la genera Render al azar (`generateValue`).
   - `ADMIN_EMAIL` y `ADMIN_PASSWORD` se cargan en la web (`sync: false`).
-  - **`DATABASE_URL` se carga a mano** en *Environment* del servicio. Se toma la *Internal Database URL* de `fulvo-db` y se cambia el prefijo `postgresql://` por `postgresql+psycopg://`. Con `postgresql://`, SQLAlchemy busca el driver `psycopg2`, que no está instalado, y la API no arranca. No va en `render.yaml` porque la URL no existe hasta que Render crea la base.
+  - **`DATABASE_URL` se carga a mano** en *Environment* del servicio. Se toma la *Internal Database URL* de `fulvo-db` y se cambia el prefijo `postgresql://` por `postgresql+psycopg://`, que nombra el driver como la URL de `compose.yaml` (ver sección 4). `postgresql://` también funciona, porque SQLAlchemy 2.1 usa psycopg (versión 3) por defecto; la que falla es `postgres://`, el formato de Fly.io y Heroku. Se carga a mano para escribirle ese prefijo: `render.yaml` podría tomarla de la base con `fromDatabase`, pero la pasaría tal cual la da Render.
 - Proxy: uvicorn corre con `--proxy-headers --forwarded-allow-ips='*'`. El HTTPS lo atiende el proxy de Render, que avisa en `X-Forwarded-Proto` que el pedido original era HTTPS. Sin esas opciones, las redirecciones salen con `http://`.
 - Límites del plan gratis:
   - El servicio se duerme a los 15 minutos sin tráfico, y el pedido que lo despierta tarda cerca de un minuto. Antes de mostrarlo, hay que abrir `/docs` un rato antes.

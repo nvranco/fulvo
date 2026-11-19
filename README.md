@@ -149,7 +149,7 @@ La API está publicada en **https://fulvo-api.onrender.com** (documentación en 
 4. **Apply**. El primer arranque de la API todavía no tiene base: usa SQLite, el valor por defecto, y se descarta en el paso siguiente.
 5. Cuando `fulvo-db` diga *Available*:
    1. Ir a **Connect** → **Internal** y copiar la *Internal Database URL*.
-   2. Cambiarle el prefijo `postgresql://` por **`postgresql+psycopg://`**. Con `postgresql://`, SQLAlchemy busca el driver `psycopg2`, que no está instalado (el proyecto usa `psycopg`), y la API no arranca.
+   2. Cambiarle el prefijo `postgresql://` por **`postgresql+psycopg://`**, que nombra el driver (`psycopg`) igual que la URL de `compose.yaml`. Con `postgresql://` la API también arranca, porque SQLAlchemy 2.1 usa psycopg por defecto, pero así queda explícito. La que no anda es `postgres://` (sin "ql"), el formato de Fly.io y Heroku: SQLAlchemy no la reconoce.
    3. En `fulvo-api` → **Environment**, agregar la variable `DATABASE_URL` con esa URL.
    4. **Save, rebuild, and deploy**.
 6. En **Logs** tienen que aparecer:
